@@ -68,6 +68,13 @@ export const asyncRouterMap = [
         component: () => import('@/views/broker-accounts'),
         meta: { title: 'menu.dashboard.brokerAccounts', keepAlive: true, icon: 'bank', permission: ['dashboard'] }
       },
+      // Factor mining.
+      {
+        path: '/factor-mining',
+        name: 'FactorMining',
+        component: () => import('@/views/factor-mining'),
+        meta: { title: 'menu.dashboard.factorMining', keepAlive: false, icon: 'experiment', permission: ['dashboard'] }
+      },
       // Legacy chart route.
       {
         path: '/indicator-analysis',
