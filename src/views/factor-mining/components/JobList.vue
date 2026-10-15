@@ -122,12 +122,8 @@
           type="error"
           show-icon
           style="margin-top: 16px"
-          :message="errorHeadline(detail.error)"
-        >
-          <template slot="description">
-            <pre class="fm-trace">{{ detail.error }}</pre>
-          </template>
-        </a-alert>
+          :message="message(detail.error)"
+        />
       </div>
     </a-modal>
   </div>
@@ -223,16 +219,6 @@ export default {
       const text = this.$t(key)
       return text === key ? key : text
     },
-    errorHeadline (error) {
-      // The job store persists `str(exception)`, so a failed run reads as the i18n key the
-      // service raised followed by a full traceback -- not as a bare key. Translate the leading
-      // token when the bundle knows it, and leave the verbatim text to the description: it is
-      // what a developer needs, and it is the one thing here a reader cannot reconstruct.
-      const raw = String(error || '').trim()
-      const head = raw.split(/\s+/)[0] || ''
-      const text = this.$t(head)
-      return text === head ? raw.split('\n')[0] : text
-    },
     percentOf (record) {
       const progress = record.progress || {}
       const total = Number(progress.total)
@@ -318,16 +304,6 @@ export default {
 
 .fm-mono {
   font-family: monospace;
-  word-break: break-all;
-}
-
-.fm-trace {
-  margin: 0;
-  max-height: 220px;
-  overflow: auto;
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
   word-break: break-all;
 }
 </style>
