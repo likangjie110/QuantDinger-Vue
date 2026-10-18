@@ -273,7 +273,10 @@ export default {
       this.searchModeOpen = Boolean(open)
       const root = this.$refs.searchModeSelect && this.$refs.searchModeSelect.$el
       const combobox = root && root.querySelector('[role="combobox"]')
-      if (combobox) combobox.setAttribute('aria-expanded', open ? 'true' : 'false')
+      if (combobox) {
+        combobox.setAttribute('aria-expanded', open ? 'true' : 'false')
+        combobox.setAttribute('aria-label', this.$t('factorMining.submit.searchMode'))
+      }
     },
     aiIntegerRule (bounds, messageKey) {
       // The bounds are the service's own; a non-AI run never reads these fields, so the rule
