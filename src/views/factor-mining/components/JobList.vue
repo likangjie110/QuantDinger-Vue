@@ -75,7 +75,7 @@
       </a-alert>
 
       <div v-else-if="detail">
-        <a-descriptions :column="2" bordered size="small">
+        <a-descriptions :column="detailColumns" bordered size="small">
           <a-descriptions-item :label="$t('factorMining.jobs.jobId')">
             {{ detail.jobId }}
           </a-descriptions-item>
@@ -88,7 +88,7 @@
           <a-descriptions-item :label="$t('factorMining.jobs.timeframe')">
             {{ detail.config.timeframe || '-' }}
           </a-descriptions-item>
-          <a-descriptions-item :label="$t('factorMining.jobs.window')" :span="2">
+          <a-descriptions-item :label="$t('factorMining.jobs.window')" :span="isNarrow ? 1 : 2">
             {{ detail.config.startDate }} ~ {{ detail.config.endDate }}
           </a-descriptions-item>
           <a-descriptions-item :label="$t('factorMining.jobs.budget')">
@@ -107,7 +107,7 @@
 
         <template v-if="detail.result && detail.result.summary">
           <a-divider>{{ $t('factorMining.jobs.result') }}</a-divider>
-          <a-descriptions :column="3" bordered size="small">
+          <a-descriptions :column="summaryColumns" bordered size="small">
             <a-descriptions-item :label="$t('factorMining.jobs.trials')">
               {{ detail.result.summary.trials }}
             </a-descriptions-item>
@@ -117,13 +117,13 @@
             <a-descriptions-item :label="$t('factorMining.jobs.frozen')">
               {{ detail.result.summary.frozen }}
             </a-descriptions-item>
-            <a-descriptions-item :label="$t('factorMining.jobs.snapshotId')" :span="3">
+            <a-descriptions-item :label="$t('factorMining.jobs.snapshotId')" :span="summarySpan">
               <span class="fm-mono">{{ detail.result.summary.snapshotId }}</span>
             </a-descriptions-item>
-            <a-descriptions-item :label="$t('factorMining.jobs.searchWindow')" :span="3">
+            <a-descriptions-item :label="$t('factorMining.jobs.searchWindow')" :span="summarySpan">
               {{ windowText(detail.result.split, 'searchStart', 'searchEnd') }}
             </a-descriptions-item>
-            <a-descriptions-item :label="$t('factorMining.jobs.frozenWindow')" :span="3">
+            <a-descriptions-item :label="$t('factorMining.jobs.frozenWindow')" :span="summarySpan">
               {{ windowText(detail.result.split, 'freezeStart', 'freezeEnd') }}
             </a-descriptions-item>
           </a-descriptions>
@@ -131,7 +131,7 @@
 
         <template v-if="aiSummary">
           <a-divider>{{ $t('factorMining.ai.summary') }}</a-divider>
-          <a-descriptions :column="3" bordered size="small">
+          <a-descriptions :column="summaryColumns" bordered size="small">
             <a-descriptions-item :label="$t('factorMining.ai.rounds')">
               {{ aiSummary.rounds }}
             </a-descriptions-item>
@@ -153,7 +153,7 @@
             <a-descriptions-item
               v-if="aiSummary.replayOf"
               :label="$t('factorMining.ai.replayOf')"
-              :span="2"
+              :span="isNarrow ? 1 : 2"
             >
               <span class="fm-mono">{{ aiSummary.replayOf }}</span>
             </a-descriptions-item>
@@ -161,7 +161,7 @@
               v-if="aiSummary.replayOf"
               :label="$t('factorMining.ai.snapshotChanged')"
             >
-              <a-tag :color="aiSummary.snapshotChanged ? 'warning' : 'default'">
+              <a-tag :color="aiSummary.snapshotChanged ? 'orange' : ''">
                 {{ aiSummary.snapshotChanged ? $t('common.yes') : $t('common.no') }}
               </a-tag>
             </a-descriptions-item>
@@ -239,6 +239,7 @@ export default {
       proposals: [],
       proposalsLoading: false,
       proposalsError: '',
+      isNarrow: false,
       timer: null
     }
   },
@@ -285,6 +286,17 @@ export default {
       const result = this.detail && this.detail.result
       return (result && result.summary && result.summary.ai) || null
     },
+    // The descriptions tables are fixed-column; one column at the 768px breakpoint keeps the
+    // labels and long values from widening the modal body past the viewport.
+    detailColumns () {
+      return this.isNarrow ? 1 : 2
+    },
+    summaryColumns () {
+      return this.isNarrow ? 1 : 3
+    },
+    summarySpan () {
+      return this.isNarrow ? 1 : 3
+    },
     // Proposals belong to AI runs only; `config.searchMode` also answers while the job is still
     // running and the result -- and with it the AI summary -- does not exist yet.
     isAiJob () {
@@ -322,6 +334,8 @@ export default {
     }
   },
   mounted () {
+    this.updateViewport()
+    window.addEventListener('resize', this.updateViewport)
     this.loadJobs()
     this.timer = setInterval(() => {
       if (this.jobs.some(job => ACTIVE.includes(job.status))) this.loadJobs()
@@ -329,8 +343,12 @@ export default {
   },
   beforeDestroy () {
     if (this.timer) clearInterval(this.timer)
+    window.removeEventListener('resize', this.updateViewport)
   },
   methods: {
+    updateViewport () {
+      this.isNarrow = window.innerWidth <= 768
+    },
     isActive (status) {
       return ACTIVE.includes(status)
     },
@@ -340,13 +358,15 @@ export default {
       return text === key ? status : text
     },
     statusColor (status) {
+      // Only the component's preset colors render their own text color; a status word such as
+      // `success` would be taken as a raw CSS color and leave the label white on white.
       return {
-        queued: 'default',
-        running: 'processing',
-        succeeded: 'success',
-        failed: 'error',
-        cancelled: 'warning'
-      }[status] || 'default'
+        queued: '',
+        running: 'blue',
+        succeeded: 'green',
+        failed: 'red',
+        cancelled: 'orange'
+      }[status] || ''
     },
     message (key) {
       const text = this.$t(key)
@@ -366,10 +386,10 @@ export default {
     proposalStatusColor (status) {
       return {
         proposed: 'blue',
-        evaluated: 'success',
-        l1_rejected: 'error',
-        duplicate: 'warning'
-      }[status] || 'default'
+        evaluated: 'green',
+        l1_rejected: 'red',
+        duplicate: 'orange'
+      }[status] || ''
     },
     // A rejection reason is a backend key, sometimes parameterised (`...invalid:<detail>`); the
     // prefix is the documented, translatable part.
@@ -445,7 +465,9 @@ export default {
       this.proposalsLoading = true
       this.proposalsError = ''
       try {
-        const res = await getJobProposals(jobId)
+        // One AI run records at most 3 x 20 proposals; the endpoint's own cap is 200, so one page
+        // holds the whole record and the table cannot silently drop the last rounds.
+        const res = await getJobProposals(jobId, { limit: 200 })
         if (res.code !== 1) {
           this.proposalsError = this.message(res.msg)
           return

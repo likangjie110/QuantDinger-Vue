@@ -8,8 +8,18 @@
         :label-col="{ span: 7 }"
         :wrapper-col="{ span: 14 }"
       >
-        <a-form-model-item :label="$t('factorMining.submit.searchMode')" prop="searchMode">
-          <a-select v-model="form.searchMode" @change="estimate = null">
+        <a-form-model-item
+          :label="$t('factorMining.submit.searchMode')"
+          prop="searchMode"
+          html-for="fm-search-mode"
+        >
+          <a-select
+            id="fm-search-mode"
+            ref="searchModeSelect"
+            v-model="form.searchMode"
+            @change="estimate = null"
+            @dropdownVisibleChange="syncSearchModeAria"
+          >
             <a-select-option value="enumeration">
               {{ $t('factorMining.submit.modeEnumeration') }}
             </a-select-option>
@@ -20,8 +30,13 @@
         </a-form-model-item>
 
         <template v-if="form.searchMode === 'ai'">
-          <a-form-model-item :label="$t('factorMining.submit.aiRounds')" prop="aiRounds">
+          <a-form-model-item
+            :label="$t('factorMining.submit.aiRounds')"
+            prop="aiRounds"
+            html-for="fm-ai-rounds"
+          >
             <a-input-number
+              id="fm-ai-rounds"
               v-model="form.aiRounds"
               :min="1"
               :max="3"
@@ -33,8 +48,10 @@
           <a-form-model-item
             :label="$t('factorMining.submit.aiProposalsPerRound')"
             prop="aiProposalsPerRound"
+            html-for="fm-ai-proposals-per-round"
           >
             <a-input-number
+              id="fm-ai-proposals-per-round"
               v-model="form.aiProposalsPerRound"
               :min="1"
               :max="20"
@@ -43,8 +60,13 @@
             />
           </a-form-model-item>
 
-          <a-form-model-item :label="$t('factorMining.submit.researchNotes')" prop="researchNotes">
+          <a-form-model-item
+            :label="$t('factorMining.submit.researchNotes')"
+            prop="researchNotes"
+            html-for="fm-research-notes"
+          >
             <a-textarea
+              id="fm-research-notes"
               v-model="form.researchNotes"
               :maxlength="8000"
               :rows="4"
@@ -233,10 +255,26 @@ export default {
       },
       estimating: false,
       submitting: false,
-      estimate: null
+      estimate: null,
+      searchModeOpen: false
     }
   },
+  mounted () {
+    this.syncSearchModeAria(false)
+  },
+  updated () {
+    // Vue replaces the select's inner nodes on re-render, dropping an attribute it does not own.
+    this.syncSearchModeAria(this.searchModeOpen)
+  },
   methods: {
+    // ant-design-vue 1.7 renders `role="combobox"` without the required `aria-expanded`, and it
+    // offers no prop for it. Keep the attribute in sync so the control is announced correctly.
+    syncSearchModeAria (open) {
+      this.searchModeOpen = Boolean(open)
+      const root = this.$refs.searchModeSelect && this.$refs.searchModeSelect.$el
+      const combobox = root && root.querySelector('[role="combobox"]')
+      if (combobox) combobox.setAttribute('aria-expanded', open ? 'true' : 'false')
+    },
     aiIntegerRule (bounds, messageKey) {
       // The bounds are the service's own; a non-AI run never reads these fields, so the rule
       // stays out of the way while the form still holds their defaults.
