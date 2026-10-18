@@ -59,10 +59,22 @@
     <a-modal
       v-model="detailVisible"
       :title="$t('factorMining.jobs.detail')"
-      :width="860"
+      :width="'min(860px, calc(100vw - 32px))'"
       :footer="null"
     >
-      <div v-if="detail">
+      <div v-if="detailLoading" class="fm-detail-state">
+        <a-spin />
+      </div>
+
+      <a-alert v-else-if="detailError" type="error" show-icon :message="detailError">
+        <template slot="description">
+          <a-button size="small" @click="loadDetail(currentJobId)">
+            {{ $t('factorMining.proposals.retry') }}
+          </a-button>
+        </template>
+      </a-alert>
+
+      <div v-else-if="detail">
         <a-descriptions :column="2" bordered size="small">
           <a-descriptions-item :label="$t('factorMining.jobs.jobId')">
             {{ detail.jobId }}
@@ -117,6 +129,45 @@
           </a-descriptions>
         </template>
 
+        <template v-if="aiSummary">
+          <a-divider>{{ $t('factorMining.ai.summary') }}</a-divider>
+          <a-descriptions :column="3" bordered size="small">
+            <a-descriptions-item :label="$t('factorMining.ai.rounds')">
+              {{ aiSummary.rounds }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="$t('factorMining.ai.proposals')">
+              {{ aiSummary.proposals }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="$t('factorMining.ai.l1Rejected')">
+              {{ aiSummary.l1Rejected }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="$t('factorMining.ai.duplicates')">
+              {{ aiSummary.duplicates }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="$t('factorMining.ai.evaluated')">
+              {{ aiSummary.evaluated }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="$t('factorMining.ai.model')">
+              {{ modelText }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              v-if="aiSummary.replayOf"
+              :label="$t('factorMining.ai.replayOf')"
+              :span="2"
+            >
+              <span class="fm-mono">{{ aiSummary.replayOf }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item
+              v-if="aiSummary.replayOf"
+              :label="$t('factorMining.ai.snapshotChanged')"
+            >
+              <a-tag :color="aiSummary.snapshotChanged ? 'warning' : 'default'">
+                {{ aiSummary.snapshotChanged ? $t('common.yes') : $t('common.no') }}
+              </a-tag>
+            </a-descriptions-item>
+          </a-descriptions>
+        </template>
+
         <a-alert
           v-if="detail.error"
           type="error"
@@ -124,13 +175,50 @@
           style="margin-top: 16px"
           :message="message(detail.error)"
         />
+
+        <template v-if="isAiJob">
+          <a-divider>{{ $t('factorMining.proposals.title') }}</a-divider>
+          <div v-if="proposalsLoading" class="fm-detail-state">
+            <a-spin />
+          </div>
+          <a-alert
+            v-else-if="proposalsError"
+            type="error"
+            show-icon
+            :message="proposalsError"
+          >
+            <template slot="description">
+              <a-button size="small" @click="loadProposals(detail.jobId)">
+                {{ $t('factorMining.proposals.retry') }}
+              </a-button>
+            </template>
+          </a-alert>
+          <a-empty v-else-if="!proposals.length" :description="$t('factorMining.proposals.empty')" />
+          <a-table
+            v-else
+            :columns="proposalColumns"
+            :data-source="proposals"
+            :pagination="false"
+            :row-key="record => record.id"
+            :scroll="{ x: 720 }"
+            size="small"
+          >
+            <template slot="proposalStatus" slot-scope="text">
+              <a-tag :color="proposalStatusColor(text)">{{ proposalStatusLabel(text) }}</a-tag>
+            </template>
+
+            <template slot="proposalReason" slot-scope="text">
+              {{ reasonText(text) }}
+            </template>
+          </a-table>
+        </template>
       </div>
     </a-modal>
   </div>
 </template>
 
 <script>
-import { getJobs, getJobDetail, cancelJob } from '@/api/factor-mining'
+import { getJobs, getJobDetail, cancelJob, getJobProposals } from '@/api/factor-mining'
 import moment from 'moment'
 
 // Only a job the runner can still act on is worth polling or cancelling.
@@ -145,6 +233,12 @@ export default {
       loading: false,
       detail: null,
       detailVisible: false,
+      detailLoading: false,
+      detailError: '',
+      currentJobId: '',
+      proposals: [],
+      proposalsLoading: false,
+      proposalsError: '',
       timer: null
     }
   },
@@ -186,6 +280,45 @@ export default {
         },
         { title: this.$t('common.actions'), width: 140, scopedSlots: { customRender: 'action' } }
       ]
+    },
+    aiSummary () {
+      const result = this.detail && this.detail.result
+      return (result && result.summary && result.summary.ai) || null
+    },
+    // Proposals belong to AI runs only; `config.searchMode` also answers while the job is still
+    // running and the result -- and with it the AI summary -- does not exist yet.
+    isAiJob () {
+      if (this.aiSummary) return true
+      const config = this.detail && this.detail.config
+      return Boolean(config && config.searchMode === 'ai')
+    },
+    modelText () {
+      const ai = this.aiSummary || {}
+      return [ai.provider, ai.model].filter(Boolean).join(' / ') || '-'
+    },
+    proposalColumns () {
+      return [
+        { title: this.$t('factorMining.proposals.round'), dataIndex: 'round', width: 80 },
+        { title: this.$t('factorMining.proposals.ordinal'), dataIndex: 'ordinal', width: 90 },
+        {
+          title: this.$t('factorMining.proposals.hypothesis'),
+          dataIndex: 'hypothesis',
+          width: 320,
+          customRender: text => text || '-'
+        },
+        {
+          title: this.$t('factorMining.proposals.status'),
+          dataIndex: 'status',
+          width: 130,
+          scopedSlots: { customRender: 'proposalStatus' }
+        },
+        {
+          title: this.$t('factorMining.proposals.reason'),
+          dataIndex: 'reason',
+          width: 220,
+          scopedSlots: { customRender: 'proposalReason' }
+        }
+      ]
     }
   },
   mounted () {
@@ -218,6 +351,31 @@ export default {
     message (key) {
       const text = this.$t(key)
       return text === key ? key : text
+    },
+    failureMessage (error, fallback) {
+      const envelope = error && error.response && error.response.data
+      const key = envelope && envelope.msg
+      return key ? this.message(key) : this.$t(fallback)
+    },
+    proposalStatusLabel (status) {
+      const suffix = status === 'l1_rejected' ? 'l1Rejected' : status
+      const key = `factorMining.proposalStatus.${suffix}`
+      const text = this.$t(key)
+      return text === key ? status : text
+    },
+    proposalStatusColor (status) {
+      return {
+        proposed: 'blue',
+        evaluated: 'success',
+        l1_rejected: 'error',
+        duplicate: 'warning'
+      }[status] || 'default'
+    },
+    // A rejection reason is a backend key, sometimes parameterised (`...invalid:<detail>`); the
+    // prefix is the documented, translatable part.
+    reasonText (reason) {
+      if (!reason) return '-'
+      return this.message(String(reason).split(':')[0])
     },
     percentOf (record) {
       const progress = record.progress || {}
@@ -255,17 +413,48 @@ export default {
         this.loading = false
       }
     },
-    async openDetail (record) {
+    openDetail (record) {
+      this.detailVisible = true
+      this.detail = null
+      this.proposals = []
+      this.proposalsError = ''
+      this.loadDetail(record.jobId)
+    },
+    async loadDetail (jobId) {
+      if (!jobId) return
+      this.currentJobId = jobId
+      this.detailLoading = true
+      this.detailError = ''
       try {
-        const res = await getJobDetail(record.jobId)
+        const res = await getJobDetail(jobId)
         if (res.code !== 1) {
-          this.$message.error(this.message(res.msg))
+          this.detailError = this.message(res.msg)
           return
         }
         this.detail = res.data
-        this.detailVisible = true
+        if (this.isAiJob) this.loadProposals(jobId)
       } catch (error) {
-        this.$message.error(this.$t('factorMining.jobs.loadFailed'))
+        // The backend answers a missing job and another tenant's job with the same 404 key, so
+        // rendering its message keeps the two indistinguishable.
+        this.detailError = this.failureMessage(error, 'factorMining.jobs.loadFailed')
+      } finally {
+        this.detailLoading = false
+      }
+    },
+    async loadProposals (jobId) {
+      this.proposalsLoading = true
+      this.proposalsError = ''
+      try {
+        const res = await getJobProposals(jobId)
+        if (res.code !== 1) {
+          this.proposalsError = this.message(res.msg)
+          return
+        }
+        this.proposals = (res.data && res.data.items) || []
+      } catch (error) {
+        this.proposalsError = this.$t('factorMining.proposals.failed')
+      } finally {
+        this.proposalsLoading = false
       }
     },
     async handleCancel (jobId) {
@@ -305,5 +494,10 @@ export default {
 .fm-mono {
   font-family: monospace;
   word-break: break-all;
+}
+
+.fm-detail-state {
+  padding: 32px 0;
+  text-align: center;
 }
 </style>

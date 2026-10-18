@@ -8,6 +8,52 @@
         :label-col="{ span: 7 }"
         :wrapper-col="{ span: 14 }"
       >
+        <a-form-model-item :label="$t('factorMining.submit.searchMode')" prop="searchMode">
+          <a-select v-model="form.searchMode" @change="estimate = null">
+            <a-select-option value="enumeration">
+              {{ $t('factorMining.submit.modeEnumeration') }}
+            </a-select-option>
+            <a-select-option value="ai">
+              {{ $t('factorMining.submit.modeAi') }}
+            </a-select-option>
+          </a-select>
+        </a-form-model-item>
+
+        <template v-if="form.searchMode === 'ai'">
+          <a-form-model-item :label="$t('factorMining.submit.aiRounds')" prop="aiRounds">
+            <a-input-number
+              v-model="form.aiRounds"
+              :min="1"
+              :max="3"
+              :precision="0"
+              style="width: 100%"
+            />
+          </a-form-model-item>
+
+          <a-form-model-item
+            :label="$t('factorMining.submit.aiProposalsPerRound')"
+            prop="aiProposalsPerRound"
+          >
+            <a-input-number
+              v-model="form.aiProposalsPerRound"
+              :min="1"
+              :max="20"
+              :precision="0"
+              style="width: 100%"
+            />
+          </a-form-model-item>
+
+          <a-form-model-item :label="$t('factorMining.submit.researchNotes')" prop="researchNotes">
+            <a-textarea
+              v-model="form.researchNotes"
+              :maxlength="8000"
+              :rows="4"
+              :aria-label="$t('factorMining.submit.researchNotes')"
+              show-word-limit
+            />
+          </a-form-model-item>
+        </template>
+
         <a-form-model-item :label="$t('factorMining.submit.sourceId')" prop="sourceId">
           <a-input-number
             v-model="form.sourceId"
@@ -111,7 +157,9 @@
           style="margin-bottom: 24px"
         >
           <template slot="description">
-            <div>{{ $t('factorMining.submit.estimateTemplates') }}: {{ estimate.templateCount }}</div>
+            <div v-if="estimate.templateCount">
+              {{ $t('factorMining.submit.estimateTemplates') }}: {{ estimate.templateCount }}
+            </div>
             <div>{{ $t('factorMining.submit.estimateCandidates') }}: {{ estimate.candidateBudget }}</div>
           </template>
         </a-alert>
@@ -138,9 +186,13 @@
 
 <script>
 import { estimateJob, submitJob } from '@/api/factor-mining'
+import { buildRunPayload } from '../aiPayload'
 
 const MARKETS = ['Crypto', 'USStock', 'CNStock', 'HKStock', 'Forex', 'Futures', 'MOEX']
 const TIMEFRAMES = ['5m', '15m', '1H', '4H', '1D', '1W']
+const AI_ROUNDS = { min: 1, max: 3 }
+const AI_PROPOSALS_PER_ROUND = { min: 1, max: 20 }
+const RESEARCH_NOTES_MAX = 8000
 
 export default {
   name: 'SubmitJob',
@@ -152,6 +204,7 @@ export default {
       // The payload is built from these same names, so what is sent is what ``POST /run`` reads:
       // its whitelist drops every key the run config does not know, silently.
       form: {
+        searchMode: 'enumeration',
         sourceId: null,
         market: 'USStock',
         timeframe: '1D',
@@ -159,6 +212,9 @@ export default {
         endDate: '',
         budget: 400,
         seed: 42,
+        aiRounds: 2,
+        aiProposalsPerRound: 10,
+        researchNotes: '',
         freezeRatio: 0.3,
         groups: 10,
         holdingPeriod: 5,
@@ -170,7 +226,10 @@ export default {
         market: [{ required: true, message: this.$t('factorMining.submit.marketRequired'), trigger: 'change' }],
         timeframe: [{ required: true, message: this.$t('factorMining.submit.timeframeRequired'), trigger: 'change' }],
         startDate: [{ required: true, message: this.$t('factorMining.submit.startDateRequired'), trigger: 'change' }],
-        endDate: [{ required: true, message: this.$t('factorMining.submit.endDateRequired'), trigger: 'change' }]
+        endDate: [{ required: true, message: this.$t('factorMining.submit.endDateRequired'), trigger: 'change' }],
+        aiRounds: [{ validator: this.aiIntegerRule(AI_ROUNDS, 'factorMining.submit.aiRoundsInvalid'), trigger: 'change' }],
+        aiProposalsPerRound: [{ validator: this.aiIntegerRule(AI_PROPOSALS_PER_ROUND, 'factorMining.submit.aiProposalsPerRoundInvalid'), trigger: 'change' }],
+        researchNotes: [{ validator: this.researchNotesRule, trigger: 'change' }]
       },
       estimating: false,
       submitting: false,
@@ -178,6 +237,20 @@ export default {
     }
   },
   methods: {
+    aiIntegerRule (bounds, messageKey) {
+      // The bounds are the service's own; a non-AI run never reads these fields, so the rule
+      // stays out of the way while the form still holds their defaults.
+      return (rule, value, callback) => {
+        if (this.form.searchMode !== 'ai') return callback()
+        if (Number.isInteger(value) && value >= bounds.min && value <= bounds.max) return callback()
+        callback(new Error(this.$t(messageKey)))
+      }
+    },
+    researchNotesRule (rule, value, callback) {
+      if (this.form.searchMode !== 'ai') return callback()
+      if (String(value || '').length <= RESEARCH_NOTES_MAX) return callback()
+      callback(new Error(this.$t('factorMining.submit.researchNotesTooLong')))
+    },
     marketLabel (key) {
       const label = this.$t(`factorMining.markets.${key}`)
       return label === `factorMining.markets.${key}` ? key : label
@@ -193,7 +266,7 @@ export default {
       if (!valid) return
       this.estimating = true
       try {
-        const res = await estimateJob({ ...this.form })
+        const res = await estimateJob(buildRunPayload(this.form))
         if (res.code !== 1) {
           this.$message.error(this.message(res.msg))
           return
@@ -210,7 +283,7 @@ export default {
       if (!valid) return
       this.submitting = true
       try {
-        const res = await submitJob({ ...this.form })
+        const res = await submitJob(buildRunPayload(this.form))
         if (res.code !== 1) {
           this.$message.error(this.message(res.msg))
           return
