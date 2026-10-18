@@ -68,7 +68,7 @@
             <a-textarea
               id="fm-research-notes"
               v-model="form.researchNotes"
-              :maxlength="8000"
+              :max-length="8000"
               :rows="4"
               :aria-label="$t('factorMining.submit.researchNotes')"
               show-word-limit

@@ -2,8 +2,10 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 
-const root = path.resolve(import.meta.dirname, '../..')
+// `import.meta.dirname` only exists from Node 20.11; this file has to load on the Node 18 floor.
+const root = fileURLToPath(new URL('../..', import.meta.url))
 const component = fs.readFileSync(path.join(root, 'src/views/ai-skills/index.vue'), 'utf8')
 const english = fs.readFileSync(path.join(root, 'src/locales/lang/en-US.js'), 'utf8')
 const chinese = fs.readFileSync(path.join(root, 'src/locales/lang/zh-CN.js'), 'utf8')

@@ -60,6 +60,7 @@
       v-model="detailVisible"
       :title="$t('factorMining.jobs.detail')"
       :width="'min(860px, calc(100vw - 32px))'"
+      wrap-class-name="fm-job-detail-modal"
       :footer="null"
     >
       <div v-if="detailLoading" class="fm-detail-state">
@@ -161,7 +162,7 @@
               v-if="aiSummary.replayOf"
               :label="$t('factorMining.ai.snapshotChanged')"
             >
-              <a-tag :color="aiSummary.snapshotChanged ? 'orange' : ''">
+              <a-tag :color="aiSummary.snapshotChanged ? '#ad4e00' : '#595959'">
                 {{ aiSummary.snapshotChanged ? $t('common.yes') : $t('common.no') }}
               </a-tag>
             </a-descriptions-item>
@@ -194,13 +195,30 @@
             </template>
           </a-alert>
           <a-empty v-else-if="!proposals.length" :description="$t('factorMining.proposals.empty')" />
+          <div v-else-if="isNarrow" class="fm-proposal-list">
+            <div v-for="proposal in proposals" :key="proposal.id" class="fm-proposal-card">
+              <div class="fm-proposal-head">
+                <span class="fm-proposal-index">
+                  {{ $t('factorMining.proposals.round') }} {{ proposal.round }} ·
+                  {{ $t('factorMining.proposals.ordinal') }} {{ proposal.ordinal }}
+                </span>
+                <a-tag :color="proposalStatusColor(proposal.status)">
+                  {{ proposalStatusLabel(proposal.status) }}
+                </a-tag>
+              </div>
+              <p class="fm-proposal-hypothesis">{{ proposal.hypothesis || '-' }}</p>
+              <p v-if="proposal.reason" class="fm-proposal-reason">
+                {{ $t('factorMining.proposals.reason') }}: {{ reasonText(proposal.reason) }}
+              </p>
+            </div>
+          </div>
           <a-table
             v-else
             :columns="proposalColumns"
             :data-source="proposals"
             :pagination="false"
             :row-key="record => record.id"
-            :scroll="{ x: 720 }"
+            :scroll="{ x: 770 }"
             size="small"
           >
             <template slot="proposalStatus" slot-scope="text">
@@ -310,24 +328,24 @@ export default {
     },
     proposalColumns () {
       return [
-        { title: this.$t('factorMining.proposals.round'), dataIndex: 'round', width: 80 },
-        { title: this.$t('factorMining.proposals.ordinal'), dataIndex: 'ordinal', width: 90 },
+        { title: this.$t('factorMining.proposals.round'), dataIndex: 'round', width: 70 },
+        { title: this.$t('factorMining.proposals.ordinal'), dataIndex: 'ordinal', width: 80 },
         {
           title: this.$t('factorMining.proposals.hypothesis'),
           dataIndex: 'hypothesis',
-          width: 320,
+          width: 280,
           customRender: text => text || '-'
         },
         {
           title: this.$t('factorMining.proposals.status'),
           dataIndex: 'status',
-          width: 130,
+          width: 190,
           scopedSlots: { customRender: 'proposalStatus' }
         },
         {
           title: this.$t('factorMining.proposals.reason'),
           dataIndex: 'reason',
-          width: 220,
+          width: 150,
           scopedSlots: { customRender: 'proposalReason' }
         }
       ]
@@ -358,15 +376,15 @@ export default {
       return text === key ? status : text
     },
     statusColor (status) {
-      // Only the component's preset colors render their own text color; a status word such as
-      // `success` would be taken as a raw CSS color and leave the label white on white.
+      // Explicit dark backgrounds, because the preset tag palette (light backgrounds with the
+      // same hue as the text) does not reach WCAG AA. These hold white text above 4.5:1.
       return {
-        queued: '',
-        running: 'blue',
-        succeeded: 'green',
-        failed: 'red',
-        cancelled: 'orange'
-      }[status] || ''
+        queued: '#595959',
+        running: '#096dd9',
+        succeeded: '#237804',
+        failed: '#a8071a',
+        cancelled: '#ad4e00'
+      }[status] || '#595959'
     },
     message (key) {
       const text = this.$t(key)
@@ -385,11 +403,11 @@ export default {
     },
     proposalStatusColor (status) {
       return {
-        proposed: 'blue',
-        evaluated: 'green',
-        l1_rejected: 'red',
-        duplicate: 'orange'
-      }[status] || ''
+        proposed: '#096dd9',
+        evaluated: '#237804',
+        l1_rejected: '#a8071a',
+        duplicate: '#ad4e00'
+      }[status] || '#595959'
     },
     // A rejection reason is a backend key, sometimes parameterised (`...invalid:<detail>`); the
     // prefix is the documented, translatable part.
@@ -439,6 +457,13 @@ export default {
       this.proposals = []
       this.proposalsError = ''
       this.loadDetail(record.jobId)
+      this.$nextTick(this.markDetailBodyFocusable)
+    },
+    // The app's mobile styles make the modal body the scroll container; a scroll region that
+    // cannot take focus is unreachable by keyboard.
+    markDetailBodyFocusable () {
+      const body = document.querySelector('.fm-job-detail-modal .ant-modal-body')
+      if (body && !body.hasAttribute('tabindex')) body.setAttribute('tabindex', '0')
     },
     async loadDetail (jobId) {
       if (!jobId) return
@@ -521,5 +546,52 @@ export default {
 .fm-detail-state {
   padding: 32px 0;
   text-align: center;
+}
+
+.fm-proposal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fm-proposal-card {
+  padding: 12px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 4px;
+}
+
+.fm-proposal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fm-proposal-index,
+.fm-proposal-reason {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.fm-proposal-hypothesis {
+  margin: 8px 0 0;
+  word-break: break-word;
+}
+
+.fm-proposal-reason {
+  margin: 4px 0 0;
+  word-break: break-word;
+}
+</style>
+
+<style lang="less">
+// Descriptions and dividers keep their light-theme text color inside the dark modal, because the
+// component styles set a color directly instead of inheriting the modal body's. The wrap class is
+// unique to this modal, so these two rules cannot leak into another feature.
+body.dark .fm-job-detail-modal .ant-descriptions-item-content,
+body.realdark .fm-job-detail-modal .ant-descriptions-item-content,
+body.dark .fm-job-detail-modal .ant-divider-inner-text,
+body.realdark .fm-job-detail-modal .ant-divider-inner-text {
+  color: rgba(255, 255, 255, 0.85);
 }
 </style>
