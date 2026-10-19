@@ -87,49 +87,68 @@
         </a-tooltip>
       </div>
       <div class="chart-content-area">
-        <div v-if="showIndicatorToolbar" class="indicator-toolbar">
-          <div
-            v-for="indicator in indicatorButtons"
-            :key="indicator.id"
-            class="indicator-btn"
-            :class="{ active: isIndicatorActive(indicator.id) }"
-            @click="handleIndicatorButtonClick(indicator)"
-            :title="indicator.name"
+        <div
+          v-if="showIndicatorToolbar && (showIndicatorLibraryTrigger || activePresetIndicators.length)"
+          class="indicator-toolbar"
+          :class="{ 'indicator-toolbar--overlay': !showIndicatorLibraryTrigger }"
+        >
+          <a-dropdown
+            v-if="showIndicatorLibraryTrigger"
+            :trigger="['click']"
+            placement="bottomLeft"
+            :get-popup-container="chartModalGetContainer"
+            :overlay-class-name="chartTheme === 'dark' ? 'chart-indicator-menu chart-indicator-menu--dark' : 'chart-indicator-menu'"
           >
-            {{ indicator.shortName }}
-          </div>
-        </div>
-        <div v-if="showIndicatorToolbar && activePresetIndicators.length" class="indicator-active-bar">
-          <div
-            v-for="indicator in activePresetIndicators"
-            :key="indicator.instanceId || indicator.id"
-            class="indicator-active-chip"
-            :class="{ 'indicator-active-chip--hidden': indicator.visible === false }"
-          >
-            <span class="indicator-active-chip__label" @click="openIndicatorEditor(indicator)">
-              {{ formatIndicatorInstanceLabel(indicator) }}
-            </span>
-            <a-tooltip :title="indicator.visible === false ? $t('indicatorIde.editor.showIndicator') : $t('indicatorIde.editor.hideIndicator')">
-              <a-icon
-                :type="indicator.visible === false ? 'eye-invisible' : 'eye'"
-                class="indicator-active-chip__action"
-                @click.stop="toggleIndicatorVisibility(indicator)"
-              />
-            </a-tooltip>
-            <a-tooltip :title="$t('indicatorIde.editor.settings')">
-              <a-icon
-                type="setting"
-                class="indicator-active-chip__action"
-                @click.stop="openIndicatorEditor(indicator)"
-              />
-            </a-tooltip>
-            <a-tooltip :title="$t('indicatorIde.editor.deleteIndicator')">
-              <a-icon
-                type="close"
-                class="indicator-active-chip__action"
-                @click.stop="removeIndicatorInstance(indicator)"
-              />
-            </a-tooltip>
+            <a-button size="small" class="indicator-library-trigger">
+              <a-icon type="plus" />
+              <span>{{ $t('indicatorIde.toolbar.indicator') }}</span>
+              <a-icon type="down" />
+            </a-button>
+            <a-menu slot="overlay" class="indicator-library-menu">
+              <a-menu-item
+                v-for="indicator in indicatorButtons"
+                :key="indicator.id"
+                @click="handleIndicatorButtonClick(indicator)"
+              >
+                <span class="indicator-library-menu__item">
+                  <span>{{ indicator.name }}</span>
+                  <a-icon v-if="isIndicatorActive(indicator.id)" type="check" />
+                </span>
+              </a-menu-item>
+            </a-menu>
+          </a-dropdown>
+          <div v-if="activePresetIndicators.length" class="indicator-active-bar">
+            <div
+              v-for="indicator in activePresetIndicators"
+              :key="indicator.instanceId || indicator.id"
+              class="indicator-active-chip"
+              :class="{ 'indicator-active-chip--hidden': indicator.visible === false }"
+            >
+              <span class="indicator-active-chip__label" @click="openIndicatorEditor(indicator)">
+                {{ formatIndicatorInstanceLabel(indicator) }}
+              </span>
+              <a-tooltip :title="indicator.visible === false ? $t('indicatorIde.editor.showIndicator') : $t('indicatorIde.editor.hideIndicator')">
+                <a-icon
+                  :type="indicator.visible === false ? 'eye-invisible' : 'eye'"
+                  class="indicator-active-chip__action"
+                  @click.stop="toggleIndicatorVisibility(indicator)"
+                />
+              </a-tooltip>
+              <a-tooltip :title="$t('indicatorIde.editor.settings')">
+                <a-icon
+                  type="setting"
+                  class="indicator-active-chip__action"
+                  @click.stop="openIndicatorEditor(indicator)"
+                />
+              </a-tooltip>
+              <a-tooltip :title="$t('indicatorIde.editor.deleteIndicator')">
+                <a-icon
+                  type="close"
+                  class="indicator-active-chip__action"
+                  @click.stop="removeIndicatorInstance(indicator)"
+                />
+              </a-tooltip>
+            </div>
           </div>
         </div>
         <div
@@ -232,6 +251,9 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch, s
 import { init, registerIndicator, registerOverlay } from 'klinecharts'
 import request from '@/utils/request'
 import { inferMarketPricePrecision } from '@/utils/marketPricePrecision.mjs'
+import { buildRenkoBricks } from '@/utils/renko.mjs'
+import { buildHeikinAshiRows, buildHlcAreaRows, buildRangeBars } from '@/utils/price-chart-transforms.mjs'
+import { captureChartViewport, restoreChartViewport } from '@/utils/chartViewport.mjs'
 import ExchangeKlineWs from '@/utils/exchangeWs'
 import { splitIndicatorPlotsByPane } from '@/utils/indicatorPlotGrouping'
 import { usePyodide } from '@/services/pyodide/usePyodide'
@@ -291,7 +313,15 @@ export default {
       type: Array,
       default: () => []
     },
+    quickTradePositions: {
+      type: Array,
+      default: () => []
+    },
     showIndicatorToolbar: {
+      type: Boolean,
+      default: true
+    },
+    showIndicatorLibraryTrigger: {
       type: Boolean,
       default: true
     },
@@ -343,9 +373,34 @@ export default {
       'candle_up_stroke',
       'candle_down_stroke',
       'ohlc',
-      'area'
+      'area',
+      'line',
+      'hlc_area',
+      'heikin_ashi',
+      'renko',
+      'range'
     ])
-    const normalizedCandleType = () => supportedCandleTypes.has(props.candleType) ? props.candleType : 'candle_solid'
+    const normalizedCandleType = () => {
+      if (!supportedCandleTypes.has(props.candleType)) return 'candle_solid'
+      if (['line', 'hlc_area'].includes(props.candleType)) return 'area'
+      if (['heikin_ashi', 'renko', 'range'].includes(props.candleType)) return 'candle_solid'
+      return props.candleType
+    }
+    const usesDerivedPriceBars = () => ['heikin_ashi', 'hlc_area', 'renko', 'range'].includes(props.candleType)
+    const chartDisplayData = (rows = klineData.value) => {
+      const sourceRows = Array.isArray(rows) ? rows : []
+      if (props.candleType === 'heikin_ashi') return buildHeikinAshiRows(sourceRows)
+      if (props.candleType === 'hlc_area') return buildHlcAreaRows(sourceRows)
+      if (props.candleType === 'renko') {
+        const bricks = buildRenkoBricks(sourceRows, { atrLength: 14 })
+        return bricks.length ? bricks : sourceRows.slice(-1)
+      }
+      if (props.candleType === 'range') {
+        const bars = buildRangeBars(sourceRows, { atrLength: 14 })
+        return bars.length ? bars : sourceRows.slice(-1)
+      }
+      return sourceRows
+    }
     let chartResizeObserver = null
     let chartResizeRafId = null
     let volEnsureRafId = null
@@ -602,6 +657,7 @@ export default {
     const addedSignalOverlayIds = ref([])
     const addedBacktestOverlayIds = ref([])
     const addedDrawingOverlayIds = ref([])
+    const addedQuickTradeOverlayIds = ref([])
     const activeDrawingTool = ref(null)
     let shiftMeasurePointerDownHandler = null
 
@@ -616,6 +672,83 @@ export default {
             inst.removeOverlayById(overlayId)
           }
         } catch (err) {
+        }
+      })
+    }
+
+    const clearQuickTradePositionOverlays = () => {
+      removeSignalOverlayBatch(addedQuickTradeOverlayIds.value)
+      addedQuickTradeOverlayIds.value = []
+    }
+
+    const formatQuickTradePrice = (value) => {
+      const price = Number(value)
+      if (!Number.isFinite(price)) return ''
+      const maximumFractionDigits = price >= 1000 ? 2 : (price >= 1 ? 4 : 8)
+      return price.toLocaleString(undefined, { maximumFractionDigits })
+    }
+
+    const renderQuickTradePositionOverlays = () => {
+      clearQuickTradePositionOverlays()
+      const chart = chartRef.value
+      const rows = Array.isArray(klineData.value) ? klineData.value : []
+      const positions = Array.isArray(props.quickTradePositions) ? props.quickTradePositions : []
+      if (!chart || typeof chart.createOverlay !== 'function' || rows.length === 0 || positions.length === 0) return
+
+      const firstTimestamp = Number(rows[0] && rows[0].timestamp)
+      const lastTimestamp = Number(rows[rows.length - 1] && rows[rows.length - 1].timestamp)
+      if (!Number.isFinite(firstTimestamp) || !Number.isFinite(lastTimestamp)) return
+
+      const addOverlay = (config) => {
+        try {
+          const overlayId = chart.createOverlay(config, 'candle_pane')
+          if (overlayId) addedQuickTradeOverlayIds.value.push(overlayId)
+        } catch (_) {}
+      }
+
+      positions.forEach(position => {
+        const entryPrice = Number(position && position.entryPrice)
+        if (!(entryPrice > 0)) return
+        const side = position.side === 'short' ? 'short' : 'long'
+        const markerSide = side === 'short' ? 'sell' : 'buy'
+        const color = side === 'short' ? '#f04438' : '#12b76a'
+        const rawEntryTimestamp = Number(position.entryTimestamp)
+        const hasEntryTimestamp = Number.isFinite(rawEntryTimestamp) && rawEntryTimestamp > 0
+        const entryBarTimestamp = hasEntryTimestamp ? alignKlineTimestampMs(rawEntryTimestamp) : null
+        const lineStartTimestamp = hasEntryTimestamp
+          ? Math.max(firstTimestamp, Math.min(entryBarTimestamp, lastTimestamp))
+          : firstTimestamp
+        const costLabel = String(position.costLabel || '')
+        const costPrice = formatQuickTradePrice(entryPrice)
+
+        addOverlay({
+          name: 'quickTradeCostLine',
+          points: [
+            { timestamp: lineStartTimestamp, value: entryPrice }
+          ],
+          extendData: {
+            label: costLabel,
+            price: costPrice
+          },
+          lock: true
+        })
+
+        if (entryBarTimestamp && entryBarTimestamp >= firstTimestamp && entryBarTimestamp <= lastTimestamp) {
+          addOverlay({
+            name: 'signalTag',
+            points: [
+              { timestamp: entryBarTimestamp, value: entryPrice },
+              { timestamp: entryBarTimestamp, value: entryPrice }
+            ],
+            extendData: {
+              text: position.entryLabel || '',
+              color,
+              side: markerSide,
+              source: 'quick-trade',
+              fontSize: 10
+            },
+            lock: true
+          })
         }
       })
     }
@@ -1906,11 +2039,13 @@ registerOverlay({
       needDefaultXAxisFigure: false,
       needDefaultYAxisFigure: false,
       checkEventOn: () => false,
-      createPointFigures: ({ coordinates, overlay }) => {
+      createPointFigures: ({ coordinates, overlay, bounding }) => {
         if (!coordinates[0] || !coordinates[1]) return []
         const data = overlay.extendData || {}
         const x1 = Math.min(coordinates[0].x, coordinates[1].x)
-        const x2 = Math.max(coordinates[0].x, coordinates[1].x)
+        const x2 = data.extendRight === true && Number.isFinite(bounding?.width)
+          ? Math.max(x1, bounding.width)
+          : Math.max(coordinates[0].x, coordinates[1].x)
         const y1 = Math.min(coordinates[0].y, coordinates[1].y)
         const y2 = Math.max(coordinates[0].y, coordinates[1].y)
         const isDark = chartTheme.value === 'dark'
@@ -1931,7 +2066,7 @@ registerOverlay({
               style: 'stroke_fill',
               color: fillColor,
               borderColor,
-              borderSize: Number(data.borderSize || 1),
+              borderSize: Number(data.borderSize ?? 1),
               borderDashedValue: data.dashed === false ? [] : [5, 4]
             },
             ignoreEvent: true
@@ -1978,7 +2113,7 @@ registerOverlay({
       needDefaultXAxisFigure: false,
       needDefaultYAxisFigure: false,
       checkEventOn: () => false,
-      createPointFigures: ({ coordinates, overlay }) => {
+      createPointFigures: ({ coordinates, overlay, bounding }) => {
         if (!coordinates[0] || !coordinates[1]) return []
         const data = overlay.extendData || {}
         const color = data.color || 'var(--primary-color, #1890ff)'
@@ -1996,13 +2131,21 @@ registerOverlay({
           }
         ]
         if (data.text) {
+          const centered = data.textPosition === 'center'
+          let textX = centered ? (coordinates[0].x + coordinates[1].x) / 2 : coordinates[1].x + 6
+          if (!centered && data.keepTextVisible === true && Number.isFinite(bounding?.width)) {
+            const width = measureLayerText(data.text, Number(data.fontSize || 10))
+            textX = Math.max(4, Math.min(textX, bounding.width - width - 4))
+          }
+          const textY = centered ? (coordinates[0].y + coordinates[1].y) / 2 : coordinates[1].y
+          const offset = Number(data.textOffsetY)
           figures.push({
             type: 'text',
-            attrs: { x: coordinates[1].x + 6, y: coordinates[1].y, text: String(data.text), align: 'left', baseline: 'middle' },
+            attrs: { x: textX, y: textY + (Number.isFinite(offset) ? offset : 0), text: String(data.text), align: centered ? 'center' : 'left', baseline: 'middle' },
             styles: {
               color: data.textColor || color,
               size: Number(data.fontSize || 10),
-              weight: '600',
+              weight: data.fontWeight || '600',
               backgroundColor: 'transparent'
             },
             ignoreEvent: true
@@ -2056,6 +2199,99 @@ registerOverlay({
             styles: {
               color: data.textColor || color,
               size: fontSize,
+              weight: '700',
+              backgroundColor: 'transparent'
+            },
+            ignoreEvent: true
+          }
+        ]
+      }
+    })
+
+    registerOverlay({
+      name: 'quickTradeCostLine',
+      totalStep: 1,
+      lock: true,
+      needDefaultPointFigure: false,
+      needDefaultXAxisFigure: false,
+      needDefaultYAxisFigure: false,
+      checkEventOn: () => false,
+      createPointFigures: ({ coordinates, overlay, bounding }) => {
+        if (!coordinates[0] || !Number.isFinite(bounding?.width)) return []
+        const isDark = chartTheme.value === 'dark'
+        const color = isDark ? '#d8ad5c' : '#a66b16'
+        const lineColor = withAlpha(color, isDark ? 0.76 : 0.68)
+        const startX = Math.max(0, coordinates[0].x)
+        const endX = Math.max(startX, bounding.width)
+        const y = coordinates[0].y
+        return {
+          type: 'line',
+          attrs: { coordinates: [{ x: startX, y }, { x: endX, y }] },
+          styles: {
+            style: 'stroke',
+            color: lineColor,
+            size: 1,
+            dashedValue: [7, 5]
+          },
+          ignoreEvent: true
+        }
+      },
+      createYAxisFigures: ({ coordinates, overlay, bounding }) => {
+        if (!coordinates[0] || !Number.isFinite(bounding?.width) || !Number.isFinite(bounding?.height)) return []
+        const data = overlay.extendData || {}
+        const label = String(data.label || '')
+        const price = String(data.price || '')
+        if (!label && !price) return []
+
+        const isDark = chartTheme.value === 'dark'
+        const color = isDark ? '#d8ad5c' : '#a66b16'
+        const tagHeight = 38
+        const tagWidth = Math.max(1, bounding.width - 2)
+        const tagX = 1
+        const tagY = Math.max(2, Math.min(coordinates[0].y - tagHeight / 2, bounding.height - tagHeight - 2))
+        const centerX = tagX + tagWidth / 2
+
+        return [
+          {
+            type: 'rect',
+            attrs: { x: tagX, y: tagY, width: tagWidth, height: tagHeight, r: 4 },
+            styles: {
+              style: 'stroke_fill',
+              color: isDark ? 'rgba(54, 43, 22, 0.98)' : 'rgba(166, 107, 22, 0.96)',
+              borderColor: withAlpha(color, isDark ? 0.72 : 0.62),
+              borderSize: 1
+            },
+            ignoreEvent: true
+          },
+          {
+            type: 'text',
+            attrs: {
+              x: centerX,
+              y: tagY + 11,
+              text: label,
+              align: 'center',
+              baseline: 'middle'
+            },
+            styles: {
+              color: isDark ? 'rgba(244, 225, 184, 0.82)' : 'rgba(255, 255, 255, 0.82)',
+              size: 9,
+              weight: '500',
+              backgroundColor: 'transparent'
+            },
+            ignoreEvent: true
+          },
+          {
+            type: 'text',
+            attrs: {
+              x: centerX,
+              y: tagY + 27,
+              text: price,
+              align: 'center',
+              baseline: 'middle'
+            },
+            styles: {
+              color: isDark ? '#fff4d6' : '#ffffff',
+              size: 11,
               weight: '700',
               backgroundColor: 'transparent'
             },
@@ -2154,7 +2390,7 @@ registerOverlay({
       let metaText = ''
       if (barCount > 0) {
         metaText = `${barCount}${proxy.$t('dashboard.indicator.drawing.measureBarUnit')}`
-        if (timeSpan) metaText += ` 鐠?${timeSpan}`
+        if (timeSpan) metaText += ` · ${timeSpan}`
       } else if (timeSpan) {
         metaText = timeSpan
       }
@@ -2397,13 +2633,41 @@ registerOverlay({
       return [q(b.open), q(b.high), q(b.low), q(b.close), q(b.volume)].join('|')
     }
 
+    let pendingViewportRestore = null
+
+    const replaceChartData = (rows, options = {}) => {
+      const chart = chartRef.value
+      if (!chart || typeof chart.applyNewData !== 'function') return
+      const viewport = options.preserveViewport
+        ? (options.viewport || pendingViewportRestore || captureChartViewport(chart))
+        : null
+      if (viewport && !viewport.followingLatest) pendingViewportRestore = viewport
+
+      const afterApply = () => {
+        if (chartRef.value === chart && viewport && !viewport.followingLatest) {
+          restoreChartViewport(chart, viewport)
+        }
+        if (pendingViewportRestore === viewport) pendingViewportRestore = null
+        if (typeof options.onComplete === 'function') options.onComplete()
+      }
+
+      chart.applyNewData(rows, options.moreData, afterApply)
+    }
+
     const flushRealtimeChartBar = (bar) => {
-      if (!chartRef.value || typeof chartRef.value.updateData !== 'function') return
+      if (!chartRef.value) return
+      if (usesDerivedPriceBars()) {
+        try {
+          replaceChartData(chartDisplayData(), { preserveViewport: true })
+        } catch (_) {}
+        return
+      }
+      if (typeof chartRef.value.updateData !== 'function') return
       try {
         chartRef.value.updateData(bar)
       } catch (e) {
         try {
-          chartRef.value.applyNewData(klineData.value)
+          replaceChartData(chartDisplayData(), { preserveViewport: true })
         } catch (_) {}
       }
     }
@@ -2420,6 +2684,12 @@ registerOverlay({
 
     const appendRealtimeBarsToChart = (bars) => {
       if (!chartRef.value || !Array.isArray(bars) || bars.length === 0) return
+      if (usesDerivedPriceBars()) {
+        try {
+          replaceChartData(chartDisplayData(), { preserveViewport: true })
+        } catch (_) {}
+        return
+      }
       if (typeof chartRef.value.updateData === 'function') {
         bars.forEach(bar => {
           chartRef.value.updateData({
@@ -2434,7 +2704,7 @@ registerOverlay({
         return
       }
       try {
-        chartRef.value.applyNewData(klineData.value)
+        replaceChartData(chartDisplayData(), { preserveViewport: true })
       } catch (_) {}
     }
 
@@ -2615,7 +2885,7 @@ registerOverlay({
             )
 
             if (validData.length > 0 && chartRef.value) {
-              chartRef.value.applyNewData(validData)
+              chartRef.value.applyNewData(chartDisplayData(validData))
 
               setTimeout(() => {
                 if (chartRef.value) {
@@ -2722,60 +2992,24 @@ registerOverlay({
               return
             }
 
-            let savedVisibleRange = null
-            try {
-              if (chartRef.value && typeof chartRef.value.getVisibleRange === 'function') {
-                savedVisibleRange = chartRef.value.getVisibleRange()
-              }
-            } catch (e) {
-            }
+            const savedViewport = captureChartViewport(chartRef.value)
 
             const mergedHistory = normalizeKlineSequence([...filteredNewData, ...klineData.value])
-            const newDataCount = Math.max(0, mergedHistory.length - klineData.value.length)
             klineData.value = mergedHistory
             suppressHistoryRangeUntil = Date.now() + 1200
 
             nextTick(() => {
               if (chartRef.value) {
-                const restoreDataIndex = savedVisibleRange && typeof savedVisibleRange.from === 'number'
-                  ? Math.max(0, Math.round(savedVisibleRange.from + newDataCount))
-                  : null
-
-                const afterApply = () => {
-                  if (restoreDataIndex !== null) {
-                    requestAnimationFrame(() => {
-                      suppressHistoryRangeUntil = Date.now() + 900
-                      try {
-                        if (chartRef.value && typeof chartRef.value.scrollToDataIndex === 'function') {
-                          chartRef.value.scrollToDataIndex(restoreDataIndex, 0)
-                        }
-                      } catch (e) {
-                      }
-                    })
-                  }
-                  updateIndicators()
-                }
-
+                suppressHistoryRangeUntil = Date.now() + 1200
                 try {
-                  chartRef.value.applyNewData(klineData.value, hasMoreHistory.value, afterApply)
+                  replaceChartData(chartDisplayData(), {
+                    preserveViewport: true,
+                    viewport: savedViewport,
+                    moreData: hasMoreHistory.value,
+                    onComplete: updateIndicators
+                  })
                 } catch (e) {
-                  try {
-                    chartRef.value.applyNewData(klineData.value)
-                    afterApply()
-                  } catch (e2) {
-                    updateIndicators()
-                  }
-                }
-
-                if (restoreDataIndex !== null && typeof chartRef.value.scrollToDataIndex !== 'function') {
-                  setTimeout(() => {
-                    try {
-                      if (chartRef.value) {
-                        suppressHistoryRangeUntil = Date.now() + 500
-                      }
-                    } catch (e) {
-                    }
-                  }, 50)
+                  updateIndicators()
                 }
               }
             })
@@ -2837,12 +3071,16 @@ registerOverlay({
             return
           }
 
+          const savedViewport = captureChartViewport(chartRef.value)
           klineData.value = normalizeKlineSequence([...filteredNewData, ...klineData.value])
 
           nextTick(() => {
             if (chartRef.value) {
-              chartRef.value.applyNewData(klineData.value)
-              updateIndicators()
+              replaceChartData(chartDisplayData(), {
+                preserveViewport: true,
+                viewport: savedViewport,
+                onComplete: updateIndicators
+              })
             }
           })
         }
@@ -2897,7 +3135,7 @@ registerOverlay({
               return
             }
 
-            klineData.value = mergedData.length > 500 ? mergedData.slice(-500) : mergedData
+            klineData.value = mergedData
 
             const internalData = convertToInternalFormat(klineData.value)
             updatePricePanel(internalData, { force: hasAppendedBars })
@@ -2919,7 +3157,7 @@ registerOverlay({
                 scheduleRealtimeChartBarUpdate(bar)
               } else if (chartRef.value) {
                 try {
-                  chartRef.value.applyNewData(klineData.value)
+                  replaceChartData(chartDisplayData(), { preserveViewport: true })
                 } catch (_) {}
               }
               maybeUpdateIndicators(false)
@@ -3232,18 +3470,6 @@ registerOverlay({
           throw new Error('K-line chart initialization failed')
         }
 
-        if (chartRef.value) {
-          if (typeof chartRef.value.setDrawingBarVisible === 'function') {
-            chartRef.value.setDrawingBarVisible(true)
-          }
-          if (typeof chartRef.value.setDrawingBar === 'function') {
-            chartRef.value.setDrawingBar(true)
-          }
-          if (typeof chartRef.value.enableDrawing === 'function') {
-            chartRef.value.enableDrawing(true)
-          }
-        }
-
         if (typeof chartRef.value.setPriceVolumePrecision === 'function') {
           chartRef.value.setPriceVolumePrecision(pricePrecision.value, 0)
         }
@@ -3284,6 +3510,7 @@ registerOverlay({
         if (chartRef.value && typeof chartRef.value.subscribeAction === 'function') {
           chartRef.value.subscribeAction('onDataReady', () => {
             scheduleSyncVolumePaneLayout()
+            renderQuickTradePositionOverlays()
             const rows = typeof chartRef.value.getDataList === 'function' ? chartRef.value.getDataList() : []
             emit('load', { barCount: Array.isArray(rows) ? rows.length : 0 })
           })
@@ -3413,10 +3640,10 @@ registerOverlay({
 
           if (validData.length > 0) {
             try {
-              chartRef.value.applyNewData(validData)
+              chartRef.value.applyNewData(chartDisplayData(validData))
             } catch (e) {
               try {
-                chartRef.value.applyNewData(validData)
+                chartRef.value.applyNewData(chartDisplayData(validData))
               } catch (e2) {
               }
             }
@@ -3441,7 +3668,7 @@ registerOverlay({
           }
         }, 100)
       } else {
-        const container = document.getElementById('kline-chart-container')
+          const container = document.getElementById('kline-chart-container')
         if (container && container.clientWidth > 0 && container.clientHeight > 0) {
           initChart()
         }
@@ -3456,6 +3683,8 @@ registerOverlay({
       const chartFontFamily = 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
       const upColor = '#089981'
       const downColor = '#f23645'
+      const lineOnly = props.candleType === 'line'
+      const areaLineColor = isDark ? '#5b8cff' : '#2962ff'
 
       chartRef.value.setStyles({
         grid: {
@@ -3568,7 +3797,17 @@ registerOverlay({
             noChangeWickColor: theme.axisLabelColor
           },
           area: {
-            point: { animation: false, animationDuration: 0 }
+            lineSize: 2,
+            lineColor: areaLineColor,
+            value: 'close',
+            smooth: false,
+            backgroundColor: lineOnly
+              ? 'rgba(41, 98, 255, 0)'
+              : [
+                  { offset: 0, color: isDark ? 'rgba(91, 140, 255, 0.24)' : 'rgba(41, 98, 255, 0.22)' },
+                  { offset: 1, color: 'rgba(41, 98, 255, 0.01)' }
+                ],
+            point: { show: false, animation: false, animationDuration: 0 }
           }
         },
         indicator: {
@@ -3723,8 +3962,9 @@ registerOverlay({
       })
     }
 
-    const CUSTOM_INDICATOR_RENDER_VERSION = 'r14'
+    const CUSTOM_INDICATOR_RENDER_VERSION = 'r16'
     const LAMP_FIGURE_TYPES = ['lamp', 'dot', 'point', 'scatter', 'circle']
+    const CLOUD_FIGURE_TYPES = ['cloud', 'band', 'fill_between', 'fill-between']
 
     const hashCustomIndicatorSignature = (value) => {
       const text = String(value || '')
@@ -3739,6 +3979,7 @@ registerOverlay({
     const normalizeCustomFigureType = (type) => {
       const rawType = String(type || 'line').toLowerCase()
       if (LAMP_FIGURE_TYPES.includes(rawType)) return 'circle'
+      if (CLOUD_FIGURE_TYPES.includes(rawType)) return 'cloud'
       if (['histogram', 'column'].includes(rawType)) return 'bar'
       if (['circle', 'bar', 'line'].includes(rawType)) return rawType
       return 'line'
@@ -3770,6 +4011,15 @@ registerOverlay({
         return Number.isFinite(size) && size > 0 ? size : null
       }
       return null
+    }
+
+    const getCloudPointValue = (point, edge) => {
+      if (!point || typeof point !== 'object') return null
+      const value = edge === 'upper'
+        ? (point.upper ?? point.top ?? point.high ?? point.value ?? point.y ?? point.data)
+        : (point.lower ?? point.bottom ?? point.low)
+      const numeric = Number(value)
+      return Number.isFinite(numeric) ? numeric : null
     }
 
     const isTruthyLampValue = (value) => {
@@ -3942,6 +4192,7 @@ registerOverlay({
       const styleColor = plotColor
       const colorKey = `${figureKey}__color`
       const sizeKey = `${figureKey}__size`
+      const lowerKey = `${figureKey}__lower`
       const resolveRuntimeStyle = (indicatorData = {}) => {
         const runtimeColor = indicatorData[colorKey] || styleColor
         const runtimeSize = toPositiveNumber(indicatorData[sizeKey], pointSize)
@@ -3998,6 +4249,45 @@ registerOverlay({
         }
       }
 
+      if (figureType === 'cloud') {
+        figure.type = 'bar'
+        figure.attrs = ({ coordinate, data, barSpace, yAxis }) => {
+          const currentCoordinate = coordinate?.current || {}
+          const indicatorData = data?.current || {}
+          const upperY = Number(currentCoordinate[figureKey])
+          let lowerY = Number(currentCoordinate[lowerKey])
+          if (!Number.isFinite(lowerY) && typeof yAxis?.convertToPixel === 'function') {
+            lowerY = Number(yAxis.convertToPixel(indicatorData[lowerKey]))
+          }
+          const x = Number(currentCoordinate.x)
+          if (!Number.isFinite(x) || !Number.isFinite(upperY) || !Number.isFinite(lowerY)) {
+            return { x: -9999, y: -9999, width: 0, height: 0 }
+          }
+          const stepWidth = Number(barSpace?.bar ?? barSpace?.gapBar ?? 8)
+          const width = Math.max(1, (Number.isFinite(stepWidth) ? stepWidth : 8) + 1)
+          const y = Math.min(upperY, lowerY)
+          return {
+            x: x - width / 2,
+            y,
+            width,
+            height: Math.max(1, Math.abs(lowerY - upperY) + 0.8)
+          }
+        }
+        figure.styles = (data) => {
+          const indicatorData = data?.current?.indicatorData || data?.current || {}
+          const runtimeColor = indicatorData[colorKey] || styleColor
+          const requestedOpacity = Number(plot.opacity)
+          const opacity = Number.isFinite(requestedOpacity)
+            ? Math.min(0.3, Math.max(0.02, requestedOpacity))
+            : 0.08
+          return {
+            style: 'fill',
+            color: resolveLayerColor(runtimeColor, styleColor, opacity),
+            borderSize: 0
+          }
+        }
+      }
+
       if (figureType === 'circle') {
         figure.attrs = ({ coordinate, data }) => {
           const indicatorData = data?.current || {}
@@ -4038,7 +4328,7 @@ registerOverlay({
         figure.baseValue = Number(plot.baseValue)
       }
 
-      return { figureKey, figure, colorKey, sizeKey }
+      return { figureKey, figure, colorKey, sizeKey, lowerKey, figureType }
     }
 
     const hasLampStylePlots = (plots, lampBeltMeta = null) => {
@@ -4465,6 +4755,14 @@ registerOverlay({
       return null
     }
 
+    const layerEndPoint = (timestamp, value, extendBars, internalData) => {
+      const bars = Number(extendBars)
+      if (Number.isFinite(bars) && bars > 0) {
+        return { dataIndex: internalData.length - 1 + Math.min(500, Math.floor(bars)), value }
+      }
+      return { timestamp, value }
+    }
+
     const pushLayerOverlay = (overlayConfig) => {
       if (!chartRef.value || typeof chartRef.value.createOverlay !== 'function') return
       try {
@@ -4502,6 +4800,8 @@ registerOverlay({
               fillColor: layer.fillColor,
               borderColor: layer.borderColor,
               opacity: layer.opacity,
+              borderSize: layer.borderSize,
+              extendRight: layer.extendRight,
               dashed: layer.dashed,
               fontSize: layer.fontSize,
               textColor: layer.textColor
@@ -4523,12 +4823,16 @@ registerOverlay({
             name: 'qdIndicatorLine',
             points: [
               { timestamp: start, value: y1 },
-              { timestamp: end, value: y2 }
+              layerEndPoint(end, y2, layer.extendBars, internalData)
             ],
             extendData: {
               text: layer.text || layer.name || '',
               color: layer.color,
               lineWidth: layer.lineWidth,
+              textPosition: layer.textPosition,
+              textOffsetY: layer.textOffsetY,
+              fontWeight: layer.fontWeight,
+              keepTextVisible: layer.keepTextVisible,
               dashed: layer.dashed,
               fontSize: layer.fontSize,
               textColor: layer.textColor
@@ -4608,7 +4912,7 @@ registerOverlay({
       addedSignalOverlayIds.value = []
       addedIndicatorIds.value = []
       try {
-      const internalData = convertToInternalFormat(klineData.value)
+      const internalData = convertToInternalFormat(chartDisplayData())
       const mainPaneOverlayFigures = []
       const mainPaneOverlayCalcEntries = []
       const mainPaneOverlaySignatureParts = []
@@ -4637,16 +4941,21 @@ registerOverlay({
           const fallbackName = typeof fallbackNameForIndex === 'function'
             ? fallbackNameForIndex(plotIdx)
             : `PLOT_${plotIdx}`
-          const { figureKey, figure, colorKey, sizeKey } = buildCustomPlotFigure(plot, plotIdx, fallbackName, {
+          const { figureKey, figure, colorKey, sizeKey, lowerKey, figureType } = buildCustomPlotFigure(plot, plotIdx, fallbackName, {
             forceLamp,
             lampLane
           })
 
           figures.push(figure)
-          plotDataMap[figureKey] = normalizePlotDataSeries(plot.data, {
-            forceLamp,
-            lampLane
-          })
+          if (figureType === 'cloud') {
+            plotDataMap[figureKey] = plot.data.map(point => getCloudPointValue(point, 'upper'))
+            plotDataMap[lowerKey] = plot.data.map(point => getCloudPointValue(point, 'lower'))
+          } else {
+            plotDataMap[figureKey] = normalizePlotDataSeries(plot.data, {
+              forceLamp,
+              lampLane
+            })
+          }
           plotDataMap[colorKey] = extractPlotColorSeries(plot.data)
           plotDataMap[sizeKey] = extractPlotSizeSeries(plot.data)
         }
@@ -5531,7 +5840,12 @@ registerOverlay({
     })
 
     watch(() => props.candleType, () => {
-      if (chartRef.value) updateChartTheme()
+      if (!chartRef.value) return
+      updateChartTheme()
+      try {
+        replaceChartData(chartDisplayData(), { preserveViewport: true })
+      } catch (_) {}
+      updateIndicators()
     })
 
     watch(() => props.activeIndicators, (newVal, oldVal) => {
@@ -5549,6 +5863,10 @@ registerOverlay({
         }
       }
     }, { deep: true })
+
+    watch(() => props.quickTradePositions, () => {
+      nextTick(() => renderQuickTradePositionOverlays())
+    }, { deep: true, immediate: true })
 
     watch(() => props.realtimeEnabled, (newVal) => {
       if (newVal) {
@@ -5674,6 +5992,117 @@ registerOverlay({
       }
     }
 
+    const waitForIndicatorPreviewRender = async (timeoutMs = 3500) => {
+      const startedAt = Date.now()
+      while ((indicatorsUpdating.value || indicatorsUpdateQueued.value) && Date.now() - startedAt < timeoutMs) {
+        await new Promise(resolve => setTimeout(resolve, 30))
+      }
+      await new Promise(resolve => {
+        if (typeof requestAnimationFrame !== 'function') {
+          setTimeout(resolve, 32)
+          return
+        }
+        requestAnimationFrame(() => requestAnimationFrame(resolve))
+      })
+    }
+
+    const captureMarketPreview = async (options = {}) => {
+      const inst = chartRef.value
+      if (!inst || typeof inst.getConvertPictureUrl !== 'function') return ''
+      if (options.waitForRender !== false) {
+        await waitForIndicatorPreviewRender(3500)
+      }
+      const dataRows = typeof inst.getDataList === 'function' ? inst.getDataList() : []
+      if (!Array.isArray(dataRows) || dataRows.length === 0) return ''
+
+      const width = Math.max(640, Number(options.width) || 1200)
+      const height = Math.max(360, Number(options.height) || 675)
+      const headerHeight = 54
+      const background = chartTheme.value === 'dark' ? '#111111' : '#ffffff'
+      const foreground = chartTheme.value === 'dark' ? '#f0f0f0' : '#1f1f1f'
+      const secondary = chartTheme.value === 'dark' ? '#9a9a9a' : '#707070'
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const context = canvas.getContext('2d')
+      if (!context) return ''
+
+      context.fillStyle = background
+      context.fillRect(0, 0, width, height)
+      context.fillStyle = foreground
+      context.font = '600 22px Arial, sans-serif'
+      context.textBaseline = 'middle'
+      context.fillText(String(options.title || ''), 22, headerHeight / 2, width * 0.62)
+      context.fillStyle = secondary
+      context.font = '500 15px Arial, sans-serif'
+      context.textAlign = 'right'
+      context.fillText(String(options.context || ''), width - 22, headerHeight / 2, width * 0.32)
+      context.textAlign = 'left'
+
+      const availableHeight = height - headerHeight
+      const focusX = Math.max(0, Math.min(1, Number.isFinite(Number(options.focusX)) ? Number(options.focusX) : 0.5))
+      const focusY = Math.max(0, Math.min(1, Number.isFinite(Number(options.focusY)) ? Number(options.focusY) : 0.52))
+      const getCoverLayout = (sourceWidth, sourceHeight) => {
+        const scale = Math.max(width / sourceWidth, availableHeight / sourceHeight)
+        const drawWidth = sourceWidth * scale
+        const drawHeight = sourceHeight * scale
+        return {
+          scale,
+          drawX: -(drawWidth - width) * focusX,
+          drawY: headerHeight - (drawHeight - availableHeight) * focusY
+        }
+      }
+      const chartContainer = document.getElementById('kline-chart-container')
+      const layers = chartContainer
+        ? Array.from(chartContainer.querySelectorAll('canvas')).filter(layer => {
+          const rect = layer.getBoundingClientRect()
+          const style = window.getComputedStyle(layer)
+          return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden'
+        })
+        : []
+
+      if (chartContainer && layers.length) {
+        const chartRect = chartContainer.getBoundingClientRect()
+        const { scale, drawX, drawY } = getCoverLayout(chartRect.width, chartRect.height)
+        context.save()
+        context.beginPath()
+        context.rect(0, headerHeight, width, availableHeight)
+        context.clip()
+        layers.forEach(layer => {
+          const layerRect = layer.getBoundingClientRect()
+          context.drawImage(
+            layer,
+            0,
+            0,
+            layer.width,
+            layer.height,
+            drawX + (layerRect.left - chartRect.left) * scale,
+            drawY + (layerRect.top - chartRect.top) * scale,
+            layerRect.width * scale,
+            layerRect.height * scale
+          )
+        })
+        context.restore()
+      } else {
+        const sourceUrl = inst.getConvertPictureUrl(true, 'jpeg', background)
+        if (!sourceUrl) return ''
+        const image = await new Promise((resolve, reject) => {
+          const source = new Image()
+          source.onload = () => resolve(source)
+          source.onerror = reject
+          source.src = sourceUrl
+        })
+        const { scale, drawX, drawY } = getCoverLayout(image.width, image.height)
+        context.save()
+        context.beginPath()
+        context.rect(0, headerHeight, width, availableHeight)
+        context.clip()
+        context.drawImage(image, drawX, drawY, image.width * scale, image.height * scale)
+        context.restore()
+      }
+      return canvas.toDataURL('image/jpeg', 0.88)
+    }
+
     onBeforeUnmount(() => {
       stopRealtime()
       wsClient = null
@@ -5763,7 +6192,9 @@ registerOverlay({
       clearAllDrawings,
       addedSignalOverlayIds,
       addedBacktestOverlayIds,
+      addedQuickTradeOverlayIds,
       getChartInstance,
+      captureMarketPreview,
       clearBacktestOverlays,
       addBacktestOverlay
     }
@@ -5908,19 +6339,41 @@ registerOverlay({
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 3px;
-  min-height: 32px;
-  padding: 3px 6px;
+  gap: 6px;
+  min-height: 34px;
+  padding: 3px 8px;
   background: #fff;
   border-bottom: 1px solid #e0e3eb;
   flex-wrap: nowrap;
   z-index: 1;
   position: relative;
   width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: visible;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE 10+ */
+}
+
+.indicator-toolbar--overlay {
+  position: absolute;
+  top: 4px;
+  left: 10px;
+  width: auto;
+  max-width: calc(100% - 28px);
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  z-index: 5;
+  pointer-events: none;
+
+  .indicator-active-bar {
+    pointer-events: auto;
+  }
+}
+
+.chart-left.theme-dark .indicator-toolbar--overlay {
+  border: 0;
+  background: transparent;
 }
 
 .indicator-toolbar::-webkit-scrollbar {
@@ -5930,11 +6383,10 @@ registerOverlay({
 }
 
 .indicator-active-bar {
-  position: absolute;
-  top: 36px;
-  left: 8px;
-  right: 56px;
-  z-index: 9;
+  position: static;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -5945,7 +6397,39 @@ registerOverlay({
   background: transparent;
   border: 0;
   scrollbar-width: none;
-  pointer-events: none;
+  pointer-events: auto;
+}
+
+.indicator-library-trigger {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 27px;
+  padding: 0 9px;
+  color: #434651;
+  border-color: #d8dbe3;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.indicator-library-trigger:hover,
+.indicator-library-trigger:focus {
+  color: #ff5b22;
+  border-color: #ff8a65;
+}
+
+.chart-left.theme-dark .indicator-library-trigger {
+  color: #d1d4dc;
+  border-color: #36383f;
+  background: #1d1f24;
+}
+
+.chart-left.theme-dark .indicator-library-trigger:hover,
+.chart-left.theme-dark .indicator-library-trigger:focus {
+  color: #ff7a45;
+  border-color: #ff6b35;
 }
 
 .indicator-active-bar::-webkit-scrollbar {
@@ -6395,10 +6879,9 @@ registerOverlay({
   }
 
   .indicator-toolbar {
-    padding-left: 12px;
+    padding-left: 8px;
     flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: visible;
     scrollbar-width: none;
     -ms-overflow-style: none;
     -webkit-overflow-scrolling: touch;
@@ -6421,7 +6904,7 @@ registerOverlay({
   }
 
   .indicator-toolbar {
-    padding-left: 12px;
+    padding-left: 8px;
   }
 
   .kline-chart-container {
@@ -6502,6 +6985,64 @@ registerOverlay({
     height: calc(100% - 45px) !important;
     min-height: 300px !important;
     max-height: calc(100% - 45px) !important;
+  }
+}
+</style>
+
+<style lang="less">
+.chart-indicator-menu .ant-dropdown-menu {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  gap: 2px;
+  min-width: 330px;
+  max-height: 360px;
+  padding: 6px;
+  overflow-y: auto;
+  border: 1px solid #e0e3eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(19, 23, 34, 0.14);
+}
+
+.chart-indicator-menu .ant-dropdown-menu-item {
+  min-width: 0;
+  padding: 7px 9px;
+  border-radius: 5px;
+}
+
+.chart-indicator-menu .indicator-library-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.chart-indicator-menu .indicator-library-menu__item > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-indicator-menu--dark .ant-dropdown-menu {
+  color: #d1d4dc;
+  background: #1d1f24;
+  border-color: #36383f;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.42);
+}
+
+.chart-indicator-menu--dark .ant-dropdown-menu-item {
+  color: #d1d4dc;
+}
+
+.chart-indicator-menu--dark .ant-dropdown-menu-item:hover {
+  color: #fff;
+  background: #292c33;
+}
+
+@media (max-width: 640px) {
+  .chart-indicator-menu .ant-dropdown-menu {
+    grid-template-columns: minmax(180px, 1fr);
+    min-width: 240px;
   }
 }
 </style>

@@ -47,7 +47,7 @@
       </template>
       <span @click="fetchNotice" class="header-notice" ref="noticeRef">
         <a-badge :count="unreadCount" :overflowCount="99">
-          <a-icon style="font-size: 16px; padding: 4px" type="bell" />
+          <a-icon class="header-notice-icon" type="bell" />
         </a-badge>
       </span>
     </a-popover>
@@ -443,20 +443,27 @@ export default {
 @import '@/styles/antd-vars.less';
 
 .notice-icon-wrapper {
-  display: inline-block;
-  vertical-align: top;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  line-height: 36px;
+  vertical-align: middle;
 }
 
 .header-notice {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: @layout-header-height;
-  line-height: @layout-header-height;
-  transition: all 0.3s;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  line-height: 36px;
+  transition: color 0.16s ease, background 0.16s ease;
   cursor: pointer;
-  padding: 0 12px;
-  vertical-align: top;
+  vertical-align: middle;
 
   &:hover {
     background: rgba(0, 0, 0, 0.04);
@@ -465,11 +472,25 @@ export default {
   span {
     vertical-align: initial;
   }
+
+  .ant-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  .header-notice-icon {
+    display: block;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1;
+  }
 }
 
 @media (max-width: 768px) {
   .header-notice {
-    padding: 0 8px;
+    width: 36px;
   }
 }
 
@@ -512,11 +533,11 @@ export default {
   }
 
   &.unread {
-    background: rgba(82, 196, 26, 0.06);
-    box-shadow: inset 2px 0 0 rgba(82, 196, 26, 0.72);
+    background: color-mix(in srgb, var(--primary-color, #1890ff) 7%, transparent);
+    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--primary-color, #1890ff) 76%, transparent);
 
     &:hover {
-      background: rgba(82, 196, 26, 0.11);
+      background: color-mix(in srgb, var(--primary-color, #1890ff) 12%, transparent);
     }
   }
 
@@ -1409,11 +1430,11 @@ body.realdark,
       }
 
       &.unread {
-        background: rgba(82, 196, 26, 0.07);
-        box-shadow: inset 2px 0 0 rgba(82, 196, 26, 0.58);
+        background: color-mix(in srgb, var(--primary-color, #1890ff) 10%, transparent);
+        box-shadow: inset 2px 0 0 color-mix(in srgb, var(--primary-color, #1890ff) 68%, transparent);
 
         &:hover {
-          background: rgba(82, 196, 26, 0.12);
+          background: color-mix(in srgb, var(--primary-color, #1890ff) 15%, transparent);
         }
       }
 

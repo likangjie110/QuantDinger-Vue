@@ -1,14 +1,16 @@
 <template>
   <div class="profile-page qd-workspace-page qd-page-frame" :class="{ 'theme-dark': isDarkTheme }">
-    <div class="page-header">
-      <h2 class="page-title">
-        <a-icon type="user" />
-        <span>{{ $t('profile.title') || 'My Profile' }}</span>
-      </h2>
-      <p class="page-desc">{{ $t('profile.description') || 'Manage your account settings and preferences' }}</p>
+    <div class="page-header qd-page-heading">
+      <div class="qd-page-heading__copy">
+        <h2 class="page-title qd-page-heading__title">
+          <a-icon class="qd-page-heading__icon" type="user" />
+          <span>{{ $t('profile.title') || 'My Profile' }}</span>
+        </h2>
+        <p class="page-desc qd-page-heading__description">{{ $t('profile.description') || 'Manage your account settings and preferences' }}</p>
+      </div>
     </div>
 
-    <div class="profile-overview-grid">
+    <div class="profile-overview-grid" :class="{ 'billing-disabled': !billingEnabled }">
       <a-card :bordered="false" class="profile-card">
         <div class="profile-identity">
           <a-avatar :size="72" :src="profile.avatar || '/avatar2.jpg'" />
@@ -44,7 +46,7 @@
         </div>
       </a-card>
 
-      <a-card :bordered="false" class="credits-card">
+      <a-card v-if="billingEnabled" :bordered="false" class="credits-card">
         <div class="credits-header">
           <h3 class="credits-title">
             <a-icon type="wallet" />
@@ -80,7 +82,7 @@
         </div>
       </a-card>
 
-      <a-card :bordered="false" class="referral-card">
+      <a-card v-if="billingEnabled" :bordered="false" class="referral-card">
         <div class="referral-card-heading">
           <h3 class="referral-title">
             <a-icon type="team" />
@@ -139,7 +141,7 @@
       </a-card>
 
       <a-modal
-        v-if="rewardData.enabled"
+        v-if="billingEnabled && rewardData.enabled"
         v-model="rewardWithdrawalVisible"
         :title="$t('profile.referralRewards.withdrawTitle')"
         :confirmLoading="rewardWithdrawalSubmitting"
@@ -377,7 +379,7 @@
             </div>
           </a-tab-pane>
 
-          <a-tab-pane key="credits">
+          <a-tab-pane v-if="billingEnabled" key="credits">
             <span slot="tab"><a-icon type="wallet" />{{ $t('profile.creditsLog') || '消费记录' }}</span>
             <a-table
               :columns="creditsLogColumns"
@@ -643,7 +645,7 @@
             </div>
           </a-tab-pane>
 
-          <a-tab-pane key="referrals">
+          <a-tab-pane v-if="billingEnabled" key="referrals">
             <span slot="tab"><a-icon type="team" />{{ $t('profile.referral.listTab') || '邀请列表' }}</span>
             <a-tabs v-model="referralRecordTab" class="referral-record-tabs">
               <a-tab-pane key="promotions" :tab="$t('profile.referralRewards.promotionRecords')">
@@ -990,6 +992,9 @@ export default {
     }
   },
   computed: {
+    billingEnabled () {
+      return this.$store.state.features.config.billing_enabled !== false
+    },
     profileTabsPosition () {
       return this.profileViewportWidth >= 960 ? 'left' : 'top'
     },
@@ -1199,10 +1204,10 @@ export default {
       if (val === 'loginLogs' && this.loginLogs.length === 0) {
         this.loadLoginLogs()
       }
-      if (val === 'credits' && this.creditsLog.length === 0) {
+      if (this.billingEnabled && val === 'credits' && this.creditsLog.length === 0) {
         this.loadCreditsLog()
       }
-      if (val === 'referrals' && (!this.referralData.list || this.referralData.list.length === 0)) {
+      if (this.billingEnabled && val === 'referrals' && (!this.referralData.list || this.referralData.list.length === 0)) {
         this.loadReferrals()
       }
       if (val === 'notifications' && !this.notificationSettings.telegram_chat_id && !this.notificationSettings.discord_webhook) {
@@ -1238,8 +1243,10 @@ export default {
     // jump straight to a specific tab.
     this.applyTabFromQuery(this.$route.query.tab)
     this.loadProfile()
-    this.loadReferrals()
-    this.loadReferralRewards()
+    if (this.billingEnabled) {
+      this.loadReferrals()
+      this.loadReferralRewards()
+    }
   },
   beforeDestroy () {
     window.removeEventListener('resize', this.syncProfileViewport)
@@ -1254,7 +1261,8 @@ export default {
     // Whitelist of tabs we accept from ``?tab=xxx``. Anything else is a no-op
     // so a malformed link can't put the page in a weird state.
     applyTabFromQuery (rawTab) {
-      const allowed = ['basic', 'agentTokens', 'password', 'security', 'credits', 'notifications', 'referrals', 'loginLogs']
+      const allowed = ['basic', 'agentTokens', 'password', 'security', 'notifications', 'loginLogs']
+      if (this.billingEnabled) allowed.push('credits', 'referrals')
       if (rawTab && allowed.includes(rawTab) && this.activeTab !== rawTab) {
         this.activeTab = rawTab
       }
@@ -3111,6 +3119,10 @@ export default {
     gap: 12px;
     margin-bottom: 12px;
 
+    &.billing-disabled {
+      grid-template-columns: minmax(320px, 1fr);
+    }
+
     > .ant-card {
       min-width: 0;
       min-height: 210px;
@@ -4009,6 +4021,387 @@ export default {
           }
         }
       }
+    }
+  }
+}
+
+/* Profile visual system */
+.profile-page {
+  --profile-page-bg: #f4f7fb;
+  --profile-panel: #ffffff;
+  --profile-panel-raised: #ffffff;
+  --profile-panel-muted: #f7f9fc;
+  --profile-border: #e2e8f0;
+  --profile-border-strong: #d5dde8;
+  --profile-text: #182230;
+  --profile-text-secondary: #556274;
+  --profile-text-muted: #8792a2;
+  --profile-shadow: 0 12px 34px rgba(30, 42, 62, 0.06);
+  --profile-accent-soft: color-mix(in srgb, var(--primary-color, #1890ff) 10%, var(--profile-panel));
+  --profile-accent-border: color-mix(in srgb, var(--primary-color, #1890ff) 30%, var(--profile-border));
+
+  background: var(--profile-page-bg);
+  color: var(--profile-text);
+
+  .page-header {
+    margin-bottom: 18px;
+
+    .page-title {
+      color: var(--profile-text);
+      font-size: 22px;
+      letter-spacing: -0.02em;
+    }
+
+    .page-desc {
+      color: var(--profile-text-secondary);
+    }
+  }
+
+  .profile-overview-grid > .ant-card,
+  .profile-settings-shell .edit-card {
+    border-color: var(--profile-border);
+    background: var(--profile-panel);
+    box-shadow: var(--profile-shadow) !important;
+  }
+
+  .profile-settings-shell .edit-card {
+    border-radius: 10px;
+
+    ::v-deep .ant-tabs-left {
+      display: flex;
+      align-items: stretch;
+    }
+
+    ::v-deep .ant-tabs-left-bar {
+      width: 206px;
+      height: auto;
+      min-height: 430px;
+      flex: 0 0 206px;
+      align-self: stretch;
+      padding: 14px 10px;
+      border-right-color: var(--profile-border);
+      background: var(--profile-panel-muted);
+    }
+
+    ::v-deep .ant-tabs-left-bar .ant-tabs-tab {
+      height: 40px;
+      margin-bottom: 4px;
+      padding: 0 12px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      color: var(--profile-text-secondary);
+      transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+
+      &:hover {
+        border-color: var(--profile-accent-border);
+        background: var(--profile-accent-soft);
+        color: var(--primary-color, #1890ff);
+      }
+    }
+
+    ::v-deep .ant-tabs-left-bar .ant-tabs-tab-active {
+      border-color: var(--profile-accent-border);
+      background: var(--profile-accent-soft);
+      color: var(--primary-color, #1890ff);
+      font-weight: 650;
+      box-shadow: inset 3px 0 0 var(--primary-color, #1890ff);
+    }
+
+    ::v-deep .ant-tabs-left-content {
+      width: auto;
+      min-height: 430px;
+      flex: 1 1 auto;
+      padding: 22px 26px 26px;
+      background: var(--profile-panel);
+    }
+  }
+
+  .security-section {
+    max-width: none;
+  }
+
+  .edit-card .mfa-card {
+    position: relative;
+    align-items: center;
+    min-height: 146px;
+    padding: 22px 24px;
+    overflow: hidden;
+    border-color: var(--profile-accent-border);
+    border-radius: 10px;
+    background:
+      radial-gradient(circle at 92% 10%, color-mix(in srgb, var(--primary-color, #1890ff) 12%, transparent), transparent 34%),
+      linear-gradient(135deg, var(--profile-panel-raised) 0%, var(--profile-accent-soft) 100%);
+    box-shadow: 0 10px 30px rgba(20, 32, 50, 0.06);
+
+    &::before {
+      position: absolute;
+      top: 18px;
+      bottom: 18px;
+      left: 0;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: var(--primary-color, #1890ff);
+      content: '';
+    }
+  }
+
+  .edit-card .mfa-card-main {
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .edit-card .mfa-icon {
+    width: 46px;
+    height: 46px;
+    flex-basis: 46px;
+    border: 1px solid var(--profile-accent-border);
+    border-radius: 10px;
+    background: var(--profile-accent-soft);
+    color: var(--primary-color, #1890ff);
+    font-size: 21px;
+  }
+
+  .edit-card .mfa-copy {
+    min-width: 0;
+  }
+
+  .edit-card .mfa-title {
+    color: var(--profile-text);
+    font-size: 15px;
+    line-height: 24px;
+  }
+
+  .edit-card .mfa-desc,
+  .edit-card .mfa-meta {
+    color: var(--profile-text-secondary);
+  }
+
+  .edit-card .mfa-feature-list {
+    gap: 7px;
+    margin-top: 12px;
+
+    span {
+      padding: 4px 9px;
+      border-color: var(--profile-accent-border);
+      border-radius: 6px;
+      background: var(--profile-accent-soft);
+      color: var(--primary-color, #1890ff);
+      line-height: 20px;
+    }
+  }
+
+  .edit-card .mfa-actions {
+    align-self: center;
+    padding-left: 20px;
+
+    .ant-btn {
+      min-width: 136px;
+      height: 36px;
+      border-radius: 7px;
+    }
+  }
+
+  ::v-deep .ant-table-wrapper {
+    overflow: hidden;
+    border: 1px solid var(--profile-border);
+    border-radius: 9px;
+    background: var(--profile-panel-raised);
+
+    .ant-table,
+    .ant-table-content,
+    .ant-table-body {
+      background: var(--profile-panel-raised) !important;
+      color: var(--profile-text);
+    }
+
+    .ant-table-thead > tr > th {
+      height: 42px;
+      border-bottom-color: var(--profile-border) !important;
+      background: var(--profile-panel-muted) !important;
+      color: var(--profile-text-secondary) !important;
+      font-weight: 650;
+    }
+
+    .ant-table-tbody > tr > td {
+      border-bottom-color: var(--profile-border) !important;
+      background: var(--profile-panel-raised) !important;
+      color: var(--profile-text-secondary) !important;
+    }
+
+    .ant-table-tbody > tr:last-child > td {
+      border-bottom: 0;
+    }
+
+    .ant-table-tbody > tr:hover:not(.ant-table-expanded-row) > td {
+      background: var(--profile-accent-soft) !important;
+    }
+
+    .ant-table-placeholder {
+      border-color: var(--profile-border) !important;
+      background: var(--profile-panel-raised) !important;
+      color: var(--profile-text-muted) !important;
+    }
+
+    .ant-table-pagination.ant-pagination {
+      margin: 16px;
+    }
+  }
+
+  ::v-deep .ant-pagination {
+    .ant-pagination-item,
+    .ant-pagination-prev .ant-pagination-item-link,
+    .ant-pagination-next .ant-pagination-item-link {
+      border-color: var(--profile-border) !important;
+      border-radius: 6px;
+      background: var(--profile-panel-raised) !important;
+      color: var(--profile-text-secondary) !important;
+    }
+
+    .ant-pagination-item a {
+      color: var(--profile-text-secondary) !important;
+    }
+
+    .ant-pagination-item:hover,
+    .ant-pagination-prev:hover .ant-pagination-item-link,
+    .ant-pagination-next:hover .ant-pagination-item-link {
+      border-color: var(--primary-color, #1890ff) !important;
+      color: var(--primary-color, #1890ff) !important;
+    }
+
+    .ant-pagination-item-active {
+      border-color: var(--primary-color, #1890ff) !important;
+      background: var(--profile-accent-soft) !important;
+      box-shadow: inset 0 0 0 1px var(--primary-color, #1890ff);
+
+      a {
+        color: var(--primary-color, #1890ff) !important;
+        font-weight: 700;
+      }
+    }
+  }
+
+  ::v-deep .ant-alert {
+    border-color: var(--profile-accent-border);
+    border-radius: 8px;
+    background: var(--profile-accent-soft);
+
+    .ant-alert-message,
+    .ant-alert-description {
+      color: var(--profile-text-secondary);
+    }
+  }
+
+  ::v-deep .ant-input,
+  ::v-deep .ant-input-number,
+  ::v-deep .ant-select-selection {
+    border-color: var(--profile-border);
+    background: var(--profile-panel-raised);
+    color: var(--profile-text);
+
+    &:hover,
+    &:focus {
+      border-color: var(--primary-color, #1890ff);
+    }
+  }
+
+  &.theme-dark {
+    --qd-border: rgba(255, 255, 255, 0.09);
+    --qd-surface: #181818;
+    --qd-surface-subtle: #1d1d1d;
+    --qd-text: #edf1f7;
+    --qd-text-secondary: #b0bac8;
+    --qd-text-muted: #7f8a9a;
+    --profile-page-bg: #101010;
+    --profile-panel: #181818;
+    --profile-panel-raised: #1b1b1b;
+    --profile-panel-muted: #202020;
+    --profile-border: rgba(255, 255, 255, 0.09);
+    --profile-border-strong: rgba(255, 255, 255, 0.14);
+    --profile-text: #edf1f7;
+    --profile-text-secondary: #b0bac8;
+    --profile-text-muted: #7f8a9a;
+    --profile-shadow: 0 14px 40px rgba(0, 0, 0, 0.2);
+
+    background: var(--profile-page-bg);
+
+    .profile-overview-grid > .ant-card,
+    .profile-settings-shell .edit-card {
+      border-color: var(--profile-border);
+      background: var(--profile-panel);
+    }
+
+    .profile-settings-shell .edit-card ::v-deep .ant-tabs-left-content {
+      background: var(--profile-panel);
+    }
+
+    .profile-settings-shell .edit-card ::v-deep .ant-tabs-left-bar {
+      background: #151515;
+    }
+
+    .edit-card .mfa-card {
+      background:
+        radial-gradient(circle at 92% 10%, color-mix(in srgb, var(--primary-color, #1890ff) 14%, transparent), transparent 36%),
+        linear-gradient(135deg, #1d1d1d 0%, color-mix(in srgb, var(--primary-color, #1890ff) 5%, #181818) 100%);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.2);
+    }
+
+    .edit-card .mfa-status-tag.is-disabled {
+      border-color: var(--profile-border-strong);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--profile-text-secondary);
+    }
+
+    ::v-deep .ant-table-wrapper .ant-table-tbody > tr > td,
+    ::v-deep .ant-table-wrapper .ant-table-tbody > tr > td span,
+    ::v-deep .ant-table-wrapper .ant-table-tbody > tr > td div,
+    ::v-deep .ant-table-wrapper .ant-table-tbody > tr > td *:not(.ant-tag):not(.ant-btn) {
+      color: var(--profile-text-secondary);
+    }
+
+    ::v-deep .ant-table-wrapper .ant-table-tbody > tr.token-row-revoked > td {
+      background: color-mix(in srgb, #ff4d4f 8%, var(--profile-panel-raised)) !important;
+    }
+
+    ::v-deep .ant-btn:not(.ant-btn-primary):not(.ant-btn-danger):not(.ant-btn-link) {
+      border-color: var(--profile-border-strong);
+      background: var(--profile-panel-raised);
+      color: var(--profile-text-secondary);
+
+      &:hover,
+      &:focus {
+        border-color: var(--primary-color, #1890ff);
+        color: var(--primary-color, #1890ff);
+      }
+    }
+
+    ::v-deep .ant-form-item-label > label,
+    ::v-deep .ant-checkbox-wrapper,
+    ::v-deep .ant-radio-wrapper {
+      color: var(--profile-text-secondary);
+    }
+
+    ::v-deep .ant-input::placeholder {
+      color: var(--profile-text-muted);
+    }
+  }
+}
+
+@media screen and (max-width: 960px) {
+  .profile-page {
+    .profile-settings-shell .edit-card {
+      ::v-deep .ant-tabs-top-bar {
+        background: var(--profile-panel-muted);
+      }
+
+      ::v-deep .ant-tabs-top-content {
+        min-height: 0;
+        padding: 18px;
+        background: var(--profile-panel);
+      }
+    }
+
+    .edit-card .mfa-actions {
+      padding-left: 0;
     }
   }
 }

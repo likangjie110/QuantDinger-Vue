@@ -22,246 +22,50 @@
     </section>
 
     <strategy-evolution v-if="mode === 'evolution'" @apply="applyEvolutionParams" />
-    <div v-else class="workspace-grid">
-      <section class="panel config-panel">
-        <div class="config-scroll">
-          <section class="config-section config-section--source">
-            <div class="panel-heading config-section__heading">
-              <div>
-                <span class="step-badge">1</span>
-                <h2>{{ $t('strategyV2.sourceTitle') }}</h2>
-              </div>
-              <a-tag v-if="manifest" class="theme-ready-tag">{{ $t('strategyV2.backtest.ready') }}</a-tag>
-            </div>
-            <a-radio-group
-              v-if="mode === 'portfolio'"
-              v-model="sourceCategory"
-              class="source-category-switch"
-              button-style="solid"
-              size="small"
-              data-testid="backtest-source-category"
-              @change="handleSourceCategoryChange"
-            >
-              <a-radio-button value="all">
-                {{ $t('strategyV2.backtest.sourceCategoryAll') }} {{ sources.length }}
-              </a-radio-button>
-              <a-radio-button value="script">
-                {{ $t('strategyV2.cta') }} {{ ctaSources.length }}
-              </a-radio-button>
-              <a-radio-button value="portfolio_strategy" :title="$t('strategyV2.portfolio')">
-                {{ $t('strategyV2.portfolio') }} {{ portfolioSources.length }}
-              </a-radio-button>
-            </a-radio-group>
-            <a-select
-              v-model="form.sourceId"
-              class="full-width"
-              show-search
-              option-filter-prop="children"
-              data-testid="backtest-source-select"
-              :loading="sourcesLoading"
-              :placeholder="$t('backtest-center.strategyPlaceholder')"
-              @change="selectSource"
-              @dropdownVisibleChange="onSourceDropdownVisibleChange"
-            >
-              <a-select-option v-for="item in availableSources" :key="item.id" :value="item.id">
-                {{ item.name }} · {{ sourceTypeLabel(item) }}
-              </a-select-option>
-            </a-select>
-            <a-alert
-              v-if="mode === 'portfolio' && sourceCategory === 'portfolio_strategy' && !portfolioSources.length"
-              class="source-empty-alert"
-              type="info"
-              show-icon
-              :message="$t('strategyV2.backtest.noPortfolioSourceTitle')"
-              :description="$t('strategyV2.backtest.noPortfolioSourceHint')"
-            />
-
-            <div v-if="manifest" class="manifest-card">
-              <div class="manifest-title">
-                <a-icon type="safety-certificate" />
-                {{ $t('strategyV2.manifestTitle') }}
-              </div>
-              <div class="manifest-grid">
-                <div><span>{{ $t('strategyV2.strategyType') }}</span><strong>{{ strategyTypeLabel }}</strong></div>
-                <div><span>{{ $t('strategyV2.frequency') }}</span><strong>{{ manifestFrequency }}</strong></div>
-                <div><span>{{ $t('strategyV2.markets') }}</span><strong>{{ (manifest.markets || []).join(', ') || '-' }}</strong></div>
-                <div><span>{{ $t('strategyV2.universe') }}</span><strong>{{ universeLabel }}</strong></div>
-              </div>
-            </div>
-          </section>
-          <a-form layout="vertical">
-            <section class="config-section config-section--runtime">
-              <div class="panel-heading config-section__heading">
-                <div>
-                  <span class="step-badge">2</span>
-                  <h2>{{ mode === 'factor' ? $t('strategyV2.factorResearch.runtimeTitle') : $t('strategyV2.runtimeTitle') }}</h2>
-                </div>
-              </div>
-              <p class="section-hint config-section__hint">{{ mode === 'factor' ? $t('strategyV2.factorResearch.runtimeHint') : $t('strategyV2.runtimeHint') }}</p>
-              <div class="date-range-card">
-                <div class="range-presets" data-testid="backtest-range-presets">
-                  <span class="range-presets__label">{{ $t('backtest-center.quickRange.label') }}</span>
-                  <div class="range-presets__buttons">
-                    <a-tooltip v-for="preset in rangePresetOptions" :key="preset.key" :title="preset.tooltip">
-                      <span class="range-preset-wrap">
-                        <a-button
-                          size="small"
-                          :type="preset.active ? 'primary' : 'default'"
-                          :disabled="preset.disabled"
-                          :aria-pressed="preset.active ? 'true' : 'false'"
-                          :data-testid="`backtest-range-${preset.key}`"
-                          @click="applyRangePreset(preset)"
-                        >
-                          {{ preset.label }}
-                        </a-button>
-                      </span>
-                    </a-tooltip>
-                  </div>
-                </div>
-                <div class="date-range-fields">
-                  <a-form-item :label="$t('backtest-center.startDate')">
-                    <a-date-picker v-model="form.startDate" :disabled-date="disabledStartDate" class="full-width" />
-                  </a-form-item>
-                  <span class="date-range-arrow"><a-icon type="arrow-right" /></span>
-                  <a-form-item :label="$t('backtest-center.endDate')">
-                    <a-date-picker v-model="form.endDate" :disabled-date="disabledEndDate" class="full-width" />
-                  </a-form-item>
-                </div>
-                <div
-                  v-if="backtestRangePolicy"
-                  class="range-policy-note"
-                  :class="{ 'is-error': backtestRangeExceeded }"
-                >
-                  <a-icon :type="backtestRangeExceeded ? 'warning' : 'info-circle'" />
-                  <div>
-                    <strong>{{ backtestRangeAlertTitle }}</strong>
-                    <span>{{ backtestRangeAlertDescription }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="form-grid">
-                <a-form-item v-if="mode === 'portfolio'" :label="$t('backtest-center.initialCapital')">
-                  <a-input-number v-model="form.initialCapital" :min="10" class="full-width" />
-                </a-form-item>
-                <a-form-item :label="$t('backtest-center.commission')">
-                  <a-input-number v-model="form.commission" :min="0" :max="1" :step="0.0001" class="full-width" />
-                </a-form-item>
-                <a-form-item :label="$t('backtest-center.slippage')">
-                  <a-input-number v-model="form.slippage" :min="0" :max="1" :step="0.0001" class="full-width" />
-                </a-form-item>
-                <a-form-item v-if="mode === 'portfolio'" :label="$t('strategyV2.leverageEnabled')">
-                  <div class="switch-row">
-                    <a-switch v-model="form.leverageEnabled" :disabled="!leverageAllowed" />
-                    <span>{{ leverageAllowed ? $t('strategyV2.backtest.optional') : $t('strategyV2.codeOwned') }}</span>
-                  </div>
-                </a-form-item>
-                <a-form-item v-if="mode === 'portfolio' && form.leverageEnabled" :label="$t('strategyV2.leverageMultiplier')">
-                  <a-input-number v-model="form.leverage" :min="1" :max="maxLeverage" :step="0.5" class="full-width" />
-                </a-form-item>
-              </div>
-            </section>
-
-            <section v-if="mode === 'portfolio' && paramDefinitions.length" class="config-section params-section">
-              <div class="subheading config-section__heading">
-                <div>
-                  <span class="step-badge">3</span>
-                  <h3>{{ $t('backtest-center.codeParams') }}</h3>
-                </div>
-                <span>{{ $t('strategyV2.backtest.paramCount', { count: paramDefinitions.length }) }}</span>
-              </div>
-              <div class="form-grid">
-                <a-form-item v-for="item in paramDefinitions" :key="item.name" :label="parameterLabel(item)">
-                  <a-switch
-                    v-if="item.type === 'boolean'"
-                    :checked="Boolean(params[item.name])"
-                    @change="value => setParam(item.name, value)"
-                  />
-                  <a-input-number
-                    v-else-if="['integer', 'number', 'percent'].includes(item.type)"
-                    :value="params[item.name]"
-                    :min="item.min"
-                    :max="item.max"
-                    :step="item.step || 1"
-                    :formatter="item.type === 'percent' ? formatRatioPercent : undefined"
-                    :parser="item.type === 'percent' ? parseRatioPercent : undefined"
-                    class="full-width"
-                    @change="value => setParam(item.name, value)"
-                  />
-                  <a-select
-                    v-else-if="parameterOptions(item).length"
-                    :value="params[item.name]"
-                    class="full-width"
-                    @change="value => setParam(item.name, value)"
-                  >
-                    <a-select-option v-for="option in parameterOptions(item)" :key="String(option.value)" :value="option.value">
-                      {{ parameterOptionLabel(item, option) }}
-                    </a-select-option>
-                  </a-select>
-                  <a-input v-else :value="params[item.name]" @input="event => setParam(item.name, event.target.value)" />
-                  <div v-if="parameterDescription(item)" class="param-description">{{ parameterDescription(item) }}</div>
-                </a-form-item>
-              </div>
-              <p class="section-hint">{{ $t('strategyBuilder.sourceContractHint') }}</p>
-            </section>
-
-            <section v-if="mode === 'factor'" class="config-section params-section factor-settings">
-              <div class="subheading config-section__heading">
-                <div>
-                  <span class="step-badge">3</span>
-                  <h3>{{ $t('strategyV2.factorResearch.settings') }}</h3>
-                </div>
-                <span>{{ $t('strategyV2.factorResearch.independentMode') }}</span>
-              </div>
-              <a-alert
-                class="factor-contract-alert"
-                type="info"
-                show-icon
-                :message="$t('strategyV2.factorResearch.universeContractTitle')"
-                :description="$t('strategyV2.factorResearch.universeContractDesc')" />
-              <div class="form-grid">
-                <a-form-item :label="$t('strategyV2.factorResearch.factor')">
-                  <a-select v-model="factorForm.factorId" class="full-width">
-                    <a-select-option value="momentum_20">{{ $t('strategyV2.factorResearch.factors.momentum20') }}</a-select-option>
-                    <a-select-option value="volatility_20">{{ $t('strategyV2.factorResearch.factors.volatility20') }}</a-select-option>
-                    <a-select-option value="reversal_5">{{ $t('strategyV2.factorResearch.factors.reversal5') }}</a-select-option>
-                    <a-select-option value="value">{{ $t('strategyV2.factorResearch.factors.value') }}</a-select-option>
-                    <a-select-option value="quality">{{ $t('strategyV2.factorResearch.factors.quality') }}</a-select-option>
-                    <a-select-option value="size">{{ $t('strategyV2.factorResearch.factors.size') }}</a-select-option>
-                  </a-select>
-                </a-form-item>
-                <a-form-item :label="$t('strategyV2.factorResearch.groups')">
-                  <a-input-number v-model="factorForm.groups" :min="2" :max="10" class="full-width" />
-                </a-form-item>
-                <a-form-item :label="$t('strategyV2.factorResearch.holdingPeriod')">
-                  <a-input-number v-model="factorForm.holdingPeriod" :min="1" :max="60" class="full-width" />
-                </a-form-item>
-                <a-form-item :label="$t('strategyV2.factorResearch.industryNeutralization')">
-                  <div class="switch-row"><a-switch v-model="factorForm.neutralizeIndustry" /><span>{{ $t('strategyV2.factorResearch.neutralizationHint') }}</span></div>
-                </a-form-item>
-              </div>
-            </section>
-
-            <div v-if="fundamentalDependencies.length" class="dependency-summary">
-              <a-icon type="warning" />
-              <div>
-                <strong>{{ $t('strategyV2.backtest.fundamentalDependencyTitle') }}</strong>
-                <span>{{ fundamentalDependencies.join(', ') }}</span>
-              </div>
-              <a-tooltip :title="$t('strategyV2.backtest.fundamentalDependencyHint', { fields: fundamentalDependencies.join(', ') })">
-                <a-icon type="question-circle" />
-              </a-tooltip>
-            </div>
-
-          </a-form>
+    <template v-else>
+      <section class="command-bar" data-testid="backtest-command-bar">
+        <div class="command-bar__source">
+          <span class="command-label">{{ $t('backtestWorkbench.strategy') }}</span>
+          <a-select
+            v-model="form.sourceId"
+            class="command-source-select"
+            show-search
+            option-filter-prop="children"
+            :loading="sourcesLoading"
+            :placeholder="$t('backtest-center.strategyPlaceholder')"
+            @change="selectSource"
+          >
+            <a-select-option v-for="item in availableSources" :key="item.id" :value="item.id">
+              {{ item.name }} · {{ sourceTypeLabel(item) }}
+            </a-select-option>
+          </a-select>
         </div>
-        <div class="run-action-bar">
+        <div class="command-bar__range">
+          <span class="command-label">{{ $t('backtestWorkbench.period') }}</span>
+          <a-date-picker v-model="form.startDate" size="small" :disabled-date="disabledStartDate" />
+          <span class="command-range-separator">—</span>
+          <a-date-picker v-model="form.endDate" size="small" :disabled-date="disabledEndDate" />
+        </div>
+        <div v-if="mode === 'portfolio'" class="command-bar__capital">
+          <span class="command-label">{{ $t('backtestWorkbench.capital') }}</span>
+          <a-input-number v-model="form.initialCapital" :min="1" :precision="0" size="small" />
+        </div>
+        <div v-else class="command-bar__factor">
+          <span class="command-label">{{ $t('backtestWorkbench.factor') }}</span>
+          <a-select v-model="factorForm.factorId" size="small">
+            <a-select-option v-for="item in researchFactorOptions" :key="item.factor_id" :value="item.factor_id">
+              {{ researchFactorName(item) }}
+            </a-select-option>
+          </a-select>
+        </div>
+        <div class="command-bar__actions">
+          <a-button icon="control" @click="settingsVisible = !settingsVisible">
+            {{ settingsVisible ? $t('backtestWorkbench.hideSettings') : $t('backtestWorkbench.advancedSettings') }}
+          </a-button>
           <a-button
             type="primary"
-            block
-            size="large"
             icon="thunderbolt"
-            data-testid="run-backtest"
+            data-testid="run-backtest-primary"
             :disabled="runDisabled"
             :loading="running"
             @click="runActive"
@@ -271,61 +75,365 @@
         </div>
       </section>
 
-      <section class="panel result-panel">
-        <div class="panel-heading result-heading">
-          <div>
-            <h2>{{ mode === 'factor' ? $t('strategyV2.factorResearch.workspace') : $t('backtest-center.resultOverview') }}</h2>
-            <span v-if="source" class="result-source-name">{{ source.name }}</span>
-          </div>
-          <span v-if="selectedRun" class="run-id">{{ mode === 'factor' ? 'FR-' : '#' }}{{ selectedRun.id || selectedRun.runId }}</span>
-        </div>
+      <div class="workspace-grid" :class="{ 'settings-open': settingsVisible }">
+        <section v-show="settingsVisible" class="panel config-panel">
+          <div class="config-scroll">
+            <section class="config-section config-section--source">
+              <div class="panel-heading config-section__heading">
+                <div>
+                  <span class="step-badge">1</span>
+                  <h2>{{ $t('strategyV2.sourceTitle') }}</h2>
+                </div>
+                <a-tag v-if="manifest" class="theme-ready-tag">{{ $t('strategyV2.backtest.ready') }}</a-tag>
+              </div>
+              <a-radio-group
+                v-if="mode === 'portfolio'"
+                v-model="sourceCategory"
+                class="source-category-switch"
+                button-style="solid"
+                size="small"
+                data-testid="backtest-source-category"
+                @change="handleSourceCategoryChange"
+              >
+                <a-radio-button value="all">
+                  {{ $t('strategyV2.backtest.sourceCategoryAll') }} {{ sources.length }}
+                </a-radio-button>
+                <a-radio-button value="script">
+                  {{ $t('strategyV2.cta') }} {{ ctaSources.length }}
+                </a-radio-button>
+                <a-radio-button value="portfolio_strategy" :title="$t('strategyV2.portfolio')">
+                  {{ $t('strategyV2.portfolio') }} {{ portfolioSources.length }}
+                </a-radio-button>
+              </a-radio-group>
+              <a-select
+                v-model="form.sourceId"
+                class="full-width"
+                show-search
+                option-filter-prop="children"
+                data-testid="backtest-source-select"
+                :loading="sourcesLoading"
+                :placeholder="$t('backtest-center.strategyPlaceholder')"
+                @change="selectSource"
+                @dropdownVisibleChange="onSourceDropdownVisibleChange"
+              >
+                <a-select-option v-for="item in availableSources" :key="item.id" :value="item.id">
+                  {{ item.name }} · {{ sourceTypeLabel(item) }}
+                </a-select-option>
+              </a-select>
+              <a-alert
+                v-if="mode === 'portfolio' && sourceCategory === 'portfolio_strategy' && !portfolioSources.length"
+                class="source-empty-alert"
+                type="info"
+                show-icon
+                :message="$t('strategyV2.backtest.noPortfolioSourceTitle')"
+                :description="$t('strategyV2.backtest.noPortfolioSourceHint')"
+              />
 
-        <div v-if="running" class="result-running" data-testid="backtest-running" aria-live="polite">
-          <div class="running-icon"><a-icon type="loading" /></div>
-          <h3>{{ mode === 'factor' ? $t('strategyV2.factorResearch.runningTitle') : $t('strategyV2.backtest.runningTitle') }}</h3>
-          <p>{{ mode === 'factor' ? $t('strategyV2.factorResearch.runningDesc') : $t('strategyV2.backtest.runningDesc') }}</p>
-          <strong>{{ $t('strategyV2.backtest.elapsed', { seconds: runElapsedSeconds }) }}</strong>
-          <div class="running-contract">
-            <span><a-icon type="check-circle" />{{ $t('strategyV2.backtest.sourceCheck') }}</span>
-            <span><a-icon type="database" />{{ mode === 'factor' ? $t('strategyV2.factorResearch.pointInTimeExecution') : $t('strategyV2.backtest.serverExecution') }}</span>
-            <span><a-icon type="safety-certificate" />{{ mode === 'factor' ? $t('strategyV2.factorResearch.metricsBeforeReturn') : $t('strategyV2.backtest.auditBeforeReturn') }}</span>
-          </div>
-        </div>
+              <div v-if="manifest" class="manifest-card">
+                <div class="manifest-title">
+                  <a-icon type="safety-certificate" />
+                  {{ $t('strategyV2.manifestTitle') }}
+                </div>
+                <div class="manifest-grid">
+                  <div><span>{{ $t('strategyV2.strategyType') }}</span><strong>{{ strategyTypeLabel }}</strong></div>
+                  <div><span>{{ $t('strategyV2.frequency') }}</span><strong>{{ manifestFrequency }}</strong></div>
+                  <div><span>{{ $t('strategyV2.markets') }}</span><strong>{{ (manifest.markets || []).join(', ') || '-' }}</strong></div>
+                  <div><span>{{ $t('strategyV2.universe') }}</span><strong>{{ universeLabel }}</strong></div>
+                </div>
+              </div>
+            </section>
+            <a-form layout="vertical">
+              <section class="config-section config-section--runtime">
+                <div class="panel-heading config-section__heading">
+                  <div>
+                    <span class="step-badge">2</span>
+                    <h2>{{ mode === 'factor' ? $t('strategyV2.factorResearch.runtimeTitle') : $t('strategyV2.runtimeTitle') }}</h2>
+                  </div>
+                </div>
+                <p class="section-hint config-section__hint">{{ mode === 'factor' ? $t('strategyV2.factorResearch.runtimeHint') : $t('strategyV2.runtimeHint') }}</p>
+                <div class="date-range-card">
+                  <div class="range-presets" data-testid="backtest-range-presets">
+                    <span class="range-presets__label">{{ $t('backtest-center.quickRange.label') }}</span>
+                    <div class="range-presets__buttons">
+                      <a-tooltip v-for="preset in rangePresetOptions" :key="preset.key" :title="preset.tooltip">
+                        <span class="range-preset-wrap">
+                          <a-button
+                            size="small"
+                            :type="preset.active ? 'primary' : 'default'"
+                            :disabled="preset.disabled"
+                            :aria-pressed="preset.active ? 'true' : 'false'"
+                            :data-testid="`backtest-range-${preset.key}`"
+                            @click="applyRangePreset(preset)"
+                          >
+                            {{ preset.label }}
+                          </a-button>
+                        </span>
+                      </a-tooltip>
+                    </div>
+                  </div>
+                  <div class="date-range-fields">
+                    <a-form-item :label="$t('backtest-center.startDate')">
+                      <a-date-picker v-model="form.startDate" :disabled-date="disabledStartDate" class="full-width" />
+                    </a-form-item>
+                    <span class="date-range-arrow"><a-icon type="arrow-right" /></span>
+                    <a-form-item :label="$t('backtest-center.endDate')">
+                      <a-date-picker v-model="form.endDate" :disabled-date="disabledEndDate" class="full-width" />
+                    </a-form-item>
+                  </div>
+                  <div
+                    v-if="backtestRangePolicy"
+                    class="range-policy-note"
+                    :class="{ 'is-error': backtestRangeExceeded }"
+                  >
+                    <a-icon :type="backtestRangeExceeded ? 'warning' : 'info-circle'" />
+                    <div>
+                      <strong>{{ backtestRangeAlertTitle }}</strong>
+                      <span>{{ backtestRangeAlertDescription }}</span>
+                    </div>
+                  </div>
+                </div>
 
-        <div v-else-if="!activeResult" class="result-empty" data-testid="backtest-empty">
-          <div class="empty-hero-card">
-            <div class="empty-orbit"><a-icon type="line-chart" /></div>
-            <h3>{{ emptyResultTitle }}</h3>
-            <p>{{ emptyResultDescription }}</p>
-            <div class="empty-checks">
-              <span :class="{ done: manifest }"><a-icon :type="manifest ? 'check-circle' : 'clock-circle'" />{{ $t('strategyV2.backtest.sourceCheck') }}</span>
-              <span><a-icon type="safety-certificate" />{{ mode === 'factor' ? $t('strategyV2.factorResearch.crossSectionCheck') : $t('strategyV2.backtest.safeFill') }}</span>
-              <span><a-icon type="database" />{{ $t('strategyV2.backtest.persisted') }}</span>
-            </div>
-          </div>
-          <div v-if="manifest" class="empty-preview-grid">
-            <div class="empty-preview-card">
-              <a-icon type="code" />
-              <span>{{ $t('strategyV2.sourceTitle') }}</span>
-              <strong>{{ source && source.name }}</strong>
-            </div>
-            <div class="empty-preview-card">
-              <a-icon type="global" />
-              <span>{{ $t('strategyV2.universe') }}</span>
-              <strong>{{ universeLabel }}</strong>
-            </div>
-            <div class="empty-preview-card">
-              <a-icon type="clock-circle" />
-              <span>{{ $t('strategyV2.frequency') }}</span>
-              <strong>{{ manifestFrequency }}</strong>
-            </div>
-          </div>
-        </div>
+                <div class="form-grid">
+                  <a-form-item v-if="mode === 'portfolio'" :label="$t('backtest-center.initialCapital')">
+                    <a-input-number v-model="form.initialCapital" :min="10" class="full-width" />
+                  </a-form-item>
+                  <a-form-item :label="$t('backtest-center.commission')">
+                    <a-input-number v-model="form.commission" :min="0" :max="1" :step="0.0001" class="full-width" />
+                  </a-form-item>
+                  <a-form-item :label="$t('backtest-center.slippage')">
+                    <a-input-number v-model="form.slippage" :min="0" :max="1" :step="0.0001" class="full-width" />
+                  </a-form-item>
+                  <a-form-item v-if="mode === 'portfolio'" :label="$t('strategyV2.leverageEnabled')">
+                    <div class="switch-row">
+                      <a-switch v-model="form.leverageEnabled" :disabled="!leverageAllowed" />
+                      <span>{{ leverageAllowed ? $t('strategyV2.backtest.optional') : $t('strategyV2.codeOwned') }}</span>
+                    </div>
+                  </a-form-item>
+                  <a-form-item v-if="mode === 'portfolio' && form.leverageEnabled" :label="$t('strategyV2.leverageMultiplier')">
+                    <a-input-number v-model="form.leverage" :min="1" :max="maxLeverage" :step="0.5" class="full-width" />
+                  </a-form-item>
+                </div>
+              </section>
 
-        <portfolio-result v-else-if="mode === 'portfolio'" :result="result" :is-dark="isDarkTheme" />
-        <factor-research-result v-else :result="factorResult" :is-dark="isDarkTheme" />
-      </section>
-    </div>
+              <section v-if="mode === 'portfolio' && paramDefinitions.length" class="config-section params-section">
+                <div class="subheading config-section__heading">
+                  <div>
+                    <span class="step-badge">3</span>
+                    <h3>{{ $t('backtest-center.codeParams') }}</h3>
+                  </div>
+                  <span>{{ $t('strategyV2.backtest.paramCount', { count: paramDefinitions.length }) }}</span>
+                </div>
+                <div class="form-grid">
+                  <a-form-item v-for="item in paramDefinitions" :key="item.name" :label="parameterLabel(item)">
+                    <a-switch
+                      v-if="item.type === 'boolean'"
+                      :checked="Boolean(params[item.name])"
+                      @change="value => setParam(item.name, value)"
+                    />
+                    <a-input-number
+                      v-else-if="['integer', 'number', 'percent'].includes(item.type)"
+                      :value="params[item.name]"
+                      :min="item.min"
+                      :max="item.max"
+                      :step="item.step || 1"
+                      :formatter="item.type === 'percent' ? formatRatioPercent : undefined"
+                      :parser="item.type === 'percent' ? parseRatioPercent : undefined"
+                      class="full-width"
+                      @change="value => setParam(item.name, value)"
+                    />
+                    <a-select
+                      v-else-if="parameterOptions(item).length"
+                      :value="params[item.name]"
+                      class="full-width"
+                      @change="value => setParam(item.name, value)"
+                    >
+                      <a-select-option v-for="option in parameterOptions(item)" :key="String(option.value)" :value="option.value">
+                        {{ parameterOptionLabel(item, option) }}
+                      </a-select-option>
+                    </a-select>
+                    <a-input v-else :value="params[item.name]" @input="event => setParam(item.name, event.target.value)" />
+                    <div v-if="parameterDescription(item)" class="param-description">{{ parameterDescription(item) }}</div>
+                  </a-form-item>
+                </div>
+                <p class="section-hint">{{ $t('strategyBuilder.sourceContractHint') }}</p>
+              </section>
+
+              <section v-if="mode === 'factor'" class="config-section params-section factor-settings">
+                <div class="subheading config-section__heading">
+                  <div>
+                    <span class="step-badge">3</span>
+                    <h3>{{ $t('strategyV2.factorResearch.settings') }}</h3>
+                  </div>
+                  <span>{{ $t('strategyV2.factorResearch.independentMode') }}</span>
+                </div>
+                <div class="factor-contract-note">
+                  <a-icon type="info-circle" />
+                  <div>
+                    <strong>{{ $t('strategyV2.factorResearch.universeContractTitle') }}</strong>
+                    <span>{{ $t('strategyV2.factorResearch.universeContractDesc') }}</span>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <a-form-item :label="$t('strategyV2.factorResearch.factor')">
+                    <a-select
+                      v-model="factorForm.factorId"
+                      class="full-width"
+                      show-search
+                      option-filter-prop="children"
+                      :loading="factorCatalogLoading"
+                      @change="handleResearchFactorChange"
+                    >
+                      <a-select-option v-for="factor in researchFactorOptions" :key="factor.factor_id" :value="factor.factor_id">
+                        {{ researchFactorName(factor) }} · {{ factor.factor_id }}
+                      </a-select-option>
+                    </a-select>
+                  </a-form-item>
+                  <a-form-item
+                    v-for="entry in researchFactorParameterEntries"
+                    :key="entry[0]"
+                    :label="entry[0]"
+                  >
+                    <a-select
+                      v-if="researchFactorParameterSchema(entry[0]).type === 'enum'"
+                      :value="factorParams[entry[0]]"
+                      class="full-width"
+                      @change="setResearchFactorParam(entry[0], $event)"
+                    >
+                      <a-select-option
+                        v-for="option in researchFactorParameterSchema(entry[0]).options"
+                        :key="option"
+                        :value="option"
+                      >{{ option }}</a-select-option>
+                    </a-select>
+                    <a-switch
+                      v-else-if="researchFactorParameterSchema(entry[0]).type === 'boolean'"
+                      :checked="factorParams[entry[0]]"
+                      @change="setResearchFactorParam(entry[0], $event)"
+                    />
+                    <a-input-number
+                      v-else-if="['integer', 'number'].includes(researchFactorParameterSchema(entry[0]).type)"
+                      :value="factorParams[entry[0]]"
+                      :min="researchFactorParameterSchema(entry[0]).minimum"
+                      :max="researchFactorParameterSchema(entry[0]).maximum"
+                      :step="researchFactorParameterSchema(entry[0]).step"
+                      :precision="researchFactorParameterSchema(entry[0]).type === 'integer' ? 0 : undefined"
+                      class="full-width"
+                      @change="setResearchFactorParam(entry[0], $event)"
+                    />
+                    <a-input
+                      v-else
+                      :value="factorParams[entry[0]]"
+                      @change="setResearchFactorParam(entry[0], $event.target.value)"
+                    />
+                  </a-form-item>
+                  <a-form-item :label="$t('strategyV2.factorResearch.groups')">
+                    <a-input-number v-model="factorForm.groups" :min="2" :max="10" class="full-width" />
+                  </a-form-item>
+                  <a-form-item :label="$t('strategyV2.factorResearch.holdingPeriod')">
+                    <a-input-number v-model="factorForm.holdingPeriod" :min="1" :max="60" class="full-width" />
+                  </a-form-item>
+                  <a-form-item :label="$t('strategyV2.factorResearch.industryNeutralization')">
+                    <div class="switch-row"><a-switch v-model="factorForm.neutralizeIndustry" /><span>{{ $t('strategyV2.factorResearch.neutralizationHint') }}</span></div>
+                  </a-form-item>
+                </div>
+              </section>
+
+              <div v-if="fundamentalDependencies.length" class="dependency-summary">
+                <a-icon type="warning" />
+                <div>
+                  <strong>{{ $t('strategyV2.backtest.fundamentalDependencyTitle') }}</strong>
+                  <span>{{ fundamentalDependencies.join(', ') }}</span>
+                </div>
+                <a-tooltip :title="$t('strategyV2.backtest.fundamentalDependencyHint', { fields: fundamentalDependencies.join(', ') })">
+                  <a-icon type="question-circle" />
+                </a-tooltip>
+              </div>
+
+            </a-form>
+          </div>
+          <div class="run-action-bar">
+            <a-button
+              type="primary"
+              block
+              size="large"
+              icon="thunderbolt"
+              data-testid="run-backtest"
+              :disabled="runDisabled"
+              :loading="running"
+              @click="runActive"
+            >
+              {{ mode === 'portfolio' ? $t('backtest-center.runBacktest') : $t('strategyV2.factorResearch.run') }}
+            </a-button>
+          </div>
+        </section>
+
+        <section class="panel result-panel">
+          <div class="panel-heading result-heading">
+            <div>
+              <h2>{{ mode === 'factor' ? $t('strategyV2.factorResearch.workspace') : $t('backtest-center.resultOverview') }}</h2>
+              <span v-if="source" class="result-source-name">{{ source.name }}</span>
+            </div>
+            <span v-if="selectedRun" class="run-id">{{ mode === 'factor' ? 'FR-' : '#' }}{{ selectedRun.id || selectedRun.runId }}</span>
+          </div>
+
+          <div v-if="running && !activeResult" class="result-running" data-testid="backtest-running" aria-live="polite">
+            <div class="running-icon"><a-icon type="loading" /></div>
+            <h3>{{ currentProgressLabel }}</h3>
+            <p>{{ mode === 'factor' ? $t('strategyV2.factorResearch.runningDesc') : $t('strategyV2.backtest.runningDesc') }}</p>
+            <a-progress class="run-progress" :percent="runProgressPercent" :show-info="true" status="active" />
+            <strong>{{ $t('strategyV2.backtest.elapsed', { seconds: runElapsedSeconds }) }}</strong>
+            <div class="running-contract">
+              <span><a-icon type="check-circle" />{{ $t('strategyV2.backtest.sourceCheck') }}</span>
+              <span><a-icon type="database" />{{ mode === 'factor' ? $t('strategyV2.factorResearch.pointInTimeExecution') : $t('strategyV2.backtest.serverExecution') }}</span>
+              <span><a-icon type="safety-certificate" />{{ mode === 'factor' ? $t('strategyV2.factorResearch.metricsBeforeReturn') : $t('strategyV2.backtest.auditBeforeReturn') }}</span>
+            </div>
+          </div>
+
+          <div v-else-if="!activeResult" class="result-empty" data-testid="backtest-empty">
+            <div class="empty-hero-card">
+              <div class="empty-orbit"><a-icon type="line-chart" /></div>
+              <h3>{{ emptyResultTitle }}</h3>
+              <p>{{ emptyResultDescription }}</p>
+              <div class="empty-checks">
+                <span :class="{ done: manifest }"><a-icon :type="manifest ? 'check-circle' : 'clock-circle'" />{{ $t('strategyV2.backtest.sourceCheck') }}</span>
+                <span><a-icon type="safety-certificate" />{{ mode === 'factor' ? $t('strategyV2.factorResearch.crossSectionCheck') : $t('strategyV2.backtest.safeFill') }}</span>
+                <span><a-icon type="database" />{{ $t('strategyV2.backtest.persisted') }}</span>
+              </div>
+            </div>
+            <div v-if="manifest" class="empty-preview-grid">
+              <div class="empty-preview-card">
+                <a-icon type="code" />
+                <span>{{ $t('strategyV2.sourceTitle') }}</span>
+                <strong>{{ source && source.name }}</strong>
+              </div>
+              <div class="empty-preview-card">
+                <a-icon type="global" />
+                <span>{{ $t('strategyV2.universe') }}</span>
+                <strong>{{ universeLabel }}</strong>
+              </div>
+              <div class="empty-preview-card">
+                <a-icon type="clock-circle" />
+                <span>{{ $t('strategyV2.frequency') }}</span>
+                <strong>{{ manifestFrequency }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <template v-else>
+            <div v-if="running" class="result-progress-strip" aria-live="polite">
+              <div>
+                <a-icon type="loading" />
+                <strong>{{ currentProgressLabel }}</strong>
+                <span>{{ $t('strategyV2.backtest.elapsed', { seconds: runElapsedSeconds }) }}</span>
+              </div>
+              <a-progress :percent="runProgressPercent" :show-info="false" status="active" />
+            </div>
+            <portfolio-result v-if="mode === 'portfolio'" :result="result" :is-dark="isDarkTheme" />
+            <factor-research-result v-else :result="factorResult" :is-dark="isDarkTheme" />
+          </template>
+        </section>
+      </div>
+    </template>
 
     <a-drawer
       v-if="mode !== 'evolution'"
@@ -402,9 +510,10 @@ import {
   getStrategyFactorResearchHistory,
   getStrategyFactorResearchRun,
   getStrategyBacktestHistory,
+  getStrategyBacktestJob,
   getStrategyBacktestRun,
   runStrategyFactorResearch,
-  runStrategyBacktest
+  startStrategyBacktestJob
 } from '@/api/strategy'
 import PortfolioResult from './PortfolioResult.vue'
 import FactorResearchResult from './FactorResearchResult.vue'
@@ -416,6 +525,7 @@ import {
   strategyParameterOptions
 } from '@/utils/strategyParameterPresentation'
 import { ratioPercentInputFormatter, ratioPercentInputParser } from '@/utils/numberFormat'
+import { getFactorCatalog } from '@/api/factor'
 
 export default {
   name: 'BacktestCenter',
@@ -437,6 +547,10 @@ export default {
       factorResult: null,
       selectedRun: null,
       running: false,
+      settingsVisible: true,
+      activeJobId: null,
+      jobPollTimer: null,
+      runProgress: { phase: 'preparing', percent: 0 },
       runElapsedSeconds: 0,
       runTimer: null,
       historyLoading: false,
@@ -448,6 +562,7 @@ export default {
       pageReady: false,
       sourceLoadSequence: 0,
       sourceContractLoading: false,
+      appliedParamDefinitions: [],
       equityChart: null,
       chartResizeObserver: null,
       form: {
@@ -465,7 +580,10 @@ export default {
         groups: 5,
         holdingPeriod: 5,
         neutralizeIndustry: false
-      }
+      },
+      factorParams: {},
+      researchFactors: [],
+      factorCatalogLoading: false
     }
   },
   computed: {
@@ -478,6 +596,16 @@ export default {
     },
     activeResult () {
       return this.mode === 'portfolio' ? this.result : this.factorResult
+    },
+    runProgressPercent () {
+      const percent = Number(this.runProgress && this.runProgress.percent)
+      return Number.isFinite(percent) ? Math.max(0, Math.min(100, Math.round(percent))) : 0
+    },
+    currentProgressLabel () {
+      if (this.mode === 'factor') return this.$t('strategyV2.factorResearch.runningTitle')
+      const phase = String((this.runProgress && this.runProgress.phase) || 'preparing')
+      const key = `backtestWorkbench.stage.${phase}`
+      return this.$te(key) ? this.$t(key) : this.$t('strategyV2.backtest.runningTitle')
     },
     modeContextLabel () {
       if (this.mode === 'factor') return this.$t('strategyV2.factorResearch.workspace')
@@ -502,6 +630,29 @@ export default {
       if (!this.manifest || this.manifest.strategyType !== 'portfolio') return false
       const universe = this.manifest.universe || {}
       return Boolean(universe.reference) || (universe.instruments || []).length >= 3
+    },
+    researchFactorOptions () {
+      const legacy = [
+        ['momentum_20', 'momentum20'],
+        ['volatility_20', 'volatility20'],
+        ['reversal_5', 'reversal5'],
+        ['value', 'value'],
+        ['quality', 'quality'],
+        ['size', 'size']
+      ].map(([factorId, label]) => ({
+        factor_id: factorId,
+        display_name: this.$t(`strategyV2.factorResearch.factors.${label}`),
+        default_params: {},
+        parameter_schema: {}
+      }))
+      return [...legacy, ...this.researchFactors]
+    },
+    selectedResearchFactor () {
+      const selected = String(this.factorForm.factorId || '').toLowerCase()
+      return this.researchFactorOptions.find(item => String(item.factor_id || '').toLowerCase() === selected) || null
+    },
+    researchFactorParameterEntries () {
+      return Object.entries((this.selectedResearchFactor && this.selectedResearchFactor.default_params) || {})
     },
     emptyResultTitle () {
       if (this.mode === 'factor') {
@@ -610,7 +761,8 @@ export default {
     },
     paramDefinitions () {
       const schema = this.parseObject(this.source && this.source.param_schema)
-      return Array.isArray(schema.params) ? schema.params : []
+      const declared = Array.isArray(schema.params) ? schema.params : []
+      return declared.length ? declared : this.appliedParamDefinitions
     },
     hasBenchmarkMetrics () {
       if (!this.result || !['available', 'partial'].includes(this.result.benchmarkStatus)) return false
@@ -724,6 +876,7 @@ export default {
   },
   async mounted () {
     await this.loadSources()
+    this.loadResearchFactors().catch(() => {})
     this.pageReady = true
     await this.syncRouteSource({ fallback: true })
     this.loadHistory({ mode: this.mode }).catch(() => {})
@@ -739,6 +892,7 @@ export default {
   beforeDestroy () {
     window.removeEventListener('resize', this.resizeEquityChart)
     this.stopRunTimer()
+    this.stopJobPolling()
     if (this.chartResizeObserver) this.chartResizeObserver.disconnect()
     if (this.equityChart) this.equityChart.dispose()
   },
@@ -845,6 +999,7 @@ export default {
     async refreshPage () {
       await Promise.all([
         this.loadSources(),
+        this.loadResearchFactors(),
         this.loadHistory({ mode: this.mode, force: true })
       ])
       await this.syncRouteSource({ fallback: true })
@@ -857,6 +1012,36 @@ export default {
       } finally {
         this.sourcesLoading = false
       }
+    },
+    async loadResearchFactors () {
+      this.factorCatalogLoading = true
+      try {
+        const response = await getFactorCatalog({ type: 'technical' })
+        this.researchFactors = Array.isArray(response.data) ? response.data : []
+        if (this.selectedResearchFactor && !Object.keys(this.factorParams).length) {
+          this.factorParams = { ...(this.selectedResearchFactor.default_params || {}) }
+        }
+      } finally {
+        this.factorCatalogLoading = false
+      }
+    },
+    researchFactorName (factor) {
+      const key = factor && factor.name_i18n_key
+      if (key) {
+        const translated = this.$t(key)
+        if (translated && translated !== key) return translated
+      }
+      return (factor && (factor.display_name || factor.factor_id)) || ''
+    },
+    researchFactorParameterSchema (key) {
+      return (this.selectedResearchFactor && this.selectedResearchFactor.parameter_schema && this.selectedResearchFactor.parameter_schema[key]) || { type: 'string' }
+    },
+    setResearchFactorParam (key, value) {
+      if (value === null || value === undefined) return
+      this.$set(this.factorParams, key, value)
+    },
+    handleResearchFactorChange () {
+      this.factorParams = { ...((this.selectedResearchFactor && this.selectedResearchFactor.default_params) || {}) }
     },
     onSourceDropdownVisibleChange (visible) {
       if (!visible || this.sourcesLoading) return
@@ -937,8 +1122,21 @@ export default {
         this.form.sourceId = sourceId
         await this.selectSource(sourceId)
       }
-      this.params = { ...((selection && selection.params) || {}) }
-      this.$message.success(this.$t('strategyEvolution.paramsApplied'))
+      this.appliedParamDefinitions = Array.isArray(selection && selection.parameterDefinitions)
+        ? selection.parameterDefinitions
+        : []
+      const selectedParams = { ...((selection && selection.params) || {}) }
+      this.params = this.paramDefinitions.reduce((output, item) => {
+        output[item.name] = Object.prototype.hasOwnProperty.call(selectedParams, item.name)
+          ? selectedParams[item.name]
+          : item.default
+        return output
+      }, { ...selectedParams })
+      this.settingsVisible = true
+      const messageKey = selection && selection.recommended
+        ? 'strategyEvolution.paramsApplied'
+        : 'strategyEvolution.paramsAppliedForReview'
+      this.$message[selection && selection.recommended ? 'success' : 'warning'](this.$t(messageKey))
     },
     async handleSourceCategoryChange () {
       const currentId = Number(this.form.sourceId)
@@ -964,12 +1162,16 @@ export default {
       const previousSelectedRun = this.selectedRun
       const previousLeverageEnabled = this.form.leverageEnabled
       const previousLeverage = this.form.leverage
+      this.source = this.sources.find(item => Number(item.id) === Number(sourceId)) || null
+      this.manifest = null
+      this.backtestRangePolicy = null
       this.sourceContractLoading = true
       this.result = null
       this.factorResult = null
       this.selectedRun = null
       this.form.leverageEnabled = false
       this.form.leverage = 1
+      this.appliedParamDefinitions = []
       try {
         const [response, compiled] = await Promise.all([
           getScriptSourceDetail(sourceId),
@@ -1091,10 +1293,6 @@ export default {
       if (this.backtestRangeLimitDays === null || !this.form.startDate || !this.form.endDate) return
       if (this.selectedRangeDays <= this.backtestRangeLimitDays && this.selectedRangeDays >= 0) return
       this.form.startDate = this.form.endDate.clone().startOf('day').subtract(this.backtestRangeLimitDays, 'days')
-      this.$message.info(this.$t('strategyV2.backtest.rangeLimitAdjusted', {
-        timeframe: this.manifestFrequency,
-        maxDays: this.backtestRangeLimitDays
-      }))
     },
     ensureBacktestRangeAllowed () {
       if (!this.backtestRangeExceeded) return true
@@ -1113,6 +1311,47 @@ export default {
       if (this.runTimer) window.clearInterval(this.runTimer)
       this.runTimer = null
     },
+    stopJobPolling () {
+      if (this.jobPollTimer) window.clearTimeout(this.jobPollTimer)
+      this.jobPollTimer = null
+    },
+    scheduleJobPoll () {
+      this.stopJobPolling()
+      this.jobPollTimer = window.setTimeout(() => this.pollBacktestJob(), 900)
+    },
+    async pollBacktestJob () {
+      if (!this.activeJobId || !this.running) return
+      try {
+        const response = await getStrategyBacktestJob(this.activeJobId)
+        const job = response.data || {}
+        this.runProgress = { ...(job.progress || {}) }
+        if (job.status === 'succeeded') {
+          const result = job.result || {}
+          this.result = result
+          this.selectedRun = { id: result.runId }
+          const billing = result.billing
+          if (billing && typeof billing.remaining !== 'undefined') {
+            this.$root.$emit('credits-updated', billing.remaining)
+          }
+          this.running = false
+          this.activeJobId = null
+          this.stopRunTimer()
+          this.stopJobPolling()
+          await this.loadHistory({ mode: 'portfolio', force: true })
+          return
+        }
+        if (job.status === 'failed' || job.status === 'cancelled') {
+          throw new Error(job.error || this.$t('strategyV2.backtest.runFailed'))
+        }
+        this.scheduleJobPoll()
+      } catch (error) {
+        this.running = false
+        this.activeJobId = null
+        this.stopRunTimer()
+        this.stopJobPolling()
+        this.$message.error((error && error.backendMessage) || (error && error.message) || this.$t('strategyV2.backtest.runFailed'))
+      }
+    },
     async run () {
       if (!this.form.sourceId) {
         this.$message.warning(this.$t('strategyV2.sourceContractRequired'))
@@ -1125,11 +1364,11 @@ export default {
       }
       if (!this.ensureBacktestRangeAllowed()) return
       this.running = true
-      this.result = null
       this.selectedRun = null
+      this.runProgress = { phase: 'preparing', percent: 2 }
       this.startRunTimer()
       try {
-        const response = await runStrategyBacktest({
+        const response = await startStrategyBacktestJob({
           sourceId: this.form.sourceId,
           startDate: this.form.startDate.format('YYYY-MM-DD'),
           endDate: this.form.endDate.format('YYYY-MM-DD'),
@@ -1140,18 +1379,20 @@ export default {
           leverage: this.form.leverageEnabled ? this.form.leverage : 1,
           params: this.params
         })
-        this.result = response.data
-        this.selectedRun = { id: response.data && response.data.runId }
+        this.activeJobId = response.data && response.data.jobId
+        this.runProgress = { ...((response.data && response.data.progress) || this.runProgress) }
         const billing = response.data && response.data.billing
         if (billing && typeof billing.remaining !== 'undefined') {
           this.$root.$emit('credits-updated', billing.remaining)
         }
-        await this.loadHistory({ mode: 'portfolio', force: true })
+        if (!this.activeJobId) throw new Error(this.$t('strategyV2.backtest.runFailed'))
+        this.scheduleJobPoll()
       } catch (error) {
-        this.$message.error((error && error.backendMessage) || this.$t('strategyV2.backtest.runFailed'))
-      } finally {
-        this.stopRunTimer()
         this.running = false
+        this.activeJobId = null
+        this.stopRunTimer()
+        this.stopJobPolling()
+        this.$message.error((error && error.backendMessage) || this.$t('strategyV2.backtest.runFailed'))
       }
     },
     async runFactorResearch () {
@@ -1166,7 +1407,6 @@ export default {
       }
       if (!this.ensureBacktestRangeAllowed()) return
       this.running = true
-      this.factorResult = null
       this.startRunTimer()
       try {
         const response = await runStrategyFactorResearch({
@@ -1176,6 +1416,7 @@ export default {
           commission: this.form.commission,
           slippage: this.form.slippage,
           factorId: this.factorForm.factorId,
+          factorParams: { ...this.factorParams },
           groups: this.factorForm.groups,
           holdingPeriod: this.factorForm.holdingPeriod,
           neutralizeIndustry: this.factorForm.neutralizeIndustry
@@ -1260,6 +1501,7 @@ export default {
           holdingPeriod: Number(run.holding_period || 5),
           neutralizeIndustry: Boolean(run.neutralize_industry)
         }
+        this.factorParams = { ...((run.result && run.result.factorParams) || {}) }
         this.form.commission = Number(run.commission || 0)
         this.form.slippage = Number(run.slippage || 0)
         if (run.start_date) this.form.startDate = moment(run.start_date)
@@ -1281,6 +1523,8 @@ export default {
       }
     },
     factorLabel (factorId) {
+      const selected = this.researchFactorOptions.find(item => String(item.factor_id || '').toLowerCase() === String(factorId || '').toLowerCase())
+      if (selected) return this.researchFactorName(selected)
       return this.$t(`strategyV2.factorResearch.factors.${{
         momentum_20: 'momentum20',
         volatility_20: 'volatility20',
@@ -1321,7 +1565,8 @@ export default {
       return formatBacktestTime(value, { locale: this.$i18n.locale, fallback: '-' })
     },
     historyStatusLabel (item) {
-      return this.$t(`strategyV2.backtest.status.${item.result_status || 'unknown'}`)
+      const status = item.result_status === 'complete' ? 'completed_trades' : (item.result_status || 'unknown')
+      return this.$t(`strategyV2.backtest.status.${status}`)
     },
     historyReturnTone (item) {
       if (item.result_status === 'no_signals') return 'neutral'
@@ -1332,7 +1577,19 @@ export default {
 </script>
 
 <style lang="less" scoped>
-.backtest-page { min-height: 100%; padding: 0 14px 22px; background: #f1f3f5; color: #182230; }
+.backtest-page {
+  --workspace-heading: #17233d;
+  --workspace-text: #445269;
+  --workspace-muted: #718096;
+  --workspace-faint: #8b96a7;
+  --workspace-border: #e2e6eb;
+  --workspace-surface: #fafbfc;
+  min-height: 100%;
+  padding: 0 14px 22px;
+  background: #f1f3f5;
+  color: var(--workspace-text);
+  font-size: 12px;
+}
 .workspace-toolbar, .panel { border: 1px solid #e2e6eb; border-radius: 10px; background: #fff; box-shadow: 0 6px 20px rgba(15, 35, 60, 0.045); }
 .workspace-toolbar { position: sticky; z-index: 20; top: 0; display: flex; width: calc(100% + 28px); align-items: center; justify-content: space-between; gap: 16px; min-height: 48px; margin-right: -14px; margin-bottom: 10px; margin-left: -14px; padding: 7px 24px; border-radius: 0; }
 .workspace-toolbar__primary { display: flex; min-width: 0; align-items: center; gap: 12px; }
@@ -1340,8 +1597,8 @@ export default {
 .workspace-mode-tabs /deep/ .ant-radio-button-wrapper { border-radius: 0; }
 .workspace-mode-tabs /deep/ .ant-radio-button-wrapper:first-child { border-radius: 6px 0 0 6px; }
 .workspace-mode-tabs /deep/ .ant-radio-button-wrapper:last-child { border-radius: 0 6px 6px 0; }
-.workspace-toolbar__context { overflow: hidden; color: #718096; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.section-hint, .history-title-row p { margin: 0; color: #718096; line-height: 1.55; }
+.workspace-toolbar__context { overflow: hidden; color: var(--workspace-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.section-hint, .history-title-row p { margin: 0; color: var(--workspace-muted); font-size: 12px; line-height: 1.55; }
 .hero-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 .hero-stat { display: inline-flex; align-items: baseline; gap: 5px; padding: 7px 10px; border-radius: 8px; color: #718096; background: #f7f9fb; font-size: 12px; }
 .source-category-switch { display: flex; width: 100%; overflow: hidden; margin-bottom: 9px; border-radius: 6px; }
@@ -1350,15 +1607,30 @@ export default {
 .source-category-switch /deep/ .ant-radio-button-wrapper:last-child { border-radius: 0 6px 6px 0; }
 .source-empty-alert { margin-top: 10px; }
 .hero-stat strong { color: #25364f; font-size: 16px; }
-.workspace-grid { display: grid; grid-template-columns: 332px minmax(620px, 1fr); gap: 10px; align-items: start; }
+.command-bar { position: sticky; z-index: 18; top: 58px; display: grid; grid-template-columns: minmax(240px, 1.4fr) minmax(340px, 1.25fr) minmax(150px, .55fr) auto; align-items: end; gap: 12px; margin-bottom: 10px; padding: 11px 14px; border: 1px solid #e2e6eb; border-radius: 10px; background: #fff; box-shadow: 0 -10px 0 #f1f3f5, 0 8px 24px rgba(15, 35, 60, .055); }
+.command-bar__source, .command-bar__range, .command-bar__capital, .command-bar__factor { display: grid; min-width: 0; gap: 5px; }
+.command-bar__range { grid-template-columns: minmax(120px, 1fr) 16px minmax(120px, 1fr); }
+.command-bar__range .command-label { grid-column-start: 1; grid-column-end: 4; }
+.command-label { overflow: hidden; color: var(--workspace-muted); font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.command-source-select, .command-bar__factor /deep/ .ant-select { width: 100%; }
+.command-range-separator { align-self: center; color: #98a2b3; text-align: center; }
+.command-bar__capital /deep/ .ant-input-number { width: 100%; }
+.command-bar__actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.workspace-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: start; }
+.workspace-grid.settings-open { grid-template-columns: 332px minmax(620px, 1fr); }
 .panel { padding: 14px; }
 .config-panel { position: sticky; top: 60px; display: flex; overflow: hidden; height: calc(100vh - 150px); min-height: 610px; flex-direction: column; padding: 0; }
 .config-scroll { min-height: 0; overflow-y: auto; padding: 10px 10px 4px; scrollbar-gutter: stable; }
 .run-action-bar { position: relative; z-index: 2; flex: none; padding: 10px 14px 14px; border-top: 1px solid #e8edf2; background: #fff; box-shadow: 0 -8px 20px rgba(15, 35, 60, 0.05); }
 .result-panel { min-height: calc(100vh - 150px); overflow: hidden; }
+.result-progress-strip { display: grid; grid-template-columns: minmax(260px, .8fr) minmax(220px, 1.2fr); align-items: center; gap: 16px; margin-bottom: 12px; padding: 10px 13px; border: 1px solid color-mix(in srgb, var(--primary-color, #52c41a) 28%, #e2e6eb); border-radius: 9px; color: #516075; background: color-mix(in srgb, var(--primary-color, #52c41a) 5%, #fff); }
+.result-progress-strip > div { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.result-progress-strip .anticon, .result-progress-strip strong { color: var(--primary-color, #52c41a); }
+.result-progress-strip span { color: #7c8ca1; font-size: 11px; }
+.run-progress { width: 80%; max-width: 520px; margin: 4px 0 0; }
 .panel-heading, .panel-heading > div, .subheading, .history-title-row, .history-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .panel-heading > div { justify-content: flex-start; }
-.panel-heading h2, .history-title-row h2 { margin: 0; color: #17233d; font-size: 15px; }
+.panel-heading h2, .history-title-row h2 { margin: 0; color: var(--workspace-heading); font-size: 15px; font-weight: 700; line-height: 1.4; }
 .step-badge { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 7px; color: var(--primary-color, #52c41a); background: color-mix(in srgb, var(--primary-color, #52c41a) 10%, transparent); font-size: 11px; font-weight: 800; }
 .theme-ready-tag { border-color: color-mix(in srgb, var(--primary-color, #52c41a) 36%, transparent); color: var(--primary-color, #52c41a); background: color-mix(in srgb, var(--primary-color, #52c41a) 8%, transparent); }
 .config-section { margin: 0 0 10px; padding: 12px; border: 1px solid #e5eaf0; border-radius: 10px; background: #fafbfc; }
@@ -1366,7 +1638,7 @@ export default {
 .config-section__heading > div { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .config-section__heading h2,
 .config-section__heading h3 { overflow: hidden; margin: 0; color: #26364c; font-size: 14px; font-weight: 700; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
-.config-section__heading > span:last-child { flex: 0 0 auto; color: #7c8ca1; font-size: 11px; }
+.config-section__heading > span:last-child { flex: 0 0 auto; color: var(--workspace-muted); font-size: 11px; }
 .config-section__hint { margin: -2px 0 10px; }
 .config-section /deep/ .ant-form-item-label > label { color: #445269; font-size: 12px; font-weight: 600; }
 .full-width { width: 100%; }
@@ -1374,14 +1646,14 @@ export default {
 .manifest-title { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; color: var(--primary-color, #52c41a); font-weight: 700; }
 .manifest-grid, .metrics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .manifest-grid div, .metric-card { display: flex; flex-direction: column; gap: 3px; }
-.manifest-grid span, .metric-card span, .assumption-strip span { color: #7c8ca1; font-size: 11px; }
+.manifest-grid span, .metric-card span, .assumption-strip span { color: var(--workspace-muted); font-size: 11px; }
 .manifest-grid strong { color: #23344d; overflow-wrap: anywhere; }
 .section-hint { margin: 7px 0 10px; font-size: 12px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 10px; }
 .form-grid /deep/ .ant-form-item { margin-bottom: 12px; }
 .date-range-card { margin-bottom: 12px; padding: 11px; border: 1px solid #e4e8ed; border-radius: 9px; background: #fff; }
 .range-presets { display: block; margin: 0 0 11px; }
-.range-presets__label { display: block; margin-bottom: 7px; color: #7c8ca1; font-size: 10px; font-weight: 600; }
+.range-presets__label { display: block; margin-bottom: 7px; color: var(--workspace-muted); font-size: 11px; font-weight: 600; }
 .range-presets__buttons { display: grid; min-width: 0; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
 .range-preset-wrap { display: block; min-width: 0; }
 .range-preset-wrap /deep/ .ant-btn-sm { width: 100%; min-width: 0; height: 28px; padding: 0 3px; border-radius: 7px; font-size: 10px; }
@@ -1392,28 +1664,32 @@ export default {
 .date-range-fields { display: grid; grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr); align-items: end; gap: 5px; }
 .date-range-fields /deep/ .ant-form-item { margin-bottom: 0; }
 .date-range-fields /deep/ .ant-form-item-label { padding-bottom: 4px; line-height: 1; }
-.date-range-fields /deep/ .ant-form-item-label > label { color: #556277; font-size: 10px; }
-.date-range-fields /deep/ .ant-calendar-picker-input { height: 34px; border-color: #dfe4ea; border-radius: 7px; background: #fff; font-size: 11px; font-variant-numeric: tabular-nums; }
+.date-range-fields /deep/ .ant-form-item-label > label { color: var(--workspace-text); font-size: 11px; }
+.date-range-fields /deep/ .ant-calendar-picker-input { height: 34px; border-color: #dfe4ea; border-radius: 7px; background: #fff; font-size: 12px; font-variant-numeric: tabular-nums; }
 .date-range-arrow { display: flex; height: 34px; align-items: center; justify-content: center; color: #9aa5b5; font-size: 10px; }
 .range-policy-note { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 7px; margin-top: 10px; padding-top: 9px; border-top: 1px solid #e1e6eb; color: #64748b; }
 .range-policy-note > .anticon { margin-top: 2px; color: var(--primary-color, #52c41a); }
 .range-policy-note div { min-width: 0; }
 .range-policy-note strong, .range-policy-note span { display: block; }
-.range-policy-note strong { color: #435168; font-size: 10px; line-height: 1.45; }
-.range-policy-note span { margin-top: 2px; color: #8994a5; font-size: 9px; line-height: 1.45; }
+.range-policy-note strong { color: var(--workspace-text); font-size: 11px; line-height: 1.45; }
+.range-policy-note span { margin-top: 2px; color: var(--workspace-muted); font-size: 10px; line-height: 1.45; }
 .range-policy-note.is-error > .anticon, .range-policy-note.is-error strong { color: #dc2626; }
 .switch-row { display: flex; align-items: center; gap: 8px; min-height: 32px; color: #7c8ca1; font-size: 11px; }
 .params-section { margin: 0 0 10px; padding: 12px; border: 1px solid #e5eaf0; }
-.dependency-summary { display: grid; grid-template-columns: 18px minmax(0, 1fr) 18px; align-items: start; gap: 8px; margin: 0 0 10px; padding: 10px; border: 1px solid color-mix(in srgb, #faad14 30%, #e7ebf0); border-radius: 8px; background: color-mix(in srgb, #faad14 5%, #fff); color: #ad6800; }
+.dependency-summary { display: grid; grid-template-columns: 18px minmax(0, 1fr) 18px; align-items: start; gap: 8px; margin: 0 0 10px; padding: 10px; border: 1px solid var(--workspace-border); border-left: 3px solid #c58b14; border-radius: 8px; background: var(--workspace-surface); color: #9a6b10; }
 .dependency-summary > div { min-width: 0; }
 .dependency-summary strong, .dependency-summary span { display: block; }
-.dependency-summary strong { font-size: 11px; }
-.dependency-summary span { overflow: hidden; margin-top: 2px; color: #7c8ca1; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.dependency-summary strong { color: var(--workspace-text); font-size: 11px; }
+.dependency-summary span { overflow: hidden; margin-top: 2px; color: var(--workspace-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .dependency-summary > .anticon:last-child { cursor: help; color: #9aa5b5; }
 .result-heading { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #edf0f4; }
 .result-heading > div { min-width: 0; }
 .result-source-name { overflow: hidden; max-width: 420px; color: #7c8ca1; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.factor-contract-alert { margin: 10px 0 14px; }
+.factor-contract-note { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; margin: 8px 0 12px; padding: 9px 0 10px; border-bottom: 1px solid var(--workspace-border); color: var(--workspace-muted); }
+.factor-contract-note > .anticon { margin-top: 2px; color: var(--primary-color, #52c41a); }
+.factor-contract-note strong, .factor-contract-note span { display: block; }
+.factor-contract-note strong { color: var(--workspace-text); font-size: 12px; line-height: 1.45; }
+.factor-contract-note span { margin-top: 3px; color: var(--workspace-muted); font-size: 11px; line-height: 1.55; }
 .subheading h3 { margin: 0; color: #26364c; font-size: 14px; }
 .subheading span { color: #7c8ca1; font-size: 11px; }
 .metrics-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -1424,12 +1700,10 @@ export default {
 .trade-profit { font-weight: 700; font-variant-numeric: tabular-nums; }
 .neutral { color: #94a3b8 !important; }
 .run-id { color: #8a97aa; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.result-empty { position: relative; min-height: calc(100vh - 265px); display: flex; overflow: hidden; flex-direction: column; align-items: center; justify-content: center; padding: 52px 30px; text-align: center; }
-.result-empty::before, .result-empty::after { position: absolute; width: 320px; height: 320px; border-radius: 50%; content: ''; pointer-events: none; filter: blur(2px); }
-.result-empty::before { top: 9%; right: 5%; background: radial-gradient(circle, color-mix(in srgb, var(--primary-color, #52c41a) 8%, transparent), transparent 70%); }
-.result-empty::after { bottom: 3%; left: 4%; background: radial-gradient(circle, color-mix(in srgb, var(--primary-color, #52c41a) 5%, transparent), transparent 70%); }
-.empty-hero-card { position: relative; z-index: 1; width: 100%; max-width: 700px; padding: 34px 42px 30px; border: 1px solid color-mix(in srgb, var(--primary-color, #52c41a) 16%, #e4ebf2); border-radius: 20px; background: linear-gradient(145deg, rgba(255, 255, 255, .98), color-mix(in srgb, var(--primary-color, #52c41a) 4%, #fff)); box-shadow: 0 18px 48px rgba(36, 59, 85, .09); }
-.empty-hero-card::before { position: absolute; top: 0; left: 18%; right: 18%; height: 3px; border-radius: 0 0 4px 4px; background: linear-gradient(90deg, transparent, var(--primary-color, #52c41a), transparent); content: ''; }
+.result-empty { min-height: calc(100vh - 265px); display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; padding: 18px 0; text-align: left; }
+.result-empty::before, .result-empty::after { display: none; }
+.empty-hero-card { display: grid; width: 100%; grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; padding: 18px; border: 1px solid var(--workspace-border); border-radius: 10px; background: var(--workspace-surface); box-shadow: none; }
+.empty-hero-card::before { display: none; }
 .result-running { min-height: 390px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 30px; text-align: center; color: #718096; }
 .result-running h3 { margin: 4px 0 0; color: #17233d; font-size: 18px; }
 .result-running p { max-width: 620px; margin: 0; line-height: 1.6; }
@@ -1437,19 +1711,21 @@ export default {
 .running-icon { display: inline-flex; width: 64px; height: 64px; align-items: center; justify-content: center; border: 1px solid color-mix(in srgb, var(--primary-color, #52c41a) 28%, transparent); border-radius: 22px; color: var(--primary-color, #52c41a); background: color-mix(in srgb, var(--primary-color, #52c41a) 9%, transparent); font-size: 27px; }
 .running-contract { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 7px; }
 .running-contract span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid #e4e9ef; border-radius: 999px; color: #64748b; font-size: 11px; }
-.empty-orbit { display: inline-flex; width: 72px; height: 72px; align-items: center; justify-content: center; border: 1px solid color-mix(in srgb, var(--primary-color, #52c41a) 26%, transparent); border-radius: 24px; color: var(--primary-color, #52c41a); background: linear-gradient(145deg, #fff, color-mix(in srgb, var(--primary-color, #52c41a) 11%, #fff)); box-shadow: 0 10px 26px color-mix(in srgb, var(--primary-color, #52c41a) 14%, transparent), 0 0 0 8px color-mix(in srgb, var(--primary-color, #52c41a) 5%, transparent); font-size: 29px; transform: rotate(-4deg); }
-.empty-orbit > .anticon { transform: rotate(4deg); }
-.result-empty h3 { margin: 20px 0 7px; color: #23344d; font-size: 19px; }
-.result-empty p { max-width: 520px; margin: 0 auto; color: #7c8ca1; line-height: 1.65; }
-.empty-checks { display: flex; justify-content: center; gap: 9px; flex-wrap: wrap; margin-top: 20px; }
-.empty-checks span { display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; border: 1px solid #e7ebf0; border-radius: 999px; color: #7c8ca1; font-size: 11px; }
-.empty-checks span.done { color: var(--primary-color, #52c41a); border-color: color-mix(in srgb, var(--primary-color, #52c41a) 30%, transparent); background: color-mix(in srgb, var(--primary-color, #52c41a) 8%, transparent); }
-.empty-preview-grid { position: relative; z-index: 1; display: grid; width: 100%; max-width: 860px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
-.empty-preview-card { display: grid; min-width: 0; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; column-gap: 11px; padding: 15px 16px; border: 1px solid #e5ebf1; border-radius: 12px; background: rgba(255, 255, 255, .92); box-shadow: 0 7px 20px rgba(36, 59, 85, .055); text-align: left; transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease; }
-.empty-preview-card:hover { border-color: color-mix(in srgb, var(--primary-color, #52c41a) 34%, transparent); box-shadow: 0 10px 24px rgba(36, 59, 85, .08); transform: translateY(-2px); }
+.empty-orbit { display: inline-flex; width: 40px; height: 40px; grid-column: 1; grid-row: 1 / 4; align-items: center; justify-content: center; border: 1px solid var(--workspace-border); border-radius: 8px; color: var(--primary-color, #52c41a); background: #fff; box-shadow: none; font-size: 17px; }
+.empty-orbit > .anticon { transform: none; }
+.result-empty h3 { grid-column: 2; margin: 0 0 4px; color: var(--workspace-heading); font-size: 15px; line-height: 1.45; }
+.result-empty p { grid-column: 2; max-width: none; margin: 0; color: var(--workspace-muted); font-size: 12px; line-height: 1.6; }
+.empty-checks { grid-column: 2; display: flex; justify-content: flex-start; gap: 8px 18px; flex-wrap: wrap; margin-top: 12px; }
+.empty-checks span { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; border-radius: 0; color: var(--workspace-muted); background: transparent; font-size: 11px; }
+.empty-checks span .anticon { color: var(--workspace-faint); }
+.empty-checks span.done { color: var(--workspace-text); border: 0; background: transparent; }
+.empty-checks span.done .anticon { color: var(--primary-color, #52c41a); }
+.empty-preview-grid { display: grid; width: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.empty-preview-card { display: grid; min-width: 0; grid-template-columns: 32px 1fr; grid-template-rows: auto auto; column-gap: 10px; padding: 13px 14px; border: 1px solid var(--workspace-border); border-radius: 9px; background: #fff; box-shadow: none; text-align: left; }
+.empty-preview-card:hover { border-color: var(--workspace-border); box-shadow: none; transform: none; }
 .empty-preview-card > .anticon { display: inline-flex; width: 34px; height: 34px; grid-row-start: 1; grid-row-end: 3; align-items: center; justify-content: center; align-self: center; border-radius: 10px; color: var(--primary-color, #52c41a); background: color-mix(in srgb, var(--primary-color, #52c41a) 9%, transparent); font-size: 17px; }
-.empty-preview-card span { grid-column: 2; overflow: hidden; color: #7c8ca1; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.empty-preview-card strong { display: -webkit-box; min-width: 0; min-height: 32px; grid-column: 2; overflow: hidden; color: #27364a; font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; word-break: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.empty-preview-card span { grid-column: 2; overflow: hidden; color: var(--workspace-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.empty-preview-card strong { display: -webkit-box; min-width: 0; min-height: 30px; grid-column: 2; overflow: hidden; color: var(--workspace-heading); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; word-break: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .result-trustbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; padding: 10px 12px; border: 1px solid; border-radius: 9px; }
 .result-trustbar > div:first-child { display: flex; min-width: 0; align-items: center; gap: 8px; }
 .result-trustbar strong { white-space: nowrap; }
@@ -1485,53 +1761,71 @@ export default {
 .run-card__metrics b { font-size: 15px; }
 .factor-history-metrics b { font-variant-numeric: tabular-nums; }
 .run-card__metrics small { color: #8491a4; }
-.theme-dark.backtest-page { background: #08090a; color: rgba(255, 255, 255, 0.88); }
-.theme-dark .workspace-toolbar, .theme-dark .panel { border-color: #25282d; background: #111315; box-shadow: 0 8px 26px rgba(0, 0, 0, 0.24); }
+.theme-dark.backtest-page {
+  --workspace-heading: #f3f4f6;
+  --workspace-text: rgba(255, 255, 255, .76);
+  --workspace-muted: rgba(255, 255, 255, .5);
+  --workspace-faint: rgba(255, 255, 255, .34);
+  --workspace-border: #2d2d2d;
+  --workspace-surface: #151515;
+  background: #080808;
+  color: var(--workspace-text);
+}
+.theme-dark .workspace-toolbar, .theme-dark .panel { border-color: #2d2d2d; background: #111111; box-shadow: 0 8px 26px rgba(0, 0, 0, 0.24); }
+.theme-dark .command-bar { border-color: #2d2d2d; background: #111111; box-shadow: 0 -10px 0 #080808, 0 8px 26px rgba(0, 0, 0, .24); }
+.theme-dark .command-label { color: rgba(255, 255, 255, .42); }
+.theme-dark .result-progress-strip { border-color: color-mix(in srgb, var(--primary-color, #52c41a) 34%, #2d2d2d); background: color-mix(in srgb, var(--primary-color, #52c41a) 7%, #111111); }
 .theme-dark .workspace-toolbar__context { color: rgba(255, 255, 255, 0.42); }
-.theme-dark .run-action-bar { border-color: #25282d; background: #111315; box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.28); }
+.theme-dark .run-action-bar { border-color: #2d2d2d; background: #111111; box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.28); }
 .theme-dark .panel-heading h2, .theme-dark .history-title-row h2, .theme-dark .subheading h3, .theme-dark .history-header h3, .theme-dark .result-empty h3, .theme-dark .result-running h3 { color: #f3f4f6; }
-.theme-dark .config-section { border-color: #282c32; background: #151719; }
+.theme-dark .config-section { border-color: #2d2d2d; background: #151515; }
 .theme-dark .config-section__heading h2, .theme-dark .config-section__heading h3 { color: #f3f4f6; }
 .theme-dark .config-section /deep/ .ant-form-item-label > label { color: rgba(255, 255, 255, 0.68); }
 .theme-dark .hero-stat, .theme-dark .metric-card, .theme-dark .assumption-strip div, .theme-dark .run-card { border-color: rgba(255, 255, 255, 0.1); background: #0d0d0d; }
 .theme-dark .hero-stat strong, .theme-dark .manifest-grid strong, .theme-dark .metric-card strong, .theme-dark .assumption-strip strong, .theme-dark .run-card__top strong { color: #e5e7eb; }
-.theme-dark .manifest-card { border-color: #2a2d31; border-left-color: var(--primary-color, #52c41a); background: #17191c; }
+.theme-dark .manifest-card { border-color: #303030; border-left-color: var(--primary-color, #52c41a); background: #181818; }
 .theme-dark .manifest-title { color: var(--primary-color, #52c41a); }
 .theme-dark .range-presets__label { color: rgba(255, 255, 255, 0.48); }
 .theme-dark .range-preset-wrap /deep/ .ant-btn:not(.ant-btn-primary) { border-color: rgba(255, 255, 255, 0.14); background: #1a1a1a; color: rgba(255, 255, 255, 0.72); }
 .theme-dark .range-preset-wrap /deep/ .ant-btn:not(.ant-btn-primary):hover { border-color: var(--primary-color, #52c41a); color: var(--primary-color, #52c41a); }
 .theme-dark .range-preset-wrap /deep/ .ant-btn[disabled],
 .theme-dark .range-preset-wrap /deep/ .ant-btn[disabled]:hover,
-.theme-dark .range-preset-wrap /deep/ .ant-btn[disabled]:focus { border-color: #2b2e33 !important; background: #121416 !important; color: rgba(255, 255, 255, 0.24) !important; box-shadow: none !important; }
+.theme-dark .range-preset-wrap /deep/ .ant-btn[disabled]:focus { border-color: #303030 !important; background: #141414 !important; color: rgba(255, 255, 255, 0.24) !important; box-shadow: none !important; }
 .theme-dark .chart-card { border-color: rgba(255, 255, 255, 0.1); }
 .theme-dark .result-trustbar.is-success { border-color: #315d22; background: #13200f; color: #73d13d; }
 .theme-dark .result-trustbar.is-warning { border-color: #664d03; background: #211b08; color: #ffc53d; }
 .theme-dark .result-trustbar.is-error { border-color: #6b2525; background: #251111; color: #ff7875; }
 .theme-dark .result-trustbar span { color: rgba(255, 255, 255, 0.52); }
 .theme-dark .run-card:hover, .theme-dark .run-card.active { border-color: var(--primary-color, #52c41a); background: color-mix(in srgb, var(--primary-color, #52c41a) 10%, #111); }
-.theme-dark .empty-hero-card { border-color: color-mix(in srgb, var(--primary-color, #52c41a) 22%, rgba(255, 255, 255, .11)); background: linear-gradient(145deg, color-mix(in srgb, var(--primary-color, #52c41a) 5%, #121212), #0d0f0d); box-shadow: 0 20px 54px rgba(0, 0, 0, .32); }
-.theme-dark .empty-preview-card { border-color: rgba(255, 255, 255, 0.1); background: #0d0d0d; }
+.theme-dark .empty-hero-card { border-color: var(--workspace-border); background: var(--workspace-surface); box-shadow: none; }
+.theme-dark .empty-preview-card { border-color: var(--workspace-border); background: #111111; }
 .theme-dark .empty-preview-card strong { color: #e5e7eb; }
 .theme-dark .result-running > strong { color: var(--primary-color, #52c41a); }
 .theme-dark .running-icon { border-color: color-mix(in srgb, var(--primary-color, #52c41a) 38%, transparent); background: color-mix(in srgb, var(--primary-color, #52c41a) 9%, #0d0d0d); }
-.theme-dark .empty-orbit { background: linear-gradient(145deg, color-mix(in srgb, var(--primary-color, #52c41a) 12%, #151515), #0d0d0d); }
-.theme-dark .empty-checks span.done, .theme-dark .empty-preview-card > .anticon { background: color-mix(in srgb, var(--primary-color, #52c41a) 10%, #0d0d0d); }
+.theme-dark .empty-orbit { border-color: var(--workspace-border); background: #111111; }
+.theme-dark .empty-checks span.done { background: transparent; }
+.theme-dark .empty-preview-card > .anticon { background: color-mix(in srgb, var(--primary-color, #52c41a) 10%, #111111); }
 .theme-dark .running-contract span { border-color: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.58); background: #0d0d0d; }
-.theme-dark .runtime-heading, .theme-dark .params-section, .theme-dark .result-heading { border-color: #282b30; }
-.theme-dark .date-range-card { border-color: #2b2e33; background: #17191c; }
+.theme-dark .runtime-heading, .theme-dark .params-section, .theme-dark .result-heading { border-color: #2d2d2d; }
+.theme-dark .date-range-card { border-color: #303030; background: #181818; }
 .theme-dark .date-range-fields /deep/ .ant-form-item-label > label { color: rgba(255,255,255,.58); }
-.theme-dark .date-range-fields /deep/ .ant-calendar-picker-input { border-color: #30343a; background: #101214; color: rgba(255,255,255,.82); }
+.theme-dark .date-range-fields /deep/ .ant-calendar-picker-input { border-color: #333333; background: #181818; color: rgba(255,255,255,.82); }
 .theme-dark .date-range-fields /deep/ .ant-calendar-picker-icon { color: rgba(255,255,255,.38); }
-.theme-dark .range-policy-note { border-color: #2b2e33; }
+.theme-dark .range-policy-note { border-color: #303030; }
 .theme-dark .range-policy-note strong { color: rgba(255,255,255,.68); }
 .theme-dark .range-policy-note span { color: rgba(255,255,255,.42); }
-.theme-dark .dependency-summary { border-color: rgba(250,173,20,.28); background: rgba(250,173,20,.06); }
+.theme-dark .dependency-summary { border-color: var(--workspace-border); border-left-color: #c58b14; background: var(--workspace-surface); }
 .theme-dark .dependency-summary span { color: rgba(255,255,255,.48); }
+.theme-dark .dependency-summary strong { color: var(--workspace-text); }
+.theme-dark .factor-contract-note { border-color: var(--workspace-border); }
+.theme-dark .factor-contract-note strong { color: var(--workspace-text); }
 .theme-dark /deep/ .ant-form-item-label > label, .theme-dark /deep/ .ant-table { color: rgba(255, 255, 255, 0.72); }
 .theme-dark /deep/ .ant-table-thead > tr > th { border-color: rgba(255, 255, 255, 0.1); background: #0d0d0d; color: rgba(255, 255, 255, 0.68); }
 .theme-dark /deep/ .ant-table-tbody > tr > td { border-color: rgba(255, 255, 255, 0.08); background: #111; color: rgba(255, 255, 255, 0.72); }
-@media (max-width: 1100px) { .workspace-grid { grid-template-columns: 1fr; } .config-panel { position: static; overflow: visible; height: auto; min-height: 0; max-height: none; } .config-scroll { overflow: visible; } .result-panel { min-height: 560px; } .result-empty { min-height: 480px; } }
-@media (max-width: 720px) { .backtest-page { padding: 0 10px 10px; } .workspace-toolbar { top: 0; width: calc(100% + 20px); align-items: flex-start; flex-direction: column; margin-right: -10px; margin-left: -10px; padding-right: 20px; padding-left: 20px; } .workspace-toolbar__primary { width: 100%; align-items: flex-start; flex-direction: column; }.hero-actions { justify-content: flex-start; } .result-empty { padding: 34px 12px; }.empty-hero-card { padding: 30px 18px 26px; }.form-grid, .manifest-grid, .metrics-grid, .assumption-strip, .empty-preview-grid { grid-template-columns: 1fr; }.range-presets__buttons { width: 100%; }.range-preset-wrap /deep/ .ant-btn { width: 100%; } }
+@media (max-width: 1280px) { .command-bar { grid-template-columns: minmax(220px, 1fr) minmax(320px, 1fr) auto; } .command-bar__capital, .command-bar__factor { display: none; } }
+@media (max-width: 1100px) { .workspace-grid, .workspace-grid.settings-open { grid-template-columns: 1fr; } .config-panel { position: static; overflow: visible; height: auto; min-height: 0; max-height: none; } .config-scroll { overflow: visible; } .result-panel { min-height: 560px; } .result-empty { min-height: 480px; } }
+@media (max-width: 840px) { .command-bar { position: static; grid-template-columns: 1fr; } .command-bar__actions { justify-content: stretch; } .command-bar__actions /deep/ .ant-btn { flex: 1; } }
+@media (max-width: 720px) { .backtest-page { padding: 0 10px 10px; } .workspace-toolbar { top: 0; width: calc(100% + 20px); align-items: flex-start; flex-direction: column; margin-right: -10px; margin-left: -10px; padding-right: 20px; padding-left: 20px; } .workspace-toolbar__primary { width: 100%; align-items: flex-start; flex-direction: column; }.hero-actions { justify-content: flex-start; } .result-progress-strip { grid-template-columns: 1fr; }.result-empty { padding: 12px 0; }.empty-hero-card { grid-template-columns: 34px minmax(0, 1fr); padding: 14px; }.empty-orbit { width: 34px; height: 34px; }.empty-checks { grid-column: 1 / 3; }.form-grid, .manifest-grid, .metrics-grid, .assumption-strip, .empty-preview-grid { grid-template-columns: 1fr; }.range-presets__buttons { width: 100%; }.range-preset-wrap /deep/ .ant-btn { width: 100%; } }
 </style>
 
 <style lang="less">

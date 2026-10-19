@@ -16,13 +16,15 @@
         </a-menu-item>
       </a-menu>
     </a-dropdown>
-    <span class="account-credits" @click.stop="handleCredits">
-      <a-icon type="wallet" />
-      <strong>{{ formattedCredits }}</strong>
-    </span>
-    <a-button size="small" type="primary" class="account-recharge" @click.stop="handleBilling">
-      <span>{{ $t('profile.credits.rechargeShort') || '充值' }}</span>
-    </a-button>
+    <template v-if="billingEnabled">
+      <span class="account-credits" @click.stop="handleCredits">
+        <a-icon type="wallet" />
+        <strong>{{ formattedCredits }}</strong>
+      </span>
+      <a-button size="small" type="primary" class="account-recharge" @click.stop="handleBilling">
+        <span>{{ $t('profile.credits.rechargeShort') }}</span>
+      </a-button>
+    </template>
   </span>
   <span v-else>
     <a-spin size="small" :style="{ marginLeft: 8, marginRight: 8 }" />
@@ -62,6 +64,9 @@ export default {
     }
   },
   computed: {
+    billingEnabled () {
+      return this.$store.state.features.config.billing_enabled !== false
+    },
     formattedCredits () {
       const value = this.credits !== null && typeof this.credits !== 'undefined'
         ? this.credits
@@ -70,11 +75,11 @@ export default {
     }
   },
   mounted () {
-    this.loadCredits(true)
+    if (this.billingEnabled) this.loadCredits(true)
     this.$root.$on('credits-updated', this.handleCreditsUpdated)
     window.addEventListener('focus', this.handleWindowFocus)
     document.addEventListener('visibilitychange', this.handleVisibilityChange)
-    this.creditsRefreshTimer = window.setInterval(this.refreshVisibleCredits, 60 * 1000)
+    if (this.billingEnabled) this.creditsRefreshTimer = window.setInterval(this.refreshVisibleCredits, 60 * 1000)
   },
   beforeDestroy () {
     this.$root.$off('credits-updated', this.handleCreditsUpdated)
@@ -103,6 +108,7 @@ export default {
       if (document.visibilityState === 'visible') this.loadCredits(true)
     },
     async loadCredits (force = false) {
+      if (!this.billingEnabled) return
       if (this.creditsLoading) return
       if (!force && Date.now() - this.lastCreditsLoadAt < 10 * 1000) return
       this.creditsLoading = true
@@ -145,26 +151,29 @@ export default {
 </script>
 
 <style lang="less">
+@import '@/styles/antd-vars.less';
+
 .qd-account-trigger {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 10px;
+  gap: 6px;
+  width: auto !important;
   min-width: 0;
-  height: 64px !important;
-  margin-right: 8px;
-  padding: 0 4px !important;
+  height: @layout-header-height !important;
+  margin-right: 0;
+  padding: 0 !important;
   line-height: normal !important;
   vertical-align: top;
 
   .account-identity {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
     min-width: 0;
-    height: 32px;
-    padding: 0 7px 0 3px;
-    border-radius: 9px;
-    line-height: 32px;
+    height: 38px;
+    padding: 0 10px 0 4px;
+    border-radius: 8px;
+    line-height: 38px;
     cursor: pointer;
     transition: background 0.16s ease, color 0.16s ease;
 
@@ -195,22 +204,23 @@ export default {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    height: 32px;
-    padding: 0 9px;
+    min-width: 64px;
+    height: 38px;
+    padding: 0 11px;
     border: 1px solid color-mix(in srgb, var(--primary-color, #1890ff) 18%, transparent);
-    border-radius: 9px;
-    background: color-mix(in srgb, var(--primary-color, #1890ff) 5%, #fff);
+    border-radius: 8px;
+    background: #fff;
     color: var(--primary-color, #1890ff);
     font-size: 12px;
     font-weight: 600;
-    line-height: 30px;
+    line-height: 36px;
     white-space: nowrap;
     cursor: pointer;
     transition: background 0.16s ease, border-color 0.16s ease;
 
     &:hover {
       border-color: color-mix(in srgb, var(--primary-color, #1890ff) 34%, transparent);
-      background: color-mix(in srgb, var(--primary-color, #1890ff) 9%, #fff);
+      background: color-mix(in srgb, var(--primary-color, #1890ff) 4%, #fff);
     }
 
     .anticon {
@@ -228,13 +238,14 @@ export default {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 32px;
-    padding: 0 12px;
-    border-radius: 9px;
+    min-width: 60px;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 8px;
     font-size: 12px;
     font-weight: 600;
-    line-height: 30px;
-    box-shadow: 0 3px 8px color-mix(in srgb, var(--primary-color, #1890ff) 22%, transparent);
+    line-height: 36px;
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--primary-color, #1890ff) 18%, transparent);
 
     span {
       line-height: 1;
@@ -333,17 +344,18 @@ body.realdark .qd-account-trigger,
 
 @media (max-width: 1280px) {
   .qd-account-trigger {
-    gap: 10px;
-    padding-right: 6px !important;
+    gap: 5px;
 
     .account-credits {
-      height: 30px;
-      padding: 0 9px;
+      min-width: 58px;
+      height: 38px;
+      padding: 0 8px;
     }
 
     .account-recharge {
-      height: 30px;
-      padding: 0 12px;
+      min-width: 56px;
+      height: 38px;
+      padding: 0 10px;
     }
   }
 }

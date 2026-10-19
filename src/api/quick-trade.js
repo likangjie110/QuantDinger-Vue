@@ -36,34 +36,6 @@ export function getQuickTradeHistory (params) {
   })
 }
 
-/** Get Quick Trade AI decision audit rows */
-export function getQuickTradeAiDecisions (params) {
-  return request({
-    url: '/api/quick-trade/ai-decisions',
-    method: 'get',
-    params
-  })
-}
-
-/** Get Event Radar configuration and latest analysis */
-export function getQuickTradeEventRadar (params) {
-  return request({
-    url: '/api/quick-trade/event-radar',
-    method: 'get',
-    params
-  })
-}
-
-/** Run a paid, reference-only Event Radar analysis */
-export function analyzeQuickTradeEventRadar (data) {
-  return request({
-    url: '/api/quick-trade/event-radar/analyze',
-    method: 'post',
-    data,
-    timeout: 60000
-  })
-}
-
 /** Close an existing position */
 export function closeQuickTradePosition (data) {
   return request({
@@ -80,4 +52,16 @@ export function cancelQuickTradeOrder (data) {
     method: 'post',
     data
   })
+}
+
+export function getQuickPositionHistory (params) {
+  return request({ url: '/api/quick-trade/position-history', method: 'get', params })
+}
+
+export function getQuickPositionProtection (params) {
+  return request({ url: '/api/quick-trade/position-protection', method: 'get', params })
+}
+
+export function updateQuickPositionProtection (data) {
+  return request({ url: '/api/quick-trade/position-protection', method: 'post', data })
 }

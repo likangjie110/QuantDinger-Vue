@@ -27,6 +27,15 @@ test('saving a live strategy forces a fresh list and selects the saved instance'
   assert.match(center, /operationsTable\.selectStrategy\(savedStrategy\)/)
 })
 
+test('live operations keep daily detail pnl separate from lifetime list pnl', () => {
+  const operations = read('src/views/strategy-center/components/LiveOperationsTable.vue')
+
+  assert.match(operations, /strategyPnl \(strategy\)[\s\S]*?strategy\.today_pnl/)
+  assert.match(operations, /strategyTotalPnl \(strategy\)[\s\S]*?strategy\.total_pnl/)
+  assert.match(operations, /strategyPnl\(selectedStrategy\)/)
+  assert.match(operations, /strategyTotalPnl\(strategy\)/)
+})
+
 test('grid resting orders are visible for live and virtual grid strategies', () => {
   const operations = read('src/views/strategy-center/components/LiveOperationsTable.vue')
   const restingOrders = read('src/views/strategy-center/components/GridRestingOrders.vue')
@@ -43,4 +52,14 @@ test('grid resting orders are visible for live and virtual grid strategies', () 
   assert.match(restingOrders, /formatQuantity/)
   assert.match(restingOrders, /maximumFractionDigits: 8/)
   assert.match(operations, /strategyCenter\.console\.pendingSignals/)
+})
+
+test('position ownership guidance stays compact and theme aware', () => {
+  const positions = read('src/views/strategy-center/components/PositionRecords.vue')
+
+  assert.match(positions, /class="ownership-guidance" :class="\{ 'is-dark': isDark \}"/)
+  assert.match(positions, /ownership-guidance__main/)
+  assert.match(positions, /ownership-guidance__note/)
+  assert.match(positions, /&\.is-dark/)
+  assert.doesNotMatch(positions, /class="ownership-risk-alert"/)
 })

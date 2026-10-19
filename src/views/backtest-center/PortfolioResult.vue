@@ -457,10 +457,16 @@ export default {
     reviewTrades () {
       return this.tradeRows.filter(row => normalizeTradeReviewSymbol(row && row.symbol) === this.effectiveReviewSymbol)
     },
+    reviewMarkerTrades () {
+      return this.sampleReviewRows(this.reviewTrades, 160)
+    },
     reviewExecutions () {
       return (this.result.executions || this.result.rawTrades || []).filter(row => {
         return normalizeTradeReviewSymbol(row && row.symbol) === this.effectiveReviewSymbol
       })
+    },
+    reviewMarkerExecutions () {
+      return this.sampleReviewRows(this.reviewExecutions, 240)
     },
     hasTradeReview () {
       return this.isPortfolioStrategy
@@ -677,6 +683,11 @@ export default {
     if (this.chart) this.chart.dispose()
   },
   methods: {
+    sampleReviewRows (rows, limit) {
+      if (!Array.isArray(rows) || rows.length <= limit) return rows || []
+      const step = (rows.length - 1) / (limit - 1)
+      return Array.from({ length: limit }, (_, index) => rows[Math.round(index * step)])
+    },
     renderChart () {
       const curve = this.result.equityCurve || []
       if (!this.$refs.chart || !curve.length) return
@@ -799,8 +810,8 @@ export default {
         component.clearBacktestOverlays()
         const candleRows = typeof chart.getDataList === 'function' ? chart.getDataList() : this.reviewRows
         buildTradeReviewMarkers({
-          executions: this.reviewExecutions,
-          trades: this.reviewTrades,
+          executions: this.reviewMarkerExecutions,
+          trades: this.reviewMarkerTrades,
           symbol: this.effectiveReviewSymbol,
           candleRows
         }).forEach(marker => {
@@ -890,7 +901,7 @@ export default {
 .result-trustbar.is-warning { border-color: #ffe58f; background: #fffbe6; color: #ad6800; }
 .result-trustbar.is-error { border-color: #ffccc7; background: #fff2f0; color: #cf1322; }
 .liquidation-alert { order: 2; }
-.metrics-grid { order: 5; display: grid; grid-template-columns: repeat(6, minmax(112px, 1fr)); gap: 0; overflow: hidden; margin-top: 10px; border: 1px solid #e5e9ee; border-radius: 8px; }
+.metrics-grid { order: 3; display: grid; grid-template-columns: repeat(6, minmax(112px, 1fr)); gap: 0; overflow: hidden; margin-top: 10px; border: 1px solid #e5e9ee; border-radius: 8px; }
 .metric-card, .overview-card, .status-card { min-width: 0; padding: 11px 12px; border: 1px solid #edf0f4; border-radius: 8px; background: #f8fafc; }
 .metrics-grid .metric-card { border-width: 0 1px 0 0; border-radius: 0; background: #fbfcfd; }
 .metrics-grid .metric-card:last-child { border-right: 0; }
@@ -903,9 +914,9 @@ export default {
 .negative { color: #dc2626 !important; }
 .neutral { color: #94a3b8 !important; }
 .chart-card, .trade-review-card { margin-top: 10px; padding: 12px; border: 1px solid #e5e9ee; border-radius: 8px; background: #fff; }
-.assumption-strip { order: 3; }
-.trade-review-card { order: 4; }
-.chart-card { order: 6; }
+.chart-card { order: 4; }
+.trade-review-card { order: 5; }
+.assumption-strip { order: 6; }
 .result-tabs { order: 7; }
 .chart-heading { display: flex; justify-content: space-between; gap: 16px; }
 .chart-heading h3, .trade-review-heading h3 { margin: 0; color: #26364c; font-size: 14px; }
@@ -951,31 +962,31 @@ export default {
 .result-tabs { margin-top: 10px; }
 .grid-accounting-alert { margin-bottom: 12px; }
 .completed-trades-table /deep/ .ant-table-body {
-  scrollbar-width: auto;
-  scrollbar-color: var(--primary-color, #52c41a) #e2e8f0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--qd-scrollbar-thumb, rgba(15, 23, 42, .22)) transparent;
 }
-.completed-trades-table /deep/ .ant-table-body::-webkit-scrollbar { width: 14px; height: 14px; }
+.completed-trades-table /deep/ .ant-table-body::-webkit-scrollbar { width: 6px; height: 6px; }
 .completed-trades-table /deep/ .ant-table-body::-webkit-scrollbar-track {
-  border-radius: 7px;
-  background: #e2e8f0;
+  background: transparent;
 }
 .completed-trades-table /deep/ .ant-table-body::-webkit-scrollbar-thumb {
   min-width: 72px;
-  border: 3px solid #e2e8f0;
-  border-radius: 7px;
-  background: var(--primary-color, #52c41a);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--qd-scrollbar-thumb, rgba(15, 23, 42, .22));
   background-clip: padding-box;
 }
 .completed-trades-table /deep/ .ant-table-body::-webkit-scrollbar-thumb:hover {
-  filter: brightness(.9);
+  background: var(--qd-scrollbar-thumb-hover, var(--primary-color, #1890ff));
+  background-clip: padding-box;
 }
 .audit-summary { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 12px; border-radius: 8px; }
 .audit-summary.passed { color: #52c41a; background: rgba(82, 196, 26, .08); }
 .audit-summary.failed { color: #ff4d4f; background: rgba(255, 77, 79, .08); }
 .audit-summary div { display: flex; flex-direction: column; }
 .audit-summary span { color: #7c8ca1; font-size: 11px; }
-.portfolio-result.theme-dark .metrics-grid, .portfolio-result.theme-dark .assumption-strip { border-color: #282b30; }
-.portfolio-result.theme-dark .metric-card, .portfolio-result.theme-dark .overview-card, .portfolio-result.theme-dark .status-card, .portfolio-result.theme-dark .assumption-strip div, .portfolio-result.theme-dark .review-facts div { border-color: #282b30; background: #151719; }
+.portfolio-result.theme-dark .metrics-grid, .portfolio-result.theme-dark .assumption-strip { border-color: #2d2d2d; }
+.portfolio-result.theme-dark .metric-card, .portfolio-result.theme-dark .overview-card, .portfolio-result.theme-dark .status-card, .portfolio-result.theme-dark .assumption-strip div, .portfolio-result.theme-dark .review-facts div { border-color: #2d2d2d; background: #151515; }
 .portfolio-result.theme-dark .portfolio-contribution-panel { border-color: rgba(255,255,255,.1); background: #0d0d0d; }
 .portfolio-result.theme-dark .contribution-heading strong, .portfolio-result.theme-dark .contribution-item b, .portfolio-result.theme-dark .contribution-symbol { color: #e5e7eb; }
 .portfolio-result.theme-dark .contribution-item { border-color: rgba(255,255,255,.1); background: #151515; color: #e5e7eb; }
@@ -983,17 +994,8 @@ export default {
 .portfolio-result.theme-dark .contribution-item.active { border-color: #52c41a; background: rgba(82,196,26,.12); }
 .portfolio-result.theme-dark .metric-card strong, .portfolio-result.theme-dark .overview-card strong, .portfolio-result.theme-dark .status-card strong, .portfolio-result.theme-dark .chart-heading h3, .portfolio-result.theme-dark .trade-review-heading h3, .portfolio-result.theme-dark .review-facts strong, .portfolio-result.theme-dark .assumption-strip strong { color: #e5e7eb; }
 .liquidation-alert { margin-top: 0; margin-bottom: 10px; }
-.portfolio-result.theme-dark .chart-card, .portfolio-result.theme-dark .trade-review-card { border-color: #282b30; background: #111315; }
+.portfolio-result.theme-dark .chart-card, .portfolio-result.theme-dark .trade-review-card { border-color: #2d2d2d; background: #111111; }
 .portfolio-result.theme-dark .review-snapshot-empty { border-color: rgba(255,255,255,.12); background: rgba(255,255,255,.025); }
-.portfolio-result.theme-dark .completed-trades-table /deep/ .ant-table-body {
-  scrollbar-color: var(--primary-color, #52c41a) rgba(255,255,255,.14);
-}
-.portfolio-result.theme-dark .completed-trades-table /deep/ .ant-table-body::-webkit-scrollbar-track {
-  background: rgba(255,255,255,.14);
-}
-.portfolio-result.theme-dark .completed-trades-table /deep/ .ant-table-body::-webkit-scrollbar-thumb {
-  border-color: #171717;
-}
 .portfolio-result.theme-dark .result-trustbar.is-success { border-color: #315d22; background: #13200f; color: #73d13d; }
 .portfolio-result.theme-dark .result-trustbar.is-warning { border-color: #664d03; background: #211b08; color: #ffc53d; }
 .portfolio-result.theme-dark .result-trustbar.is-error { border-color: #6b2525; background: #251111; color: #ff7875; }

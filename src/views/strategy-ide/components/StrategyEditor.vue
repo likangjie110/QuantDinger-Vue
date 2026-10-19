@@ -287,6 +287,7 @@
                 <div class="template-card__meta">
                   <span>{{ (tpl.params || []).length }} {{ $t('trading-assistant.editor.paramsTab') }}</span>
                   <span>{{ $t('strategyV2.apiBadge') }}</span>
+                  <span v-if="templateTaLibLabel(tpl)">{{ templateTaLibLabel(tpl) }}</span>
                 </div>
                 <div class="template-card__foot">
                   <span class="template-card__action">
@@ -401,7 +402,7 @@
       :visible="showTemplatePicker"
       :title="$t('trading-assistant.editor.templateTab')"
       :footer="null"
-      :width="980"
+      :width="1040"
       :destroy-on-close="false"
       :get-container="templateModalGetContainer"
       :wrap-class-name="isDark ? 'script-template-picker script-template-picker--dark' : 'script-template-picker'"
@@ -453,6 +454,7 @@
           <div class="template-card__meta">
             <span>{{ (tpl.params || []).length }} {{ $t('trading-assistant.editor.paramsTab') }}</span>
             <span>{{ $t('strategyV2.apiBadge') }}</span>
+            <span v-if="templateTaLibLabel(tpl)">{{ templateTaLibLabel(tpl) }}</span>
           </div>
           <div class="template-card__foot">
             <span class="template-card__action">
@@ -1126,6 +1128,12 @@ export default {
       const key = `trading-assistant.template.${template.key}Desc`
       const translated = this.$t(key)
       return translated === key ? (template.desc || '') : translated
+    },
+
+    templateTaLibLabel (template) {
+      const metadata = (template && template.metadata) || {}
+      const version = String(metadata.taLibVersion || metadata.ta_lib_version || '').trim()
+      return version ? this.$t('strategyV2.taLibBadge', { version }) : ''
     },
 
     getParamPrecision (param) {
@@ -2286,20 +2294,27 @@ export default {
 }
 
 .script-template-picker {
+  .ant-modal {
+    top: 42px;
+    padding-bottom: 42px;
+  }
+
   .ant-modal-body {
     padding: 16px;
+    max-height: calc(100vh - 156px);
+    overflow-y: auto;
   }
 }
 
 .theme-dark {
   .code-section {
-    border-color: #303030;
-    background: #171717;
+    border-color: #2a2a2a;
+    background: #111111;
   }
 
   .section-header {
-    background: #202020;
-    border-color: #303030;
+    background: #171717;
+    border-color: #2a2a2a;
   }
 
   .section-title {
@@ -2313,12 +2328,12 @@ export default {
   }
 
   .side-tabs {
-    border-color: #303030;
-    background: #191919;
+    border-color: #2a2a2a;
+    background: #111111;
 
     ::v-deep .ant-tabs-bar {
-      background: #202020;
-      border-bottom-color: #303030;
+      background: #171717;
+      border-bottom-color: #2a2a2a;
     }
 
     ::v-deep .ant-tabs-nav .ant-tabs-tab {
@@ -2335,17 +2350,17 @@ export default {
   }
 
   .side-tabs--split {
-    border-color: #303030;
-    background: #191919;
+    border-color: #2a2a2a;
+    background: #111111;
 
     .split-param-pane {
-      background: #191919;
-      border-color: #303030;
+      background: #111111;
+      border-color: #2a2a2a;
     }
 
     .params-toolbar {
-      border-bottom-color: #303030;
-      background: #202020;
+      border-bottom-color: #2a2a2a;
+      background: #171717;
     }
 
     .params-actions {
@@ -2366,8 +2381,8 @@ export default {
   }
 
   .panel-intro {
-    background: #1c1c1c;
-    border-color: rgba(255, 255, 255, 0.08);
+    background: #171717;
+    border-color: #2a2a2a;
   }
 
   .panel-intro__title,
@@ -2385,8 +2400,8 @@ export default {
   .param-item,
   .blank-card,
   .template-card {
-    border-color: #303030;
-    background: #202020;
+    border-color: #2a2a2a;
+    background: #171717;
   }
 
   .param-item--strategy-name {
@@ -2399,8 +2414,9 @@ export default {
 
     &:hover,
     &.active {
-      border-color: var(--primary-color-active, #177ddc);
-      background: rgba(23, 125, 220, 0.06);
+      border-color: var(--primary-color, #ff5b21);
+      background: #1b1b1b;
+      box-shadow: inset 3px 0 0 var(--primary-color, #ff5b21);
     }
 
     &__title {
@@ -2417,7 +2433,7 @@ export default {
     }
 
     &__check {
-      color: var(--primary-color-hover, #40a9ff);
+      color: var(--primary-color, #ff5b21);
     }
   }
 
@@ -2432,8 +2448,12 @@ export default {
   .template-card {
     &:hover,
     &.active {
-      border-color: rgba(23, 125, 220, 0.45);
-      background: rgba(23, 125, 220, 0.06);
+      border-color: var(--primary-color, #ff5b21);
+      background: #1b1b1b;
+    }
+
+    &.active {
+      box-shadow: inset 3px 0 0 var(--primary-color, #ff5b21);
     }
 
     &__badge {
@@ -2455,14 +2475,14 @@ export default {
     }
 
     &__action {
-      color: var(--primary-color-hover, #40a9ff);
+      color: var(--primary-color, #ff5b21);
     }
   }
 
   .template-item:hover,
   .template-item.active {
-    border-color: var(--primary-color-active, #177ddc);
-    background: rgba(23, 125, 220, 0.06);
+    border-color: var(--primary-color, #ff5b21);
+    background: #1b1b1b;
   }
 
   .tpl-name {

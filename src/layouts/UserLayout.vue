@@ -16,9 +16,12 @@
 
         <header class="brand-header">
           <a href="/" class="brand-link" :aria-label="brandConfig.app_name">
-            <img :src="loginLogo" class="brand-logo" :alt="brandConfig.app_name">
+            <brand-identity
+              :name="brandName"
+              theme="dark"
+              :wide-logo="loginRemoteLogo"
+            />
           </a>
-          <span class="brand-edition">{{ $t('user.login.hero.edition') }}</span>
         </header>
 
         <div class="brand-story">
@@ -30,12 +33,6 @@
           <p class="story-summary">{{ $t('user.login.hero.subtitle') }}</p>
         </div>
 
-        <footer class="brand-footer">
-          <a-icon type="check-circle" class="status-icon" />
-          <span>{{ $t('user.login.hero.status') }}</span>
-          <a-divider type="vertical" class="footer-divider" />
-          <span>{{ $t('user.login.hero.scope') }}</span>
-        </footer>
       </section>
 
       <section class="access-panel">
@@ -69,12 +66,14 @@
 import { mapState } from 'vuex'
 import { deviceMixin } from '@/store/device-mixin'
 import SelectLang from '@/components/SelectLang'
-import defaultLogo from '@/assets/logo_w.png'
+import BrandIdentity from '@/components/BrandIdentity'
+import defaultSettings from '@/config/defaultSettings'
 
 export default {
   name: 'UserLayout',
   components: {
-    SelectLang
+    SelectLang,
+    BrandIdentity
   },
   mixins: [deviceMixin],
   computed: {
@@ -85,9 +84,11 @@ export default {
     themeAccent () {
       return this.appColor || '#faad14'
     },
-    loginLogo () {
-      const remote = this.brandConfig && this.brandConfig.logos && this.brandConfig.logos.dark
-      return remote || defaultLogo
+    brandName () {
+      return (this.brandConfig && this.brandConfig.app_name) || defaultSettings.title
+    },
+    loginRemoteLogo () {
+      return (this.brandConfig && this.brandConfig.logos && this.brandConfig.logos.dark) || ''
     }
   },
   mounted () {
@@ -239,8 +240,7 @@ export default {
   }
 
   .brand-header,
-  .brand-story,
-  .brand-footer {
+  .brand-story {
     position: relative;
     z-index: 1;
   }
@@ -258,24 +258,11 @@ export default {
     min-width: 0;
   }
 
-  .brand-logo {
-    display: block;
-    width: clamp(210px, 17vw, 292px);
-    max-width: 100%;
-    height: auto;
-  }
-
-  .brand-edition {
-    flex: 0 0 auto;
-    padding: 7px 10px;
-    color: #a6a6a6;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    border: 1px solid #383838;
-    border-radius: 5px;
+  .brand-link ::v-deep .brand-identity__wide {
+    width: auto !important;
+    height: clamp(48px, 5vw, 64px) !important;
+    max-width: ~"min(260px, 46vw)" !important;
+    max-height: 64px !important;
   }
 
   .brand-story {
@@ -318,25 +305,6 @@ export default {
     color: #a8a8a8;
     font-size: clamp(15px, 1.15vw, 18px);
     line-height: 1.8;
-  }
-
-  .brand-footer {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #777;
-    font-size: 12px;
-  }
-
-  .status-icon {
-    color: var(--login-accent, #faad14);
-    font-size: 13px;
-  }
-
-  .footer-divider {
-    height: 12px;
-    margin: 0 2px;
-    border-left-color: #3a3a3a;
   }
 
   .access-panel {
@@ -528,20 +496,12 @@ export default {
       display: none;
     }
 
-    .brand-logo {
-      width: 210px;
-    }
-
     .brand-story {
       padding: 56px 0 24px;
     }
 
     h1 {
       font-size: clamp(36px, 7vw, 52px);
-    }
-
-    .brand-footer {
-      display: none;
     }
 
     .access-panel,
@@ -568,14 +528,6 @@ export default {
 
     .brand-header {
       padding-right: 56px;
-    }
-
-    .brand-logo {
-      width: 174px;
-    }
-
-    .brand-edition {
-      display: none;
     }
 
     .brand-story {

@@ -1,12 +1,14 @@
 <template>
   <div class="ai-skill-center qd-workspace-page qd-page-frame">
-    <div class="skill-hero">
-      <div>
-        <div class="eyebrow">{{ text.heroEyebrow }}</div>
-        <h1>{{ text.title }}</h1>
-        <p>{{ text.subtitle }}</p>
+    <div class="page-header qd-page-heading">
+      <div class="page-header-copy qd-page-heading__copy">
+        <h2 class="page-title qd-page-heading__title">
+          <a-icon class="qd-page-heading__icon" type="robot" />
+          <span>{{ text.title }}</span>
+        </h2>
+        <p class="page-desc qd-page-heading__description">{{ text.subtitle }}</p>
       </div>
-      <div class="hero-actions">
+      <div class="page-actions">
         <a-button icon="reload" :loading="loading" @click="loadAll">{{ text.refresh }}</a-button>
         <a-button type="primary" icon="plus" @click="activeTab = 'install'">{{ text.install }}</a-button>
       </div>
@@ -36,7 +38,7 @@
         >
           <template slot="label" slot-scope="textValue, record">
             <div class="skill-name">
-              <a-icon :type="record.icon || 'experiment'" />
+              <a-icon :type="skillIcon(record)" />
               <div>
                 <strong>{{ record.label }}</strong>
                 <span>{{ record.id }}</span>
@@ -46,8 +48,11 @@
           <template slot="source" slot-scope="textValue, record">
             <a-tag :color="record.builtin ? 'blue' : 'purple'">{{ record.builtin ? text.builtin : text.installed }}</a-tag>
           </template>
+          <template slot="category" slot-scope="textValue">
+            {{ categoryLabel(textValue) }}
+          </template>
           <template slot="risk" slot-scope="textValue, record">
-            <a-tag :color="riskColor(record.risk_level)">{{ record.risk_level }}</a-tag>
+            <a-tag :color="riskColor(record.risk_level)">{{ riskLabel(record.risk_level) }}</a-tag>
           </template>
           <template slot="enabled" slot-scope="textValue, record">
             <a-switch
@@ -75,7 +80,7 @@
           <div v-for="tool in tools" :key="tool.id" class="tool-card">
             <div class="tool-card-head">
               <strong>{{ tool.label }}</strong>
-              <a-tag :color="riskColor(tool.risk_level)">{{ tool.risk_level }}</a-tag>
+              <a-tag :color="riskColor(tool.risk_level)">{{ riskLabel(tool.risk_level) }}</a-tag>
             </div>
             <p>{{ tool.description }}</p>
             <div class="tool-meta">
@@ -128,9 +133,9 @@
         <p>{{ detailSkill.description }}</p>
         <a-descriptions :column="2" bordered size="small">
           <a-descriptions-item :label="text.id">{{ detailSkill.id }}</a-descriptions-item>
-          <a-descriptions-item :label="text.category">{{ detailSkill.category }}</a-descriptions-item>
-          <a-descriptions-item :label="text.source">{{ detailSkill.source }}</a-descriptions-item>
-          <a-descriptions-item :label="text.risk">{{ detailSkill.risk_level }}</a-descriptions-item>
+          <a-descriptions-item :label="text.category">{{ categoryLabel(detailSkill.category) }}</a-descriptions-item>
+          <a-descriptions-item :label="text.source">{{ sourceLabel(detailSkill) }}</a-descriptions-item>
+          <a-descriptions-item :label="text.risk">{{ riskLabel(detailSkill.risk_level) }}</a-descriptions-item>
           <a-descriptions-item :label="text.requires">{{ (detailSkill.requires || []).join(', ') || '-' }}</a-descriptions-item>
           <a-descriptions-item :label="text.produces">{{ (detailSkill.produces || []).join(', ') || '-' }}</a-descriptions-item>
         </a-descriptions>
@@ -163,7 +168,6 @@ export default {
     text () {
       const t = key => this.$t(`aiSkills.${key}`)
       return {
-        heroEyebrow: t('heroEyebrow'),
         title: t('title'),
         subtitle: t('subtitle'),
         refresh: t('refresh'),
@@ -229,7 +233,7 @@ export default {
     skillColumns () {
       return [
         { title: this.text.skill, dataIndex: 'label', scopedSlots: { customRender: 'label' } },
-        { title: this.text.category, dataIndex: 'category', width: 140 },
+        { title: this.text.category, dataIndex: 'category', width: 140, scopedSlots: { customRender: 'category' } },
         { title: this.text.source, dataIndex: 'source', width: 120, scopedSlots: { customRender: 'source' } },
         { title: this.text.risk, dataIndex: 'risk_level', width: 130, scopedSlots: { customRender: 'risk' } },
         { title: this.text.enabled, dataIndex: 'enabled', width: 90, scopedSlots: { customRender: 'enabled' } },
@@ -240,6 +244,13 @@ export default {
   mounted () {
     this.fillExample()
     this.loadAll()
+  },
+  watch: {
+    '$i18n.locale' () {
+      this.detailSkill = null
+      this.fillExample()
+      this.loadAll()
+    }
   },
   methods: {
     async loadAll () {
@@ -263,6 +274,25 @@ export default {
       if (risk === 'write_draft') return 'blue'
       if (risk === 'write_config') return 'orange'
       return 'default'
+    },
+    categoryLabel (category) {
+      const key = `aiSkills.categoryLabels.${category}`
+      const label = this.$t(key)
+      return label === key ? category : label
+    },
+    riskLabel (risk) {
+      const key = `aiSkills.riskLabels.${risk}`
+      const label = this.$t(key)
+      return label === key ? risk : label
+    },
+    sourceLabel (record) {
+      if (record?.builtin) return this.text.builtin
+      if (!record?.source || record.source === 'installed') return this.text.installed
+      return record.source
+    },
+    skillIcon (record) {
+      if (record?.icon === 'function') return 'file-protect'
+      return record?.icon || 'experiment'
     },
     openSkill (record) {
       this.detailSkill = record
@@ -332,47 +362,45 @@ export default {
 <style lang="less" scoped>
 .ai-skill-center {
   min-height: calc(100vh - 104px);
-  padding: 24px;
+  padding: 16px;
   color: var(--text-color, #10213d);
 }
 
-.skill-hero {
+.page-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 24px;
-  padding: 24px;
-  border: 1px solid rgba(62, 112, 255, 0.14);
-  border-radius: 18px;
-  background:
-    radial-gradient(circle at 12% 18%, rgba(47, 128, 237, 0.18), transparent 26%),
-    radial-gradient(circle at 86% 22%, rgba(18, 194, 233, 0.14), transparent 24%),
-    rgba(255, 255, 255, 0.78);
-  box-shadow: 0 18px 46px rgba(28, 47, 90, 0.08);
-  backdrop-filter: blur(18px);
+  gap: 16px;
+  margin-bottom: 24px;
 
-  h1 {
-    margin: 6px 0;
-    font-size: 30px;
-    font-weight: 800;
-  }
-
-  p {
-    margin: 0;
+  .page-header-copy {
     max-width: 720px;
+  }
+
+  .page-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 8px;
+    color: #1e3a5f;
+    font-size: 24px;
+    font-weight: 700;
+
+    .anticon {
+      color: var(--primary-color, #1890ff);
+      font-size: 28px;
+    }
+  }
+
+  .page-desc {
+    margin: 0;
     color: #64748b;
+    font-size: 14px;
+    line-height: 1.6;
   }
 }
 
-.eyebrow {
-  color: var(--primary-color, #2f6bff);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.hero-actions {
+.page-actions {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
@@ -382,7 +410,7 @@ export default {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
-  margin: 18px 0;
+  margin: 0 0 18px;
 }
 
 .stat-card {
@@ -535,7 +563,6 @@ export default {
     color: rgba(255, 255, 255, 0.88);
   }
 
-  .skill-hero,
   .stat-card,
   .skill-tabs,
   .install-panel,
@@ -546,7 +573,7 @@ export default {
     box-shadow: none;
   }
 
-  .skill-hero p,
+  .page-header .page-desc,
   .stat-card small,
   .stat-card .stat-label,
   .tool-card p,
@@ -641,7 +668,6 @@ export default {
     color: #e5e7eb;
   }
 
-  .skill-hero,
   .stat-card,
   .skill-tabs,
   .install-panel,
@@ -651,7 +677,7 @@ export default {
     box-shadow: none;
   }
 
-  .skill-hero p,
+  .page-header .page-desc,
   .stat-card small,
   .stat-card .stat-label,
   .tool-card p,
@@ -687,7 +713,7 @@ export default {
     padding: 14px;
   }
 
-  .skill-hero,
+  .page-header,
   .toolbar {
     align-items: flex-start;
     flex-direction: column;
@@ -708,25 +734,15 @@ body.dark .ai-skill-center,
   color: rgba(255, 255, 255, 0.88) !important;
 }
 
-body.dark .ai-skill-center .skill-hero,
-.basic-layout-wrapper.dark .ai-skill-center .skill-hero {
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  background:
-    radial-gradient(circle at 16% 0%, rgba(24, 144, 255, 0.14), transparent 30%),
-    radial-gradient(circle at 92% 16%, rgba(20, 184, 166, 0.1), transparent 28%),
-    linear-gradient(135deg, rgba(18, 18, 18, 0.98), rgba(13, 13, 13, 0.98)) !important;
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42) !important;
-}
-
-body.dark .ai-skill-center .skill-hero h1,
-.basic-layout-wrapper.dark .ai-skill-center .skill-hero h1,
+body.dark .ai-skill-center .page-title,
+.basic-layout-wrapper.dark .ai-skill-center .page-title,
 body.dark .ai-skill-center .stat-card strong,
 .basic-layout-wrapper.dark .ai-skill-center .stat-card strong {
   color: rgba(255, 255, 255, 0.94) !important;
 }
 
-body.dark .ai-skill-center .skill-hero p,
-.basic-layout-wrapper.dark .ai-skill-center .skill-hero p,
+body.dark .ai-skill-center .page-desc,
+.basic-layout-wrapper.dark .ai-skill-center .page-desc,
 body.dark .ai-skill-center .stat-card small,
 .basic-layout-wrapper.dark .ai-skill-center .stat-card small,
 body.dark .ai-skill-center .stat-card .stat-label,

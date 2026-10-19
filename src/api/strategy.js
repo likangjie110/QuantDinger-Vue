@@ -28,6 +28,7 @@ const api = {
   executorCreate: '/api/strategies/executors/create',
   strategyAssets: '/api/strategy-assets',
   strategyBacktestRun: '/api/backtest/run',
+  strategyBacktestJobs: '/api/backtest/jobs',
   strategyFactorResearch: '/api/backtest/factor-research',
   strategyFactorResearchHistory: '/api/backtest/factor-research/history',
   strategyFactorResearchGet: '/api/backtest/factor-research/get',
@@ -110,14 +111,6 @@ export function deleteStrategy (id) {
   })
 }
 
-export function testExchangeConnection (exchangeConfig) {
-  return request({
-    url: api.testConnection,
-    method: 'post',
-    data: exchangeConfig
-  })
-}
-
 export function getStrategyTrades (id, lang) {
   const params = { id }
   if (lang) params.lang = lang
@@ -141,14 +134,6 @@ export function getStrategyPositions (id) {
     url: api.positions,
     method: 'get',
     params: { id }
-  })
-}
-
-export function getAccountPositions (params = {}) {
-  return request({
-    url: api.accountPositions,
-    method: 'get',
-    params
   })
 }
 
@@ -309,14 +294,6 @@ export function getStrategyReviewReportHistory (id, params = {}) {
   })
 }
 
-export function getStrategyLogs (id, params = {}) {
-  return request({
-    url: api.logs,
-    method: 'get',
-    params: { id, ...params }
-  })
-}
-
 export function getStrategyPositionOwnership (id) {
   return request({
     url: api.positionOwnership,
@@ -333,23 +310,20 @@ export function repairStrategyPositionOwnership (data) {
   })
 }
 
-export function getStrategyAssetList (params = {}) {
+export function startStrategyBacktestJob (data) {
   return request({
-    url: api.strategyAssets,
-    method: 'get',
-    params
+    url: api.strategyBacktestJobs,
+    method: 'post',
+    data,
+    timeout: 30000
   })
 }
 
-export function runStrategyBacktest (data) {
-  const payload = { ...(data || {}) }
-  const timeout = Number(payload.timeout) > 0 ? Number(payload.timeout) : BACKTEST_TIMEOUT
-  delete payload.timeout
+export function getStrategyBacktestJob (jobId) {
   return request({
-    url: api.strategyBacktestRun,
-    method: 'post',
-    data: payload,
-    timeout
+    url: `${api.strategyBacktestJobs}/${jobId}`,
+    method: 'get',
+    timeout: 30000
   })
 }
 

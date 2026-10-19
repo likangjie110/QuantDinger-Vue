@@ -1852,7 +1852,7 @@ const messages = {
     "aiAssetAnalysis.copilot.starterPrompts.compare_benchmarks.label": "比较 SPY、QQQ、IWM 最近表现",
     "aiAssetAnalysis.copilot.starterPrompts.compare_benchmarks.prompt": "比较 SPY、QQQ、IWM 最近 5 个交易日的收益、波动率、成交量和相对强弱，用表格展示并解释市场风格。",
     "aiAssetAnalysis.copilot.starterPrompts.compare.label": "比较 {comparison} 的近期强弱",
-    "aiAssetAnalysis.copilot.starterPrompts.compare.prompt": "比较 {comparison} 最近 5 个交易日的收益、波动率、成交量和趋势质量，用表格排名并解释差异。",
+    "aiAssetAnalysis.copilot.starterPrompts.compare.prompt": "比较 {symbol}、BETA、GAMMA 最近 5 个交易日的收益、波动率、成交量和趋势质量，用表格排名并解释差异。",
     "aiAssetAnalysis.copilot.starterPrompts.crypto_activity.label": "扫描加密市场异常成交量",
     "aiAssetAnalysis.copilot.starterPrompts.crypto_activity.prompt": "扫描加密市场近期异常成交量、持仓和价格联动，列出值得关注的标的、触发原因和数据限制。",
     "aiAssetAnalysis.copilot.starterPrompts.diagnose.label": "分析 {symbol} 当前趋势和关键价位",
@@ -2859,14 +2859,34 @@ Object.entries(marketplaceDirectActionCopy).forEach(([locale, values]) => Object
 
 export const verifiedSameUiMessages = [
   'brokerAccounts.alpaca.name',
-  'brokerAccounts.ibkr.name'
+  'brokerAccounts.ibkr.name',
+  'profile.exchange.whitelistIpv4',
+  'profile.exchange.whitelistIpv6',
+  'trading-assistant.notify.discord',
+  'trading-assistant.notify.webhook',
+  'universeManager.placeholder',
+  'universeManager.mixedPlaceholder',
+  'indicatorIde.signalAlert.telegram',
+  'indicatorIde.signalAlert.webhook',
+  'indicatorIde.signalAlert.telegramChatIdPlaceholder',
+  'indicatorIde.signalAlert.webhookUrlPlaceholder',
+  'aiAssetAnalysis.copilot.intervalMinutes',
+  'fastAnalysis.provider.yahoo_finance',
+  'fastAnalysis.provider.yfinance',
+  'fastAnalysis.provider.finnhub',
+  'strategyV2.taLibBadge',
+  'factorLibrary.family.talib',
+  'factorLibrary.family.alpha158',
+  'factorLibrary.family.alpha360',
+  'factorLibrary.qlibFeatureName'
 ]
 
-// Provider names are trademarks, not translatable UI copy. Keep their
-// canonical spelling in every locale while translating surrounding text.
+// Keep trademarks and protocol names canonical in every locale.
 Object.keys(messages).forEach(locale => Object.assign(messages[locale], {
   'brokerAccounts.alpaca.name': 'Alpaca Markets',
-  'brokerAccounts.ibkr.name': 'Interactive Brokers'
+  'brokerAccounts.ibkr.name': 'Interactive Brokers',
+  'profile.exchange.whitelistIpv4': 'IPv4',
+  'profile.exchange.whitelistIpv6': 'IPv6'
 }))
 
 export default messages

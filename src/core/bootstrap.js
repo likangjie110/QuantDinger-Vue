@@ -3,6 +3,7 @@ import storage from 'store'
 import {
   ACCESS_TOKEN,
   APP_LANGUAGE,
+  SIDEBAR_TYPE,
   TOGGLE_CONTENT_WIDTH,
   TOGGLE_FIXED_HEADER,
   TOGGLE_FIXED_SIDEBAR, TOGGLE_HIDE_HEADER,
@@ -11,20 +12,19 @@ import {
 } from '@/store/mutation-types'
 import { printANSI } from '@/utils/screenLog'
 import defaultSettings from '@/config/defaultSettings'
+import { getStoredThemeColor } from '@/utils/themePreference'
+
+const SIDEBAR_LAYOUT_VERSION_KEY = 'qd-sidebar-layout-version'
+const SIDEBAR_LAYOUT_VERSION = 1
 
 export default function Initializer () {
   printANSI() // 请自行移除该行.  please remove this line
 
-  const legacyDefaultColor = '#13C2C2'
-  const savedLayout = storage.get(TOGGLE_LAYOUT, defaultSettings.layout)
-  const nextLayout = defaultSettings.layout === 'topmenu' && savedLayout === 'sidemenu'
-    ? defaultSettings.layout
-    : savedLayout
+  const nextLayout = defaultSettings.layout
   const savedTheme = storage.get(TOGGLE_NAV_THEME)
-  const savedColor = storage.get(TOGGLE_COLOR)
   const validThemes = ['light', 'dark', 'realdark']
   const nextTheme = validThemes.includes(savedTheme) ? savedTheme : defaultSettings.navTheme
-  const nextColor = !savedColor || String(savedColor).toUpperCase() === legacyDefaultColor ? defaultSettings.primaryColor : savedColor
+  const nextColor = getStoredThemeColor(defaultSettings.primaryColor)
   store.commit(TOGGLE_LAYOUT, nextLayout)
   store.commit(TOGGLE_FIXED_HEADER, storage.get(TOGGLE_FIXED_HEADER, defaultSettings.fixedHeader))
   store.commit(TOGGLE_FIXED_SIDEBAR, storage.get(TOGGLE_FIXED_SIDEBAR, defaultSettings.fixSiderbar))
@@ -35,6 +35,12 @@ export default function Initializer () {
   store.commit(TOGGLE_WEAK, storage.get(TOGGLE_WEAK, defaultSettings.colorWeak))
   store.commit(TOGGLE_COLOR, nextColor)
   store.commit(TOGGLE_MULTI_TAB, storage.get(TOGGLE_MULTI_TAB, defaultSettings.multiTab))
+  const defaultCollapsed = typeof window !== 'undefined' && window.innerWidth <= 1440
+  const hasCurrentSidebarLayout = storage.get(SIDEBAR_LAYOUT_VERSION_KEY) === SIDEBAR_LAYOUT_VERSION
+  store.commit(SIDEBAR_TYPE, hasCurrentSidebarLayout
+    ? storage.get(SIDEBAR_TYPE, defaultCollapsed)
+    : defaultCollapsed)
+  storage.set(SIDEBAR_LAYOUT_VERSION_KEY, SIDEBAR_LAYOUT_VERSION)
   let token = storage.get(ACCESS_TOKEN)
   if (token && typeof token !== 'string') {
     token = token.token || token.value || (typeof token === 'object' ? null : token)

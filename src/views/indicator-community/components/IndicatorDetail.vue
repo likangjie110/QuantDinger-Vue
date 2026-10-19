@@ -11,13 +11,16 @@
   >
     <a-spin :spinning="loading">
       <div v-if="detail" class="detail-container indicator-detail-modal" :class="{ 'is-dark': isDarkTheme }">
-        <div class="detail-header" :style="headerStyle">
-          <div class="header-cover" v-if="detail.preview_image">
-            <img :src="detail.preview_image" :alt="detail.name" @error="imageError = true" />
-          </div>
-          <div class="header-cover default-cover" v-else>
-            <span class="cover-initials">{{ indicatorInitials }}</span>
-          </div>
+        <div v-if="isIndicatorAsset" class="detail-preview">
+          <img :src="detailPreviewImage" :alt="detail.name" @error="imageError = true" />
+        </div>
+        <div
+          class="detail-header"
+          :class="{
+            'detail-header--indicator': isIndicatorAsset,
+            'detail-header--strategy': isStrategyAsset
+          }"
+        >
           <div class="header-info">
             <div class="strategy-title-row">
               <h2 class="indicator-name">{{ detail.name }}</h2>
@@ -33,6 +36,10 @@
               <div class="publish-time">
                 {{ $t('community.publishedAt') }}: {{ formatDate(detail.created_at) }}
               </div>
+            </div>
+            <div v-if="isIndicatorAsset" class="indicator-essential-tags">
+              <a-tag><a-icon :type="codeHidden ? 'lock' : 'unlock'" /> {{ codeHidden ? $t('community.codeHidden') : $t('community.codeVisible') }}</a-tag>
+              <a-tag v-if="parameterCount > 0"><a-icon type="sliders" /> {{ parameterLabel }}</a-tag>
             </div>
             <div class="indicator-stats">
               <a-statistic :title="$t('community.downloads')" :value="detail.purchase_count || 0">
@@ -67,54 +74,37 @@
           </div>
 
           <div v-if="isStrategyAsset && strategyContract" class="section strategy-contract-section">
-            <div class="section-heading-row">
-              <div>
-                <h3>{{ $t('community.strategyContract') }}</h3>
-                <p>{{ $t('community.strategyContractHint') }}</p>
-              </div>
-              <div class="section-heading-actions">
-                <span class="source-controlled-badge">
-                  <a-icon type="safety-certificate" />
-                  {{ $t('community.sourceControlled') }}
-                </span>
-                <a-tag :color="bindingMode === 'parameterized' ? 'green' : bindingMode === 'fixed' ? 'orange' : 'blue'">
+            <div class="section-heading-row strategy-contract-heading">
+              <h3>{{ $t('community.strategyContract') }}</h3>
+              <div v-if="bindingMode !== 'unknown'" class="section-heading-actions">
+                <a-tag :color="bindingMode === 'parameterized' ? 'green' : 'orange'">
                   {{ $t(`community.binding.${bindingMode}`) }}
                 </a-tag>
               </div>
             </div>
 
-            <div class="contract-grid">
-              <div v-for="item in strategyContractItems" :key="item.key" class="contract-card">
-                <div class="contract-card__icon"><a-icon :type="item.icon" /></div>
-                <div class="contract-card__body">
-                  <span>{{ item.label }}</span>
-                  <strong>{{ item.value }}</strong>
-                  <small v-if="item.hint">{{ item.hint }}</small>
-                </div>
+            <div v-if="strategyContractItems.length" class="strategy-contract-summary">
+              <div v-for="item in strategyContractItems" :key="item.key" class="strategy-contract-summary__item">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
               </div>
             </div>
 
-            <div class="contract-logic-grid">
-              <div class="contract-logic-card">
-                <span class="contract-logic-card__label"><a-icon type="branches" />{{ $t('community.contractSignals') }}</span>
+            <div v-if="hasStrategyContractMetadata" class="strategy-contract-metadata">
+              <div v-if="strategyDependencies.length" class="strategy-contract-metadata__item">
+                <span>{{ $t('community.contractSignals') }}</span>
                 <div class="contract-tags">
                   <a-tag v-for="name in strategyDependencies" :key="`dep-${name}`">{{ name }}</a-tag>
-                  <span v-if="!strategyDependencies.length" class="contract-empty contract-empty--meaningful">
-                    <a-icon type="check-circle" />{{ $t('community.noExternalSignalDependencies') }}
-                  </span>
                 </div>
               </div>
-              <div class="contract-logic-card">
-                <span class="contract-logic-card__label"><a-icon type="database" />{{ $t('community.contractData') }}</span>
+              <div v-if="(strategyContract.data_fields || []).length" class="strategy-contract-metadata__item">
+                <span>{{ $t('community.contractData') }}</span>
                 <div class="contract-tags">
                   <a-tag v-for="name in (strategyContract.data_fields || [])" :key="`field-${name}`">{{ name.toUpperCase() }}</a-tag>
-                  <span v-if="!(strategyContract.data_fields || []).length" class="contract-empty contract-empty--meaningful">
-                    <a-icon type="info-circle" />{{ $t('community.noDeclaredMarketData') }}
-                  </span>
                 </div>
               </div>
-              <div class="contract-logic-card contract-logic-card--warmup">
-                <span class="contract-logic-card__label"><a-icon type="hourglass" />{{ $t('community.contractWarmup') }}</span>
+              <div v-if="Number(strategyContract.warmup_bars || 0) > 0" class="strategy-contract-metadata__item strategy-contract-metadata__item--warmup">
+                <span>{{ $t('community.contractWarmup') }}</span>
                 <strong>{{ $t('community.contractWarmupBars', { count: strategyContract.warmup_bars || 0 }) }}</strong>
               </div>
             </div>
@@ -156,10 +146,7 @@
 
           <div class="section strategy-performance-section" v-if="isStrategyAsset">
             <div class="section-heading-row evidence-heading">
-              <div>
-                <h3>{{ $t('community.backtestEvidence') }}</h3>
-                <p>{{ $t('community.backtestEvidenceHint') }}</p>
-              </div>
+              <h3>{{ $t('community.backtestEvidence') }}</h3>
             </div>
             <div v-if="performance && Number(performance.sample_size || 0) > 0">
               <div v-if="performance.best_run_meta" class="evidence-context">
@@ -266,38 +253,6 @@
               :message="$t('community.equityCurveMissing')"
               style="margin-top: 16px;"
             />
-          </div>
-
-          <div class="section indicator-profile-section" v-if="isIndicatorAsset">
-            <h3>{{ $t('community.indicatorProfile') }}</h3>
-            <div class="indicator-profile-grid">
-              <div
-                v-for="item in indicatorProfileItems"
-                :key="item.key"
-                class="profile-item"
-              >
-                <div class="profile-item__icon" :class="item.tone ? 'profile-item__icon--' + item.tone : ''">
-                  <a-icon :type="item.icon" />
-                </div>
-                <div class="profile-item__body">
-                  <span>{{ item.label }}</span>
-                  <strong>{{ item.value }}</strong>
-                </div>
-              </div>
-            </div>
-            <div class="visual-showcase">
-              <div class="visual-showcase__copy">
-                <strong>{{ $t('community.chartOnlyIndicator') }}</strong>
-                <span>{{ $t('community.chartOnlyIndicatorHint') }}</span>
-              </div>
-              <div class="visual-showcase__bars" aria-hidden="true">
-                <span class="visual-line visual-line--fast"></span>
-                <span class="visual-line visual-line--slow"></span>
-                <span class="visual-zone"></span>
-                <span class="visual-dot visual-dot--buy"></span>
-                <span class="visual-dot visual-dot--sell"></span>
-              </div>
-            </div>
           </div>
 
           <div class="section">
@@ -416,6 +371,7 @@
 import { mapState } from 'vuex'
 import CommentList from './CommentList.vue'
 import request from '@/utils/request'
+import fallbackCover from '@/assets/marketplace/indicator-preview-default.svg'
 
 export default {
   name: 'IndicatorDetail',
@@ -488,7 +444,12 @@ export default {
       return !this.isStrategyAsset
     },
     modalWidth () {
-      return this.isStrategyAsset ? 860 : 720
+      return 860
+    },
+    detailPreviewImage () {
+      return this.detail && this.detail.preview_image && !this.imageError
+        ? this.detail.preview_image
+        : fallbackCover
     },
     strategyContract () {
       const contract = (this.detail && (this.detail.marketplace_contract || this.detail.strategy_contract)) ||
@@ -519,64 +480,57 @@ export default {
       if (!this.strategyContract) return []
       const contract = this.strategyContract
       const instruments = contract.instruments || []
-      const instrumentValue = instruments.length
-        ? instruments.map(item => item.symbol || item.instrument_id).filter(Boolean).join(' · ')
-        : (contract.universe_reference || this.$t('community.dynamicUniverse'))
-      const markets = [...new Set(instruments.map(item => item.market).filter(Boolean))]
+      const instrumentValue = instruments.map(item => item.symbol || item.instrument_id).filter(Boolean).join(' · ') || contract.universe_reference
       const marketTypes = [...new Set(instruments.map(item => item.market_type).filter(Boolean))]
-      const strategyTypeKey = contract.strategy_type === 'portfolio' ? 'portfolio' : 'cta'
-      return [
-        {
+      const executionFrequency = contract.execution_frequency || contract.primary_frequency
+      const cadence = [this.formatExecutionMode(contract.execution_mode), executionFrequency].filter(value => value && value !== '—').join(' · ')
+      const confirmationFrequencies = Array.isArray(contract.confirmation_frequencies)
+        ? contract.confirmation_frequencies.filter(Boolean)
+        : []
+      const items = []
+
+      if (instrumentValue) {
+        items.push({
           key: 'instrument',
-          icon: 'global',
           label: this.$t('community.contractInstrument'),
-          value: instrumentValue,
-          hint: markets.join(' · ') || this.$t(`community.strategyType.${strategyTypeKey}`)
-        },
-        {
+          value: instrumentValue
+        })
+      }
+      if (marketTypes.length) {
+        items.push({
           key: 'marketType',
-          icon: 'bank',
           label: this.$t('community.contractMarketType'),
-          value: marketTypes.length
-            ? marketTypes.map(value => this.formatMarketType(value)).join(' · ')
-            : this.$t('community.marketTypeUnspecified'),
-          hint: this.$t(`community.strategyType.${strategyTypeKey}`)
-        },
-        {
-          key: 'executionMode',
-          icon: 'clock-circle',
-          label: this.$t('community.executionMode'),
-          value: this.formatExecutionMode(contract.execution_mode),
-          hint: this.$t('community.marketplaceMetadataOnly')
-        },
-        {
-          key: 'executionFrequency',
-          icon: 'play-circle',
+          value: marketTypes.map(value => this.formatMarketType(value)).join(' · ')
+        })
+      }
+      if (cadence) {
+        items.push({
+          key: 'cadence',
           label: this.$t('community.executionFrequency'),
-          value: contract.execution_frequency || contract.primary_frequency || '—',
-          hint: this.$t('community.sourceControlled')
-        },
-        {
+          value: cadence
+        })
+      }
+      if (confirmationFrequencies.length) {
+        items.push({
           key: 'confirmationFrequencies',
-          icon: 'check-circle',
           label: this.$t('community.confirmationFrequencies'),
-          value: Array.isArray(contract.confirmation_frequencies) && contract.confirmation_frequencies.length
-            ? contract.confirmation_frequencies.join(' · ')
-            : this.$t('community.noConfirmationFrequency'),
-          hint: this.$t('community.sourceControlled')
-        },
-        {
+          value: confirmationFrequencies.join(' · ')
+        })
+      }
+      items.push({
           key: 'leverage',
-          icon: 'dashboard',
           label: this.$t('community.contractLeverage'),
           value: contract.leverage_allowed
             ? this.$t('community.contractMaxLeverage', { value: this.formatLeverage(contract.max_leverage) })
-            : this.$t('community.contractNoLeverage'),
-          hint: contract.leverage_allowed
-            ? this.$t('community.leverageDeclared')
-            : this.$t('community.spotRiskBoundary')
-        }
-      ]
+            : this.$t('community.contractNoLeverage')
+      })
+      return items
+    },
+    hasStrategyContractMetadata () {
+      if (!this.strategyContract) return false
+      return this.strategyDependencies.length > 0 ||
+        (this.strategyContract.data_fields || []).length > 0 ||
+        Number(this.strategyContract.warmup_bars || 0) > 0
     },
     purchaseActionLabel () {
       const isFree = this.detail && (this.detail.pricing_type === 'free' || this.detail.price <= 0)
@@ -599,57 +553,6 @@ export default {
         ? this.$t('community.paramCount', { n: this.parameterCount })
         : this.$t('community.adjustableParams')
     },
-    ratingLabel () {
-      const rating = Number((this.detail && this.detail.avg_rating) || 0)
-      const count = Number((this.detail && this.detail.rating_count) || 0)
-      return rating > 0 ? `${rating.toFixed(1)} / ${count}` : this.$t('community.noRatings')
-    },
-    indicatorProfileItems () {
-      const d = this.detail || {}
-      return [
-        {
-          key: 'source',
-          icon: this.codeHidden ? 'lock' : 'unlock',
-          tone: this.codeHidden ? 'warning' : 'success',
-          label: this.$t('community.codeVisibility'),
-          value: this.codeHidden ? this.$t('community.codeHidden') : this.$t('community.codeVisible')
-        },
-        {
-          key: 'params',
-          icon: 'sliders',
-          tone: 'primary',
-          label: this.$t('community.parameters'),
-          value: this.parameterLabel
-        },
-        {
-          key: 'markers',
-          icon: 'environment',
-          tone: 'success',
-          label: this.$t('community.chartMarkers'),
-          value: this.$t('community.visualSignals')
-        },
-        {
-          key: 'layers',
-          icon: 'block',
-          tone: 'gold',
-          label: this.$t('community.overlayLayers'),
-          value: this.$t('community.chartAnnotations')
-        },
-        {
-          key: 'downloads',
-          icon: 'download',
-          label: this.$t('community.downloads'),
-          value: String(d.purchase_count || 0)
-        },
-        {
-          key: 'rating',
-          icon: 'star',
-          tone: 'gold',
-          label: this.$t('community.rating'),
-          value: this.ratingLabel
-        }
-      ]
-    },
     localCopyMissing () {
       return !!(this.detail && this.detail.is_purchased && this.detail.local_copy_missing)
     },
@@ -669,31 +572,6 @@ export default {
     hasEquityCurve () {
       return this.performance && Array.isArray(this.performance.equity_curve) &&
         this.performance.equity_curve.length > 1
-    },
-    headerStyle () {
-      if (!this.detail) return {}
-      const gradients = [
-        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-        'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-        'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-        'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-        'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)'
-      ]
-      const index = (this.detail.id || 0) % gradients.length
-      return { background: gradients[index] }
-    },
-    indicatorInitials () {
-      if (!this.detail) return ''
-      const name = this.detail.name || 'I'
-      if (/[\u4e00-\u9fa5]/.test(name)) {
-        return name.slice(0, 2)
-      }
-      const words = name.split(/\s+/)
-      if (words.length >= 2) {
-        return (words[0][0] + words[1][0]).toUpperCase()
-      }
-      return name.slice(0, 2).toUpperCase()
     }
   },
   watch: {
@@ -721,12 +599,14 @@ export default {
       this.performance = null
       this.comments = { items: [], total: 0, page: 1 }
       this.myComment = null
+      this.imageError = false
       this.showAllParameters = false
       this.disposeEquityChart()
     },
 
     async loadDetail () {
       this.loading = true
+      this.imageError = false
       try {
         const res = await request({
           url: `/api/community/indicators/${this.indicatorId}`,
@@ -1193,7 +1073,22 @@ export default {
   .detail-container {
     display: flex;
     flex-direction: column;
-    max-height: 80vh;
+    max-height: 90vh;
+  }
+
+  .detail-preview {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    flex-shrink: 0;
+    overflow: hidden;
+    background: #111;
+
+    img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
   }
 
   .detail-header {
@@ -1202,6 +1097,18 @@ export default {
     padding: 16px 20px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: #fff;
+
+    &--indicator {
+      border-bottom: 1px solid #ededed;
+      background: #fff;
+      color: #262626;
+    }
+
+    &--strategy {
+      border-bottom: 1px solid #ededed;
+      background: #fff;
+      color: #262626;
+    }
 
     .header-cover {
       width: 156px;
@@ -1306,6 +1213,56 @@ export default {
           opacity: 0.8;
         }
       }
+
+      .indicator-essential-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 10px;
+
+        .ant-tag {
+          margin: 0;
+          border-color: #e0e0e0;
+          background: #f5f5f5;
+          color: #595959;
+        }
+      }
+    }
+
+    &--indicator,
+    &--strategy {
+      .header-info {
+        .indicator-name,
+        .author-name {
+          color: #1f1f1f;
+        }
+
+        .indicator-meta .publish-time {
+          color: #8c8c8c;
+          opacity: 1;
+        }
+
+        .indicator-stats ::v-deep .ant-statistic {
+          .ant-statistic-title {
+            color: #8c8c8c;
+          }
+
+          .ant-statistic-content {
+            color: #262626;
+          }
+        }
+
+        .indicator-stats .rating-text {
+          color: #8c8c8c;
+          opacity: 1;
+        }
+      }
+    }
+
+    &--strategy .header-info .strategy-title-row .strategy-api-badge {
+      border-color: rgba(82, 196, 26, 0.28);
+      background: rgba(82, 196, 26, 0.08);
+      color: #389e0d;
     }
   }
 
@@ -1526,61 +1483,34 @@ export default {
     }
 
     .strategy-contract-section {
-      padding: 16px;
-      border: 1px solid rgba(24, 144, 255, 0.16);
-      border-radius: 10px;
-      background: linear-gradient(145deg, rgba(24, 144, 255, 0.055), rgba(82, 196, 26, 0.025));
+      padding-top: 2px;
     }
 
-    .source-controlled-badge {
-      flex: 0 0 auto;
-      display: inline-flex;
+    .strategy-contract-heading {
       align-items: center;
-      gap: 6px;
-      padding: 5px 9px;
-      border-radius: 999px;
-      background: rgba(82, 196, 26, 0.1);
-      color: #389e0d;
-      font-size: 12px;
-      font-weight: 600;
-    }
+      margin-bottom: 4px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 
-    .contract-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .contract-card {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      min-width: 0;
-      padding: 12px;
-      border: 1px solid rgba(0, 0, 0, 0.06);
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.78);
-
-      &__icon {
-        flex: 0 0 30px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 30px;
-        height: 30px;
-        border-radius: 7px;
-        background: rgba(24, 144, 255, 0.1);
-        color: var(--primary-color, #1890ff);
+      h3 {
+        margin: 0;
       }
+    }
 
-      &__body {
+    .strategy-contract-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      column-gap: 22px;
+      row-gap: 12px;
+      padding: 14px 0 4px;
+
+      &__item {
         min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 3px;
 
-        span,
-        small {
+        span {
           color: rgba(0, 0, 0, 0.45);
           font-size: 11px;
           line-height: 1.4;
@@ -1588,44 +1518,38 @@ export default {
 
         strong {
           overflow: hidden;
-          color: rgba(0, 0, 0, 0.85);
-          font-size: 14px;
-          line-height: 1.45;
+          color: rgba(0, 0, 0, 0.82);
+          font-size: 13px;
+          line-height: 1.5;
           text-overflow: ellipsis;
         }
       }
     }
 
-    .contract-logic-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) 140px;
-      gap: 10px;
-      margin-top: 10px;
-    }
-
-    .contract-logic-card {
+    .strategy-contract-metadata {
       display: flex;
-      min-height: 70px;
-      flex-direction: column;
-      justify-content: center;
-      min-width: 0;
-      padding: 11px 12px;
-      border: 1px solid rgba(0, 0, 0, 0.055);
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.025);
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px 22px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed rgba(0, 0, 0, 0.08);
 
-      &__label {
-        display: inline-flex;
+      &__item {
+        min-width: 0;
+        display: flex;
         align-items: center;
-        gap: 5px;
-        margin-bottom: 7px;
-        color: rgba(0, 0, 0, 0.48);
-        font-size: 11px;
-      }
+        gap: 8px;
 
-      &--warmup strong {
-        color: rgba(0, 0, 0, 0.82);
-        font-size: 14px;
+        > span {
+          color: rgba(0, 0, 0, 0.45);
+          font-size: 11px;
+        }
+
+        > strong {
+          color: rgba(0, 0, 0, 0.85);
+          font-size: 12px;
+        }
       }
     }
 
@@ -1640,22 +1564,6 @@ export default {
         background: rgba(24, 144, 255, 0.09);
         color: #096dd9;
         font-size: 11px;
-      }
-    }
-
-    .contract-empty {
-      color: rgba(0, 0, 0, 0.3);
-
-      &--meaningful {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        color: rgba(0, 0, 0, 0.55);
-        font-size: 11px;
-
-        .anticon {
-          color: #52c41a;
-        }
       }
     }
 
@@ -2049,6 +1957,54 @@ export default {
 // Dark theme: scoped overrides beat the light-theme rules above because
 // `.is-dark` adds an extra class on the same [data-v] subtree.
 .detail-container.is-dark {
+  .detail-preview {
+    background: #111;
+  }
+
+  .detail-header--indicator {
+    border-color: #303030;
+    background: #1f1f1f;
+    color: #e5e5e5;
+
+    .header-info {
+      .indicator-name { color: #f0f0f0; }
+      .publish-time { color: #8c8c8c; }
+
+      .indicator-stats ::v-deep .ant-statistic {
+        .ant-statistic-title { color: #8c8c8c; }
+        .ant-statistic-content { color: #e5e5e5; }
+      }
+
+      .indicator-essential-tags .ant-tag {
+        border-color: #383838;
+        background: #282828;
+        color: #bdbdbd;
+      }
+    }
+  }
+
+  .detail-header--strategy {
+    border-color: #303030;
+    background: #1f1f1f;
+    color: #e5e5e5;
+
+    .header-info {
+      .indicator-name { color: #f0f0f0; }
+      .publish-time { color: #8c8c8c; }
+
+      .strategy-api-badge {
+        border-color: color-mix(in srgb, var(--primary-color, #1890ff) 32%, transparent);
+        background: color-mix(in srgb, var(--primary-color, #1890ff) 12%, transparent);
+        color: var(--primary-color-hover, #69c0ff);
+      }
+
+      .indicator-stats ::v-deep .ant-statistic {
+        .ant-statistic-title { color: #8c8c8c; }
+        .ant-statistic-content { color: #e5e5e5; }
+      }
+    }
+  }
+
   .detail-body {
     background: #1a1a1a;
 
@@ -2066,49 +2022,33 @@ export default {
     }
 
     .strategy-contract-section {
-      border-color: #373d37;
-      background: linear-gradient(145deg, #202320, #202020);
+      background: transparent;
     }
 
-    .source-controlled-badge {
-      background: rgba(82, 196, 26, 0.16);
-      color: #95de64;
+    .strategy-contract-heading {
+      border-color: #303030;
     }
 
-    .contract-card,
     .parameter-item {
       border-color: #383838;
       background: #292929;
     }
 
-    .contract-card__body {
-      span,
-      small { color: rgba(255, 255, 255, 0.45); }
+    .strategy-contract-summary__item {
+      span { color: rgba(255, 255, 255, 0.45); }
       strong { color: rgba(255, 255, 255, 0.88); }
     }
 
-    .contract-card__icon {
-      background: rgba(82, 196, 26, 0.12);
-      color: #8fd96a;
-    }
-
-    .contract-logic-card,
     .evidence-context {
       border-color: #363636;
       background: #262626;
     }
 
-    .contract-logic-card {
-      &__label { color: rgba(255, 255, 255, 0.48); }
-      &--warmup strong { color: rgba(255, 255, 255, 0.86); }
-    }
+    .strategy-contract-metadata {
+      border-color: #303030;
 
-    .contract-empty--meaningful {
-      color: rgba(255, 255, 255, 0.62);
-
-      .anticon {
-        color: #95de64;
-      }
+      &__item > span { color: rgba(255, 255, 255, 0.45); }
+      &__item > strong { color: rgba(255, 255, 255, 0.86); }
     }
 
     .contract-tags .ant-tag {
@@ -2122,7 +2062,10 @@ export default {
       &__head {
         strong { color: rgba(255, 255, 255, 0.88); }
         span { color: rgba(255, 255, 255, 0.46); }
-        .parameter-count { background: rgba(82, 196, 26, 0.14); color: #95de64; }
+        .parameter-count {
+          background: color-mix(in srgb, var(--primary-color, #1890ff) 14%, transparent);
+          color: var(--primary-color-hover, #69c0ff);
+        }
       }
     }
 
@@ -2325,14 +2268,16 @@ export default {
     }
 
     .detail-body {
-      .contract-grid,
       .performance-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      .contract-logic-grid,
       .parameter-grid {
         grid-template-columns: 1fr;
+      }
+
+      .strategy-contract-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .evidence-context {
@@ -2364,7 +2309,7 @@ export default {
 .qd-indicator-detail-modal-wrap--dark {
   .ant-modal-content {
     background: #1f1f1f;
-    color: rgba(255, 255, 255, 0.85);
+    color: #e5e5e5;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   }
 
@@ -2399,12 +2344,12 @@ export default {
     }
 
     .section h3 {
-      color: rgba(255, 255, 255, 0.88);
+      color: #f0f0f0;
       border-color: #303030;
     }
 
     .description {
-      color: rgba(255, 255, 255, 0.65);
+      color: #bdbdbd;
     }
 
     .indicator-profile-grid .profile-item {
@@ -2583,14 +2528,19 @@ export default {
 
   // Comments block in the modal: inherit dark colors.
   .comment-list {
-    color: rgba(255, 255, 255, 0.85);
+    color: #e5e5e5;
 
     .comment-item {
       border-color: #303030;
 
-      .comment-content { color: rgba(255, 255, 255, 0.72); }
+      &.is-mine {
+        background: #202020 !important;
+      }
+
+      .user-name { color: #ededed !important; }
+      .comment-content { color: #c7c7c7; }
       .comment-meta,
-      .comment-time { color: rgba(255, 255, 255, 0.45); }
+      .comment-time { color: #8c8c8c; }
     }
 
     .ant-input,

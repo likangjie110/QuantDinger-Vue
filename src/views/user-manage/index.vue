@@ -1,11 +1,13 @@
 <template>
   <div class="user-manage-page qd-workspace-page qd-page-frame" :class="{ 'theme-dark': isDarkTheme }">
-    <div class="page-header">
-      <h2 class="page-title">
-        <a-icon type="team" />
-        <span>{{ $t('userManage.title') || 'User Management' }}</span>
-      </h2>
-      <p class="page-desc">{{ $t('userManage.description') || 'Manage system users, roles and permissions' }}</p>
+    <div class="page-header qd-page-heading">
+      <div class="qd-page-heading__copy">
+        <h2 class="page-title qd-page-heading__title">
+          <a-icon class="qd-page-heading__icon" type="team" />
+          <span>{{ $t('userManage.title') || 'User Management' }}</span>
+        </h2>
+        <p class="page-desc qd-page-heading__description">{{ $t('userManage.description') || 'Manage system users, roles and permissions' }}</p>
+      </div>
     </div>
 
     <!-- Tabs -->
@@ -688,7 +690,7 @@
       </a-tab-pane>
 
       <!-- Tab 3: Order List -->
-      <a-tab-pane key="orders" :tab="$t('adminOrders.tabTitle') || 'Order List'">
+      <a-tab-pane v-if="billingEnabled" key="orders" :tab="$t('adminOrders.tabTitle') || 'Order List'">
         <!-- Order Summary Cards -->
         <div class="summary-cards" v-if="orderSummary">
           <div class="summary-card">
@@ -930,7 +932,7 @@
         </a-modal>
       </a-tab-pane>
 
-      <a-tab-pane key="rewardWithdrawals" :tab="$t('adminReferralWithdrawals.tabTitle')">
+      <a-tab-pane v-if="billingEnabled" key="rewardWithdrawals" :tab="$t('adminReferralWithdrawals.tabTitle')">
         <div class="summary-cards" v-if="rewardWithdrawalSummary">
           <div class="summary-card">
             <div class="summary-icon" style="background: linear-gradient(135deg, #667eea, #764ba2)">
@@ -1567,6 +1569,9 @@ export default {
     }
   },
   computed: {
+    billingEnabled () {
+      return this.$store.state.features.config.billing_enabled !== false
+    },
     ...mapGetters(['userInfo']),
     isZh () {
       const locale = this.$i18n ? String(this.$i18n.locale || '') : 'zh-CN'

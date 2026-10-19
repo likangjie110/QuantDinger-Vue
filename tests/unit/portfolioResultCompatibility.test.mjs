@@ -25,8 +25,8 @@ test('restored legacy details are disclosed in the result trust bar', () => {
 
 test('completed-trade table exposes a prominent horizontal scrollbar', () => {
   assert.match(source, /class="completed-trades-table"/)
-  assert.match(source, /\.completed-trades-table \/deep\/ \.ant-table-body::\-webkit-scrollbar \{ width: 14px; height: 14px; \}/)
-  assert.match(source, /scrollbar-color: var\(--primary-color/)
+  assert.match(source, /\.completed-trades-table \/deep\/ \.ant-table-body::\-webkit-scrollbar \{ width: 6px; height: 6px; \}/)
+  assert.match(source, /scrollbar-color: var\(--qd-scrollbar-thumb/)
 })
 
 test('portfolio chart separates directional exposure and hides ledger cash by default', () => {
