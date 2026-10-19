@@ -29,6 +29,7 @@ const STATIC_KEY_RE = /\$t\(\s*['"]([^'"]+)['"]\s*\)/g
 // Keys the view resolves through a variable, so no source scan can see the concrete spellings.
 const STATUS_KEYS = ['queued', 'running', 'succeeded', 'failed', 'cancelled']
 const CANDIDATE_STATUS_KEYS = ['search', 'frozen', 'rejected']
+const PROPOSAL_STATUS_KEYS = ['proposed', 'evaluated', 'l1Rejected', 'duplicate']
 const MARKET_KEYS = ['Crypto', 'USStock', 'CNStock', 'HKStock', 'Forex', 'Futures', 'MOEX']
 
 // The backend answers a rejection with an i18n key in `msg`; the view renders it through the same
@@ -42,13 +43,14 @@ const BACKEND_KEYS = [
   'sourceCodeRequired', 'dateRangeRequired', 'dateRangeTooShort', 'invalidMarket',
   'budgetInvalid', 'budgetExceeded', 'concurrentLimit', 'workerInterrupted',
   'freezeRatioInvalid', 'searchFreezeOverlap', 'universeTooSmall', 'usableUniverseTooSmall',
-  'noMarketData', 'missingIcSeries', 'runNotFound', 'templateNotFound', 'fingerprintInvalid'
+  'noMarketData', 'missingIcSeries', 'runNotFound', 'templateNotFound', 'fingerprintInvalid',
+  'aiProposalFailed', 'aiNoValidProposals', 'aiReplayNotFound', 'aiReplayIncompatible'
 ]
 
 const REJECT_KEYS = [
   'invalid', 'lowCoverage', 'insufficientObservations', 'weakIc', 'weakIcir', 'unstableFolds',
-  'unstableHalves', 'highTurnover', 'duplicateBuiltin', 'unverifiableRedundancy',
-  'weakOutOfSample', 'selectionBias'
+  'unstableHalves', 'highTurnover', 'duplicateBuiltin', 'duplicateProposal',
+  'unverifiableRedundancy', 'weakOutOfSample', 'selectionBias'
 ]
 
 function keysUsedInSources () {
@@ -65,6 +67,7 @@ function requiredKeys () {
     ...keysUsedInSources(),
     ...STATUS_KEYS.map(status => `factorMining.jobStatus.${status}`),
     ...CANDIDATE_STATUS_KEYS.map(status => `factorMining.candidateStatus.${status}`),
+    ...PROPOSAL_STATUS_KEYS.map(status => `factorMining.proposalStatus.${status}`),
     ...MARKET_KEYS.map(market => `factorMining.markets.${market}`),
     ...BACKEND_KEYS.map(key => `factorMining.${key}`),
     ...REJECT_KEYS.map(key => `factorMining.reject.${key}`)

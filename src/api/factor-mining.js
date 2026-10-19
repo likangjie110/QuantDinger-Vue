@@ -64,6 +64,18 @@ export function cancelJob (id) {
 }
 
 /**
+ * The proposals an AI job's run recorded, in generation order. A running job answers what it has
+ * written so far; a job that never opened a run reads as not found.
+ */
+export function getJobProposals (jobId, params = {}) {
+  return request({
+    url: `/api/factor-mining/jobs/${jobId}/proposals`,
+    method: 'get',
+    params
+  })
+}
+
+/**
  * The candidate library. `runId`, `status`, `market`, `limit` and `offset` are the repository's
  * own filters; a row from this read carries no metrics.
  */
