@@ -10,6 +10,9 @@
     "build:preview": "vite build --mode preview",
     "preview": "vite preview --port 8001",
     "test:unit": "node scripts/run-unit-tests.mjs",
+    "typecheck": "vue-tsc --noEmit --project tsconfig.json",
+    "factors:catalog:check": "node scripts/factor-catalog.mjs --check",
+    "factors:catalog:update": "node scripts/factor-catalog.mjs --write",
     "i18n:generate": "node scripts/generate-core-locales.mjs",
     "encoding:audit": "node scripts/encoding-audit.mjs",
     "i18n:extract": "node scripts/generate-copilot-callsite-overrides.mjs",
@@ -58,10 +61,12 @@
     "stylelint-config-recommended": "^7.0.0",
     "stylelint-config-standard": "^25.0.0",
     "stylelint-order": "^5.0.0",
+    "typescript": "5.8.3",
     "vite": "^5.4.21",
     "vite-plugin-mock": "^3.0.2",
     "vite-svg-loader": "^4.0.0",
-    "vue-template-compiler": "2.7.16"
+    "vue-template-compiler": "2.7.16",
+    "vue-tsc": "2.2.12"
   },
   "packageManager": "pnpm@10.33.4"
 }

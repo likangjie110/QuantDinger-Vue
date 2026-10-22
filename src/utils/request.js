@@ -343,9 +343,12 @@ const installer = {
   }
 }
 
-export default request
+// The response interceptor above unwraps AxiosResponse into the HTTP response body.
+const httpClient = /** @type {import('../../types/http').HttpClient} */ (request)
+
+export default httpClient
 
 export {
   installer as VueAxios,
-  request as axios
+  httpClient as axios
 }

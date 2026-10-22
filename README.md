@@ -249,6 +249,7 @@ Run the relevant checks before submitting a change:
 ```bash
 pnpm run lint:nofix
 pnpm run test:unit
+pnpm run typecheck
 pnpm run build
 pnpm run i18n:audit
 ```
@@ -265,6 +266,25 @@ Additional commands:
 | `pnpm run lint:css` | Run Stylelint with automatic fixes |
 
 The `lint` and `lint:css` commands modify files. Use their non-fixing equivalents or review the diff before committing broad formatting changes.
+
+`typecheck` uses pinned `vue-tsc` 2.2.12 and TypeScript 5.8.3 with the Vue 2.7 target. `tsconfig.json` checks every application JS, JSX, MJS, TS and Vue file with `allowJs`, `checkJs` and `noImplicitThis`; `jsconfig.json` extends the same configuration for editors. Dependency declaration checking uses `skipLibCheck`; application pages remain included. Build-time globals are declared in `types/build-env.d.ts`. The command fails on existing application type errors; it does not filter diagnostics or substitute a build/syntax check. The unit suite also proves that the compiler accepts valid JS/Vue and rejects semantic errors in each.
+
+The request wrapper returns the response body after its interceptor runs. `types/http.d.ts` describes that client separately from raw Axios: JSON calls return `HumanEnvelope<T>`, while Blob, ArrayBuffer and text requests return their actual body type. The payload defaults to `unknown`; endpoint owners must supply a verified payload contract before accessing fields. Both the default and named `axios` exports retain the same runtime client. `types/vue-plugins.d.ts` reuses installed library types for Vue 2.7 plugin properties and preserves vue-i18n's `TranslateResult` return type. Moment locale declarations enumerate only the imported modules and use Moment's `Locale` interface.
+
+Factor-library localization tests work in a standalone frontend checkout. They use the committed, nonempty 61-factor catalog in `tests/fixtures/native-factor-catalog.json`, generated from the backend's native technical and fundamental registrations, independently of locale keys. English and Simplified Chinese name/description coverage remains required for every catalog ID.
+
+To verify or update this catalog against a backend checkout, explicitly set `BACKEND_SRC_PATH` to the backend repository root or its `backend_api_python` directory. Relative paths are resolved from the command's working directory. For example, in PowerShell:
+
+```powershell
+$env:BACKEND_SRC_PATH = 'C:/source/QuantDinger'
+pnpm run factors:catalog:check
+# After reviewing backend registry changes:
+pnpm run factors:catalog:update
+pnpm run test:unit
+Remove-Item Env:BACKEND_SRC_PATH
+```
+
+With `BACKEND_SRC_PATH` set, localization tests also check exact catalog alignment. A missing registry, empty/duplicate IDs or catalog drift fails the check. Updating the catalog parses source only, without importing the backend or contacting a database, provider or model. Review the catalog diff and its expected count when native factors change.
 
 ## Project structure
 

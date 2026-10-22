@@ -28,10 +28,12 @@
           </a-select>
         </a-form-model-item>
 
-        <a-form-model-item :label="$t('factorMining.candidates.runId')">
+        <a-form-model-item :label="$t('factorMining.candidates.runId')" html-for="fm-candidate-run-id">
           <a-input-number
+            id="fm-candidate-run-id"
             v-model="filters.runId"
             :min="1"
+            :precision="0"
             style="width: 140px"
             :placeholder="$t('factorMining.candidates.runIdPlaceholder')"
           />
@@ -197,16 +199,27 @@ const MARKETS = ['Crypto', 'USStock', 'CNStock', 'HKStock', 'Forex', 'Futures', 
 
 export default {
   name: 'CandidateList',
+  props: {
+    runId: { type: Number, default: undefined }
+  },
   data () {
     return {
       markets: MARKETS,
       items: [],
       loading: false,
+      requestVersion: 0,
       offset: 0,
       hasNext: false,
-      filters: { status: undefined, market: undefined, runId: undefined },
+      filters: { status: undefined, market: undefined, runId: this.runId },
       detail: null,
       detailVisible: false
+    }
+  },
+  watch: {
+    runId (value) {
+      this.filters = { ...this.filters, runId: value }
+      this.offset = 0
+      return this.load()
     }
   },
   computed: {
@@ -278,6 +291,7 @@ export default {
       return value ? JSON.stringify(value, null, 2) : '-'
     },
     async load () {
+      const requestVersion = ++this.requestVersion
       this.loading = true
       try {
         const params = { limit: PAGE_SIZE, offset: this.offset }
@@ -287,6 +301,7 @@ export default {
         if (this.filters.market) params.market = this.filters.market
         if (this.filters.runId) params.runId = this.filters.runId
         const res = await getCandidates(params)
+        if (requestVersion !== this.requestVersion) return
         if (res.code !== 1) {
           this.$message.error(this.message(res.msg))
           return
@@ -295,18 +310,28 @@ export default {
         // No total is served, so a next page is offered while the last one came back full.
         this.hasNext = this.items.length === PAGE_SIZE
       } catch (error) {
-        this.$message.error(this.$t('factorMining.candidates.loadFailed'))
+        if (requestVersion === this.requestVersion) this.$message.error(this.$t('factorMining.candidates.loadFailed'))
       } finally {
-        this.loading = false
+        if (requestVersion === this.requestVersion) this.loading = false
       }
     },
     search () {
       this.offset = 0
+      const runId = Number.isSafeInteger(this.filters.runId) && this.filters.runId > 0 ? this.filters.runId : undefined
+      this.filters.runId = runId
+      if (runId !== this.runId) {
+        this.$emit('filter-run', runId)
+        return
+      }
       this.load()
     },
     reset () {
       this.filters = { status: undefined, market: undefined, runId: undefined }
       this.offset = 0
+      if (this.runId !== undefined) {
+        this.$emit('filter-run', undefined)
+        return
+      }
       this.load()
     },
     prevPage () {

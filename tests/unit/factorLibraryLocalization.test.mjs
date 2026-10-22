@@ -3,12 +3,13 @@ import fs from 'node:fs'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
+import { loadNativeFactorIds } from '../../scripts/factor-catalog.mjs'
+
 import factorLibraryMessages from '../../src/locales/lang/factor-library-enhancements.js'
 import talibMessages from '../../src/locales/lang/talib-factors.js'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const read = relativePath => fs.readFileSync(`${root}${relativePath}`, 'utf8')
-const registrySource = read('../quantdinger_backend/backend_api_python/app/services/factors/registry.py')
 const englishSource = read('src/locales/lang/en-US.js')
 const chineseSource = read('src/locales/lang/zh-CN.js')
 const factorResearchSource = read('src/locales/lang/factor-research-factors.js')
@@ -25,8 +26,8 @@ function localeValues (source, locale = '') {
 }
 
 test('every native factor has an English and Simplified Chinese name and description', () => {
-  const factorIds = [...registrySource.matchAll(/_(?:technical|fundamental)\("([a-z0-9_]+)"/g)]
-    .map(match => match[1])
+  const factorIds = loadNativeFactorIds()
+  assert.ok(factorIds.length > 0, 'The native factor catalog must not be empty')
   const english = new Map([
     ...localeValues(englishSource),
     ...localeValues(factorResearchSource, 'en-US')

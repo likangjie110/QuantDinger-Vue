@@ -2,6 +2,7 @@
   <div class="submit-job">
     <a-card :title="$t('factorMining.submit.configTitle')" :bordered="false">
       <a-form-model
+        v-if="!replayJob"
         ref="form"
         :model="form"
         :rules="rules"
@@ -26,8 +27,45 @@
             <a-select-option value="ai">
               {{ $t('factorMining.submit.modeAi') }}
             </a-select-option>
+            <a-select-option value="evolution">
+              {{ $t('factorMining.submit.modeEvolution') }}
+            </a-select-option>
           </a-select>
         </a-form-model-item>
+
+        <template v-if="form.searchMode === 'evolution'">
+          <a-form-model-item :label="$t('factorMining.submit.population')" prop="population" html-for="fm-population">
+            <a-input-number
+              id="fm-population"
+              v-model="form.population"
+              :min="1"
+              :precision="0"
+              :aria-label="$t('factorMining.submit.population')"
+              style="width: 100%"
+            />
+          </a-form-model-item>
+          <a-form-model-item :label="$t('factorMining.submit.generations')" prop="generations" html-for="fm-generations">
+            <a-input-number
+              id="fm-generations"
+              v-model="form.generations"
+              :min="1"
+              :precision="0"
+              :aria-label="$t('factorMining.submit.generations')"
+              style="width: 100%"
+            />
+          </a-form-model-item>
+          <a-form-model-item :label="$t('factorMining.submit.eliteRatio')" prop="eliteRatio" html-for="fm-elite-ratio">
+            <a-input-number
+              id="fm-elite-ratio"
+              v-model="form.eliteRatio"
+              :min="0"
+              :max="1"
+              :step="0.05"
+              :aria-label="$t('factorMining.submit.eliteRatio')"
+              style="width: 100%"
+            />
+          </a-form-model-item>
+        </template>
 
         <template v-if="form.searchMode === 'ai'">
           <a-form-model-item
@@ -130,6 +168,18 @@
 
         <a-collapse :bordered="false" style="margin-bottom: 24px">
           <a-collapse-panel key="advanced" :header="$t('factorMining.submit.advanced')">
+            <a-form-model-item :label="$t('factorMining.submit.holdoutRatio')" prop="holdoutRatio" html-for="fm-holdout-ratio">
+              <a-input-number
+                id="fm-holdout-ratio"
+                v-model="form.holdoutRatio"
+                :min="0"
+                :max="0.3"
+                :step="0.05"
+                :aria-label="$t('factorMining.submit.holdoutRatio')"
+                style="width: 100%"
+              />
+              <span class="fm-hint">{{ $t('factorMining.submit.holdoutRatioExtra') }}</span>
+            </a-form-model-item>
             <a-form-model-item :label="$t('factorMining.submit.freezeRatio')">
               <a-input-number
                 v-model="form.freezeRatio"
@@ -202,6 +252,22 @@
           </a-space>
         </a-form-model-item>
       </a-form-model>
+      <div v-else class="fm-replay">
+        <a-alert type="info" show-icon :message="$t('factorMining.ai.replay')" :description="$t('factorMining.ai.replayHint')" />
+        <a-descriptions :column="1" bordered size="small" style="margin: 16px 0">
+          <a-descriptions-item :label="$t('factorMining.ai.replayOf')">{{ replayJob.jobId }}</a-descriptions-item>
+          <a-descriptions-item :label="$t('factorMining.submit.sourceId')">{{ replayJob.config.sourceId }}</a-descriptions-item>
+          <a-descriptions-item :label="$t('factorMining.submit.market')">{{ marketLabel(replayJob.config.market) }}</a-descriptions-item>
+          <a-descriptions-item :label="$t('factorMining.submit.timeframe')">{{ replayJob.config.timeframe }}</a-descriptions-item>
+          <a-descriptions-item :label="$t('factorMining.jobs.window')">{{ replayJob.config.startDate }} ~ {{ replayJob.config.endDate }}</a-descriptions-item>
+          <a-descriptions-item :label="$t('factorMining.submit.budget')">{{ replayJob.config.budget }}</a-descriptions-item>
+          <a-descriptions-item :label="$t('factorMining.submit.seed')">{{ replayJob.config.seed }}</a-descriptions-item>
+        </a-descriptions>
+        <a-space>
+          <a-button id="fm-submit-replay" type="primary" :loading="submitting" @click="handleSubmit">{{ $t('factorMining.ai.submitReplay') }}</a-button>
+          <a-button id="fm-cancel-replay" :disabled="submitting" @click="$emit('cancel-replay')">{{ $t('common.cancel') }}</a-button>
+        </a-space>
+      </div>
     </a-card>
   </div>
 </template>
@@ -218,6 +284,9 @@ const RESEARCH_NOTES_MAX = 8000
 
 export default {
   name: 'SubmitJob',
+  props: {
+    replayJob: { type: Object, default: null }
+  },
   data () {
     return {
       markets: MARKETS,
@@ -237,6 +306,10 @@ export default {
         aiRounds: 2,
         aiProposalsPerRound: 10,
         researchNotes: '',
+        population: 32,
+        generations: 20,
+        eliteRatio: 0.25,
+        holdoutRatio: 0.1,
         freezeRatio: 0.3,
         groups: 10,
         holdingPeriod: 5,
@@ -251,13 +324,24 @@ export default {
         endDate: [{ required: true, message: this.$t('factorMining.submit.endDateRequired'), trigger: 'change' }],
         aiRounds: [{ validator: this.aiIntegerRule(AI_ROUNDS, 'factorMining.submit.aiRoundsInvalid'), trigger: 'change' }],
         aiProposalsPerRound: [{ validator: this.aiIntegerRule(AI_PROPOSALS_PER_ROUND, 'factorMining.submit.aiProposalsPerRoundInvalid'), trigger: 'change' }],
-        researchNotes: [{ validator: this.researchNotesRule, trigger: 'change' }]
+        researchNotes: [{ validator: this.researchNotesRule, trigger: 'change' }],
+        population: [{ validator: this.evolutionRule('population'), trigger: 'change' }],
+        generations: [{ validator: this.evolutionRule('generations'), trigger: 'change' }],
+        eliteRatio: [{ validator: this.evolutionRule('eliteRatio'), trigger: 'change' }],
+        holdoutRatio: [{ validator: this.holdoutRule, trigger: 'change' }]
       },
       estimating: false,
       submitting: false,
       estimate: null,
       searchModeOpen: false
     }
+  },
+  watch: {
+    form: {
+      deep: true,
+      handler () { this.estimate = null }
+    },
+    replayJob () { this.estimate = null }
   },
   mounted () {
     this.syncSearchModeAria(false)
@@ -267,6 +351,19 @@ export default {
     this.syncSearchModeAria(this.searchModeOpen)
   },
   methods: {
+    evolutionRule (field) {
+      return (rule, value, callback) => {
+        if (this.form.searchMode !== 'evolution') return callback()
+        const valid = field === 'eliteRatio'
+          ? Number.isFinite(value) && value >= 0 && value < 1
+          : Number.isInteger(value) && value >= 1
+        callback(valid ? undefined : new Error(this.$t(`factorMining.submit.${field}Invalid`)))
+      }
+    },
+    holdoutRule (rule, value, callback) {
+      const valid = Number.isFinite(value) && value >= 0 && value <= 0.3
+      callback(valid ? undefined : new Error(this.$t('factorMining.submit.holdoutRatioInvalid')))
+    },
     // ant-design-vue 1.7 renders `role="combobox"` without the required `aria-expanded`, and it
     // offers no prop for it. Keep the attribute in sync so the control is announced correctly.
     syncSearchModeAria (open) {
@@ -303,11 +400,14 @@ export default {
       return text === key ? key : text
     },
     async handleEstimate () {
+      if (this.replayJob || this.estimating || this.submitting) return
       const valid = await this.$refs.form.validate().catch(() => false)
       if (!valid) return
       this.estimating = true
       try {
-        const res = await estimateJob(buildRunPayload(this.form))
+        const payload = buildRunPayload(this.form)
+        const res = await estimateJob(payload)
+        if (this.replayJob || JSON.stringify(payload) !== JSON.stringify(buildRunPayload(this.form))) return
         if (res.code !== 1) {
           this.$message.error(this.message(res.msg))
           return
@@ -320,11 +420,17 @@ export default {
       }
     },
     async handleSubmit () {
-      const valid = await this.$refs.form.validate().catch(() => false)
-      if (!valid) return
+      if (this.submitting) return
+      if (!this.replayJob) {
+        const valid = await this.$refs.form.validate().catch(() => false)
+        if (!valid) return
+      }
       this.submitting = true
       try {
-        const res = await submitJob(buildRunPayload(this.form))
+        const payload = this.replayJob
+          ? { searchMode: 'ai', replayJobId: this.replayJob.jobId }
+          : buildRunPayload(this.form)
+        const res = await submitJob(payload)
         if (res.code !== 1) {
           this.$message.error(this.message(res.msg))
           return
@@ -354,5 +460,54 @@ export default {
   color: rgba(0, 0, 0, 0.45);
   font-size: 12px;
   line-height: 1.4;
+}
+</style>
+
+<style lang="less">
+.factor-mining .submit-job .ant-form-item-label > label {
+  color: #262626 !important;
+}
+
+.factor-mining .submit-job .fm-hint {
+  color: #595959 !important;
+}
+
+.factor-mining .submit-job .fm-replay .ant-descriptions-item-content {
+  color: #262626 !important;
+}
+
+.factor-mining.theme-dark .submit-job .ant-collapse,
+.factor-mining.theme-dark .submit-job .ant-collapse-item,
+.factor-mining.theme-dark .submit-job .ant-collapse-content {
+  border-color: #2a2a2a !important;
+  background: #1c1c1c !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.factor-mining.theme-dark .submit-job .ant-collapse-header,
+.factor-mining.theme-dark .submit-job .ant-collapse-content-box,
+.factor-mining.theme-dark .submit-job .ant-form-item-label > label,
+.factor-mining.theme-dark .submit-job .fm-hint {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+body.dark .factor-mining .submit-job .ant-form-item-label > label,
+body.realdark .factor-mining .submit-job .ant-form-item-label > label {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+body.dark .factor-mining .submit-job .fm-hint,
+body.realdark .factor-mining .submit-job .fm-hint,
+body.dark .factor-mining .submit-job .fm-replay .ant-descriptions-item-content,
+body.realdark .factor-mining .submit-job .fm-replay .ant-descriptions-item-content {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+#fm-submit-replay.ant-btn-primary,
+#fm-submit-replay.ant-btn-primary:hover,
+#fm-submit-replay.ant-btn-primary:focus {
+  background: color-mix(in srgb, var(--primary-color, #1890ff) 45%, #000) !important;
+  border-color: color-mix(in srgb, var(--primary-color, #1890ff) 45%, #000) !important;
+  color: #fff !important;
 }
 </style>

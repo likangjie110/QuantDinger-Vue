@@ -249,6 +249,7 @@ docker build -f Dockerfile.prebuilt -t quantdinger-frontend:local .
 ```bash
 pnpm run lint:nofix
 pnpm run test:unit
+pnpm run typecheck
 pnpm run build
 pnpm run i18n:audit
 ```
@@ -265,6 +266,25 @@ pnpm run i18n:audit
 | `pnpm run lint:css` | 运行 Stylelint 并自动修改文件 |
 
 `lint` 和 `lint:css` 会修改文件。进行大范围格式化前，应使用不自动修复的检查方式，或者在提交前认真检查差异。
+
+`typecheck` 使用固定版本的 `vue-tsc` 2.2.12 和 TypeScript 5.8.3，并设置 Vue 2.7 target。`tsconfig.json` 通过 `allowJs`、`checkJs`、`noImplicitThis` 检查全部应用 JS、JSX、MJS、TS 和 Vue 文件；编辑器使用的 `jsconfig.json` 继承相同配置。`skipLibCheck` 只跳过依赖声明检查，应用页面仍全部纳入。构建常量声明位于 `types/build-env.d.ts`。已有应用类型错误会使命令失败；脚本不筛除诊断，也不以 build 或语法检查代替类型检查。unit 同时验证编译器接受合法 JS/Vue，并分别拒绝两者的语义类型错误。
+
+request wrapper 的 interceptor 返回响应正文。`types/http.d.ts` 为该客户端独立声明类型，不修改原生 Axios：JSON 请求返回 `HumanEnvelope<T>`，Blob、ArrayBuffer、文本请求返回其实际正文类型。payload 默认为 `unknown`，模块负责人需补充经核实的响应契约才能访问字段。default 与具名 `axios` 导出仍指向同一运行时客户端。`types/vue-plugins.d.ts` 复用已安装库的 Vue 2.7 插件属性类型，并保留 vue-i18n 的 `TranslateResult` 返回值。Moment locale 声明逐项列举实际导入模块，使用 Moment 自有的 `Locale` 接口。
+
+因子库本地化测试支持独立前端检出，默认读取受版本控制的 `tests/fixtures/native-factor-catalog.json`。该非空清单包含 61 个原生因子，由后端技术及基本面注册项生成，不从翻译键反推因子。每个 ID 的英文及简体中文名称、说明覆盖断言均保留。
+
+与后端检出核验或更新清单时，显式将 `BACKEND_SRC_PATH` 设为后端仓库根目录或其 `backend_api_python` 目录。相对路径按命令工作目录解析。PowerShell 示例：
+
+```powershell
+$env:BACKEND_SRC_PATH = 'C:/source/QuantDinger'
+pnpm run factors:catalog:check
+# 审阅后端注册项变更后更新：
+pnpm run factors:catalog:update
+pnpm run test:unit
+Remove-Item Env:BACKEND_SRC_PATH
+```
+
+设置 `BACKEND_SRC_PATH` 后，本地化测试还会检查清单完全一致。注册表缺失、ID 为空或重复、目录漂移均导致失败。清单更新只解析源文件，不导入后端，不连接数据库、供应商或模型。原生因子变动时同步审阅清单差异及测试中的预期数量。
 
 ## 目录结构
 

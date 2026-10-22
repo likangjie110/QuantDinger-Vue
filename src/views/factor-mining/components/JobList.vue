@@ -76,6 +76,10 @@
       </a-alert>
 
       <div v-else-if="detail">
+        <div class="fm-detail-actions">
+          <a-button v-if="resultRunId" id="fm-view-candidates" @click="viewCandidates">{{ $t('factorMining.jobs.viewCandidates') }}</a-button>
+          <a-button v-if="canReplay" id="fm-replay-job" @click="startReplay">{{ $t('factorMining.ai.replay') }}</a-button>
+        </div>
         <a-descriptions :column="detailColumns" bordered size="small">
           <a-descriptions-item :label="$t('factorMining.jobs.jobId')">
             {{ detail.jobId }}
@@ -128,6 +132,36 @@
               {{ windowText(detail.result.split, 'freezeStart', 'freezeEnd') }}
             </a-descriptions-item>
           </a-descriptions>
+        </template>
+
+        <template v-if="researchSummary">
+          <a-divider>{{ $t('factorMining.research.title') }}</a-divider>
+          <a-descriptions id="fm-research-summary" :column="summaryColumns" bordered size="small">
+            <a-descriptions-item :label="$t('factorMining.research.experimentId')">{{ researchSummary.experimentId }}</a-descriptions-item>
+            <a-descriptions-item :label="$t('factorMining.research.runTrials')">{{ researchSummary.runTrials }}</a-descriptions-item>
+            <a-descriptions-item :label="$t('factorMining.research.cumulativeTrials')">{{ researchSummary.cumulativeTrials }}</a-descriptions-item>
+            <a-descriptions-item :label="$t('factorMining.research.contextHash')" :span="summarySpan">
+              <span class="fm-mono">{{ researchSummary.contextHash }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item :label="$t('factorMining.research.freezeVersion')" :span="summarySpan">
+              <span class="fm-mono">{{ researchSummary.freezeVersion || '-' }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item :label="$t('factorMining.research.freezeSnapshotId')" :span="summarySpan">
+              <span class="fm-mono">{{ researchSummary.freezeSnapshotId || '-' }}</span>
+            </a-descriptions-item>
+            <template v-if="researchSummary.holdout">
+              <a-descriptions-item :label="$t('factorMining.research.holdoutStatus')">
+                {{ researchSummary.holdout.reserved ? $t('factorMining.research.reserved') : $t('factorMining.research.notReserved') }}
+              </a-descriptions-item>
+              <a-descriptions-item :label="$t('factorMining.research.holdoutEvaluation')" :span="isNarrow ? 1 : 2">
+                {{ researchSummary.holdout.evaluated ? $t('factorMining.research.evaluated') : $t('factorMining.research.notEvaluated') }}
+              </a-descriptions-item>
+              <a-descriptions-item v-if="researchSummary.holdout.reserved" :label="$t('factorMining.research.holdoutWindow')" :span="summarySpan">
+                {{ windowText(researchSummary.holdout, 'startDate', 'endDate') }}
+              </a-descriptions-item>
+            </template>
+          </a-descriptions>
+          <p id="fm-research-fingerprint" class="fm-sub">{{ $t('factorMining.research.fingerprintHint') }}</p>
         </template>
 
         <template v-if="aiSummary">
@@ -262,6 +296,17 @@ export default {
     }
   },
   computed: {
+    resultRunId () {
+      const value = this.detail && this.detail.result && this.detail.result.runId
+      return Number.isSafeInteger(value) && value > 0 ? value : undefined
+    },
+    canReplay () {
+      return Boolean(this.isAiJob && this.detail && this.detail.jobId && ['succeeded', 'failed'].includes(this.detail.status))
+    },
+    researchSummary () {
+      const result = this.detail && this.detail.result
+      return (result && result.summary && result.summary.research) || null
+    },
     columns () {
       return [
         { title: this.$t('factorMining.jobs.jobId'), dataIndex: 'jobId', width: 300 },
@@ -364,6 +409,16 @@ export default {
     window.removeEventListener('resize', this.updateViewport)
   },
   methods: {
+    startReplay () {
+      if (!this.canReplay) return
+      this.detailVisible = false
+      this.$emit('replay', this.detail)
+    },
+    viewCandidates () {
+      if (!this.resultRunId) return
+      this.detailVisible = false
+      this.$emit('view-candidates', this.resultRunId)
+    },
     updateViewport () {
       this.isNarrow = window.innerWidth <= 768
     },
@@ -527,10 +582,17 @@ export default {
   text-align: right;
 }
 
+.fm-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
 .fm-sub {
   display: block;
   margin-top: 4px;
-  color: rgba(0, 0, 0, 0.45);
+  color: #595959;
   font-size: 12px;
 }
 
@@ -585,13 +647,14 @@ export default {
 </style>
 
 <style lang="less">
-// Descriptions and dividers keep their light-theme text color inside the dark modal, because the
-// component styles set a color directly instead of inheriting the modal body's. The wrap class is
-// unique to this modal, so these two rules cannot leak into another feature.
+// Component text styles do not inherit the dark modal body's color. Scope the overrides to
+// this modal so descriptions, dividers and research hints stay legible without affecting others.
 body.dark .fm-job-detail-modal .ant-descriptions-item-content,
 body.realdark .fm-job-detail-modal .ant-descriptions-item-content,
 body.dark .fm-job-detail-modal .ant-divider-inner-text,
-body.realdark .fm-job-detail-modal .ant-divider-inner-text {
+body.realdark .fm-job-detail-modal .ant-divider-inner-text,
+body.dark .fm-job-detail-modal .fm-sub,
+body.realdark .fm-job-detail-modal .fm-sub {
   color: rgba(255, 255, 255, 0.85);
 }
 </style>

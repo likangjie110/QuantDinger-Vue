@@ -1,8 +1,15 @@
-// The run endpoints refuse AI fields on a non-AI search (`factorMining.invalidParameter`), and the
-// form keeps those values while the user switches modes. Strip them here, once, so the estimate
-// and the submission always carry the same payload.
+// Keep inactive mode settings in the form, but never send them to the run endpoints.
+// A replay inherits its entire config on the server; form defaults must not override it.
 export function buildRunPayload (form) {
+  if (form.searchMode === 'ai' && form.replayJobId) {
+    return { searchMode: 'ai', replayJobId: form.replayJobId }
+  }
   const payload = { ...form }
+  if (payload.searchMode !== 'evolution') {
+    delete payload.population
+    delete payload.generations
+    delete payload.eliteRatio
+  }
   if (payload.searchMode !== 'ai') {
     delete payload.aiRounds
     delete payload.aiProposalsPerRound
