@@ -393,10 +393,59 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { mapState } from 'vuex'
 import { getMembershipPlans, listCryptoChains, createCryptoOrder, getCryptoOrder, createStripeCheckout } from '@/api/billing'
 
-export default {
+/**
+ * @typedef {Object} BillingPlan
+ * @property {number} [sort_order]
+ * @property {boolean} [stripe_enabled]
+ */
+
+/**
+ * @typedef {Object} BillingSummary
+ * @property {number} credits
+ * @property {boolean} is_vip
+ * @property {boolean} is_lifetime
+ * @property {string | null} vip_expires_at
+ */
+
+/**
+ * @typedef {Object} MembershipPlansResponse
+ * @property {number} code
+ * @property {string} msg
+ * @property {{ plans?: Record<string, BillingPlan>, billing?: BillingSummary, payment_methods?: Array<{ code: string, stripe_enabled?: boolean }> }} [data]
+ */
+
+/**
+ * @typedef {Object} StripeCheckoutResponse
+ * @property {number} code
+ * @property {string} msg
+ * @property {{ checkout_url?: string }} [data]
+ */
+
+/**
+ * @typedef {Object} CryptoChain
+ * @property {string} code
+ * @property {boolean} [recommended]
+ */
+
+/**
+ * @typedef {Object} CryptoChainsResponse
+ * @property {number} code
+ * @property {string} msg
+ * @property {{ chains?: CryptoChain[] }} [data]
+ */
+
+/**
+ * @typedef {Object} CryptoOrderResponse
+ * @property {number} code
+ * @property {string} msg
+ * @property {{ reused?: boolean }} [data]
+ */
+
+export default Vue.extend({
   name: 'BillingPage',
   computed: {
     ...mapState({
@@ -550,7 +599,7 @@ export default {
     async load () {
       this.loading = true
       try {
-        const res = await getMembershipPlans()
+        const res = /** @type {MembershipPlansResponse} */ (await getMembershipPlans())
         if (res && res.code === 1 && res.data) {
           this.plans = res.data.plans || this.plans
           this.billing = res.data.billing || this.billing
@@ -597,7 +646,7 @@ export default {
         checkoutWindow.opener = null
         this.purchasing = this.pendingPlan
         try {
-          const res = await createStripeCheckout(this.pendingPlan)
+          const res = /** @type {StripeCheckoutResponse} */ (await createStripeCheckout(this.pendingPlan))
           if (res && res.code === 1 && res.data && res.data.checkout_url) {
             if (checkoutWindow.closed) {
               this.$message.warning(this.tr('billing.stripePopupBlocked', 'Please allow pop-ups to open the secure card payment page.'))
@@ -622,7 +671,7 @@ export default {
       this.chainsLoading = true
       this.chainPickerVisible = true
       try {
-        const res = await listCryptoChains(method)
+        const res = /** @type {CryptoChainsResponse} */ (await listCryptoChains(method))
         if (res && res.code === 1 && res.data && Array.isArray(res.data.chains)) {
           this.availableChains = res.data.chains
           // Preselect the first "recommended" chain; if none, the first one.
@@ -652,7 +701,7 @@ export default {
       if (!this.pendingPlan || !this.selectedChain) return
       this.creatingOrder = true
       try {
-        const res = await createCryptoOrder(this.pendingPlan, this.selectedChain, this.selectedCurrency)
+        const res = /** @type {CryptoOrderResponse} */ (await createCryptoOrder(this.pendingPlan, this.selectedChain, this.selectedCurrency))
         if (res && res.code === 1 && res.data) {
           this.usdtOrder = res.data
           this.usdtModalVisible = true
@@ -795,7 +844,7 @@ export default {
       this.usdtOrder = null
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

@@ -197,7 +197,7 @@ import moment from 'moment'
 const PAGE_SIZE = 50
 const MARKETS = ['Crypto', 'USStock', 'CNStock', 'HKStock', 'Forex', 'Futures', 'MOEX']
 
-export default {
+const options = {
   name: 'CandidateList',
   props: {
     runId: { type: Number, default: undefined }
@@ -306,7 +306,8 @@ export default {
           this.$message.error(this.message(res.msg))
           return
         }
-        this.items = res.data.items || []
+        const data = /** @type {{ items?: Array<Record<string, unknown>> }} */ (res.data)
+        this.items = data.items || []
         // No total is served, so a next page is offered while the last one came back full.
         this.hasNext = this.items.length === PAGE_SIZE
       } catch (error) {
@@ -357,6 +358,8 @@ export default {
     }
   }
 }
+
+export default options
 </script>
 
 <style lang="less" scoped>

@@ -62,10 +62,11 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import * as echarts from 'echarts'
 import moment from 'moment'
 
-export default {
+export default Vue.extend({
   name: 'FactorResearchResult',
   props: {
     result: { type: Object, required: true },
@@ -139,10 +140,11 @@ export default {
   beforeDestroy () { window.removeEventListener('resize', this.resizeChart); if (this.resizeObserver) this.resizeObserver.disconnect(); if (this.chart) this.chart.dispose() },
   methods: {
     renderChart () {
-      if (!this.$refs.chart) return
+      const chartEl = this.$refs.chart
+      if (!(chartEl instanceof HTMLElement)) return
       if (!this.chart) {
-        this.chart = echarts.init(this.$refs.chart)
-        if (typeof ResizeObserver !== 'undefined') { this.resizeObserver = new ResizeObserver(this.resizeChart); this.resizeObserver.observe(this.$refs.chart) }
+        this.chart = echarts.init(chartEl)
+        if (typeof ResizeObserver !== 'undefined') { this.resizeObserver = new ResizeObserver(this.resizeChart); this.resizeObserver.observe(chartEl) }
       }
       const text = this.isDark ? '#8c8c8c' : '#64748b'
       const grid = this.isDark ? '#242424' : '#e8edf3'
@@ -204,7 +206,7 @@ export default {
     percentCell (value) { return this.$createElement('span', { class: this.tone(value) }, `${Number(value) > 0 ? '+' : ''}${this.formatRate(value)}`) },
     correlationCellStyle (value) { const alpha = Math.min(0.8, Math.abs(Number(value || 0)) * 0.75 + 0.08); return { background: Number(value) >= 0 ? `rgba(82,196,26,${alpha})` : `rgba(255,77,79,${alpha})` } }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

@@ -39,11 +39,13 @@ Vue.component('ProLayout', ProLayout)
 Vue.component('PageContainer', PageHeaderWrapper)
 Vue.component('PageHeaderWrapper', PageHeaderWrapper)
 
-new Vue({
+const appOptions = {
   router,
   store,
   i18n,
   // init localstorage, vuex, Logo message
   created: bootstrap,
   render: h => h(App)
-}).$mount('#app')
+}
+
+new Vue(/** @type {import('vue').ComponentOptions<Vue>} */ (appOptions)).$mount('#app')

@@ -35,10 +35,11 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { broker } from '@/api/broker'
 import { firstValue, brokerMoney, brokerPrice, brokerQuantity } from '@/utils/brokerAccountDisplay'
 
-export default {
+export default Vue.extend({
   name: 'BrokerPositionsTable',
   props: {
     brokerId: { type: String, required: true },
@@ -91,13 +92,13 @@ export default {
         this.rows = list || []
       } catch (_) {
         this.rows = []
-        this.$message.error(this.$t('brokerAccounts.snapshotPositionsFailed'))
+        this.$message.error(String(this.$t('brokerAccounts.snapshotPositionsFailed')))
       } finally {
         this.loading = false
       }
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

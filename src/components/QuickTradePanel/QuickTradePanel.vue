@@ -11,7 +11,14 @@
       <div v-show="!floatingConsole || !consoleMinimized" :class="{ 'qt-console-content': floatingConsole }">
       <template v-if="floatingConsole">
         <div class="qtc-account-row">
-          <a-select v-model="selectedCredentialId" :placeholder="accountPlaceholder" :loading="credLoading" :get-popup-container="qtSelectPopupContainer" :dropdown-class-name="qtSelectDropdownClass" @change="onCredentialChange">
+          <a-select
+            v-model="selectedCredentialId"
+            :placeholder="accountPlaceholder"
+            :loading="credLoading"
+            :get-popup-container="qtSelectPopupContainer"
+            :dropdown-class-name="qtSelectDropdownClass"
+            @change="onCredentialChange"
+          >
             <a-select-option v-for="c in credentials" :key="c.id" :value="c.id">{{ formatCredentialOptionLabel(c) }}</a-select-option>
           </a-select>
           <a-button class="qtc-icon-button" :title="$t('quickTrade.addAccountInline')" :aria-label="$t('quickTrade.addAccountInline')" @click="handleAddAccountClick"><a-icon type="plus" /></a-button>
@@ -35,13 +42,44 @@
           </div>
           <div v-if="isSwapMode" class="qtc-fields">
             <div class="qtc-field-column">
-              <label v-if="orderType === 'limit'" class="qtc-field"><span>{{ $t('quickTrade.limitPrice') }} ({{ orderCurrency }})</span><a-input-number v-model="limitPrice" :disabled="orderType === 'market'" :min="0" :step="priceStep" :precision="pricePrecision" :placeholder="orderType === 'market' ? $t('quickTrade.market') : $t('quickTrade.enterPrice')" /></label>
+              <label v-if="orderType === 'limit'" class="qtc-field">
+                <span>{{ $t('quickTrade.limitPrice') }} ({{ orderCurrency }})</span>
+                <a-input-number
+                  v-model="limitPrice"
+                  :disabled="orderType !== 'limit'"
+                  :min="0"
+                  :step="priceStep"
+                  :precision="pricePrecision"
+                  :placeholder="orderType !== 'limit' ? $t('quickTrade.market') : $t('quickTrade.enterPrice')"
+                />
+              </label>
               <label class="qtc-field"><span>{{ amountLabel }} ({{ orderCurrency }})</span><a-input-number v-model="amount" :min="1" :step="10" :precision="2" :placeholder="$t('quickTrade.enterAmount')" /></label>
               <div class="qtc-percentages"><button v-for="percent in [10, 25, 50, 100]" :key="percent" type="button" :disabled="activeBalanceAvailable <= 0" @click="setQuickAmountByPercent(percent, 'buy')">{{ percent }}%</button></div>
             </div>
             <div class="qtc-field-column">
               <div class="qtc-settings">
-                <div class="qtc-field qtc-leverage"><label>{{ $t('quickTrade.leverage') }}</label><a-input-number v-model="leverage" :aria-label="$t('quickTrade.leverage')" :min="1" :max="125" :step="1" :precision="0" :formatter="value => `${value}x`" :parser="value => value.replace(/[^0-9]/g, '')" @blur="normalizeLeverage" /><a-slider v-model="leverage" :min="1" :max="125" :step="1" :tip-formatter="value => `${value}x`" :aria-label="$t('quickTrade.leverage')" /></div>
+                <div class="qtc-field qtc-leverage">
+                  <label>{{ $t('quickTrade.leverage') }}</label>
+                  <a-input-number
+                    v-model="leverage"
+                    :aria-label="$t('quickTrade.leverage')"
+                    :min="1"
+                    :max="125"
+                    :step="1"
+                    :precision="0"
+                    :formatter="value => `${value}x`"
+                    :parser="value => value.replace(/[^0-9]/g, '')"
+                    @blur="normalizeLeverage"
+                  />
+                  <a-slider
+                    v-model="leverage"
+                    :min="1"
+                    :max="125"
+                    :step="1"
+                    :tip-formatter="value => `${value}x`"
+                    :aria-label="$t('quickTrade.leverage')"
+                  />
+                </div>
                 <label class="qtc-field"><span>{{ $t('quickTrade.marginMode') }}</span><a-select v-model="marginMode" :get-popup-container="qtSelectPopupContainer" :dropdown-class-name="qtSelectDropdownClass"><a-select-option value="cross">{{ $t('quickTrade.crossMargin') }}</a-select-option><a-select-option value="isolated">{{ $t('quickTrade.isolatedMargin') }}</a-select-option></a-select></label>
               </div>
               <div class="qtc-field qtc-notional-field"><span>{{ $t('quickTrade.floating.notional') }} ({{ orderCurrency }})</span><strong class="qtc-notional">≈ {{ formatPrice(estimatedNotionalUsdt) }} {{ orderCurrency }}</strong></div>
@@ -52,12 +90,50 @@
             <div class="qtc-fields qtc-spot-fields">
               <div class="qtc-field-column">
                 <div class="qtc-spot-label"><strong class="qtc-positive">{{ buyActionText }}</strong><a-radio-group v-model="spotBuyInputMode" size="small"><a-radio-button value="quantity">{{ $t('quickTrade.byQuantity') }}</a-radio-button><a-radio-button value="amount">{{ $t('quickTrade.byAmount') }}</a-radio-button></a-radio-group></div>
-                <label class="qtc-field"><span>{{ $t(spotBuyInputMode === 'quantity' ? 'quickTrade.buyQuantity' : 'quickTrade.buyAmount') }} ({{ spotBuyInputMode === 'quantity' ? baseAsset : orderCurrency }})</span><a-input-number v-if="spotBuyInputMode === 'quantity'" v-model="buyQuantity" :min="0" :step="0.001" :precision="8" :placeholder="$t('quickTrade.enterBuyQuantity')" /><a-input-number v-else v-model="amount" :min="0" :step="10" :precision="2" :placeholder="$t('quickTrade.enterAmount')" /></label>
+                <label class="qtc-field">
+                  <span>{{ $t(spotBuyInputMode === 'quantity' ? 'quickTrade.buyQuantity' : 'quickTrade.buyAmount') }} ({{ spotBuyInputMode === 'quantity' ? baseAsset : orderCurrency }})</span>
+                  <a-input-number
+                    v-if="spotBuyInputMode === 'quantity'"
+                    v-model="buyQuantity"
+                    :min="0"
+                    :step="0.001"
+                    :precision="8"
+                    :placeholder="$t('quickTrade.enterBuyQuantity')"
+                  />
+                  <a-input-number
+                    v-else
+                    v-model="amount"
+                    :min="0"
+                    :step="10"
+                    :precision="2"
+                    :placeholder="$t('quickTrade.enterAmount')"
+                  />
+                </label>
                 <div class="qtc-percentages"><button v-for="percent in [25, 50, 75, 100]" :key="percent" type="button" :disabled="activeBalanceAvailable <= 0" @click="setQuickAmountByPercent(percent, 'buy')">{{ percent }}%</button></div>
               </div>
               <div class="qtc-field-column">
                 <div class="qtc-spot-label"><strong class="qtc-negative">{{ sellActionText }}</strong><a-radio-group v-model="spotSellInputMode" size="small"><a-radio-button value="quantity">{{ $t('quickTrade.byQuantity') }}</a-radio-button><a-radio-button value="amount">{{ $t('quickTrade.byAmount') }}</a-radio-button></a-radio-group></div>
-                <label class="qtc-field"><span>{{ $t(spotSellInputMode === 'quantity' ? 'quickTrade.sellQuantity' : 'quickTrade.sellAmount') }} ({{ spotSellInputMode === 'quantity' ? baseAsset : orderCurrency }})</span><a-input-number v-if="spotSellInputMode === 'quantity'" v-model="sellQuantity" :min="0" :max="spotSellAvailable" :step="0.001" :precision="8" :placeholder="$t('quickTrade.enterSellQuantity')" /><a-input-number v-else v-model="sellAmount" :min="0" :max="spotSellAvailableValue" :step="10" :precision="2" :placeholder="$t('quickTrade.enterAmount')" /></label>
+                <label class="qtc-field">
+                  <span>{{ $t(spotSellInputMode === 'quantity' ? 'quickTrade.sellQuantity' : 'quickTrade.sellAmount') }} ({{ spotSellInputMode === 'quantity' ? baseAsset : orderCurrency }})</span>
+                  <a-input-number
+                    v-if="spotSellInputMode === 'quantity'"
+                    v-model="sellQuantity"
+                    :min="0"
+                    :max="spotSellAvailable"
+                    :step="0.001"
+                    :precision="8"
+                    :placeholder="$t('quickTrade.enterSellQuantity')"
+                  />
+                  <a-input-number
+                    v-else
+                    v-model="sellAmount"
+                    :min="0"
+                    :max="spotSellAvailableValue"
+                    :step="10"
+                    :precision="2"
+                    :placeholder="$t('quickTrade.enterAmount')"
+                  />
+                </label>
                 <div class="qtc-percentages"><button v-for="percent in [25, 50, 75, 100]" :key="percent" type="button" :disabled="spotSellAvailable <= 0" @click="setQuickAmountByPercent(percent, 'sell')">{{ percent }}%</button></div>
               </div>
             </div>
@@ -65,8 +141,28 @@
           <details v-if="supportsNativeProtection" class="qtc-entry-protection">
             <summary>{{ $t('quickTrade.workflow.entryProtection') }}<a-tooltip :title="$t('quickTrade.workflow.entryProtectionHint')"><a-icon type="info-circle" /></a-tooltip><span v-if="consoleTpEnabled || consoleSlEnabled" class="qtc-positive">{{ $t('quickTrade.workflow.enabled') }}</span></summary>
             <div class="qtc-protection">
-            <div><a-checkbox v-model="consoleTpEnabled">{{ $t('quickTrade.floating.tp') }}</a-checkbox><a-input-number v-model="tpPrice" :disabled="!consoleTpEnabled" :min="0" :step="priceStep" :precision="pricePrecision" :placeholder="$t('quickTrade.tpPlaceholder')" /></div>
-            <div><a-checkbox v-model="consoleSlEnabled">{{ $t('quickTrade.floating.sl') }}</a-checkbox><a-input-number v-model="slPrice" :disabled="!consoleSlEnabled" :min="0" :step="priceStep" :precision="pricePrecision" :placeholder="$t('quickTrade.slPlaceholder')" /></div>
+            <div>
+              <a-checkbox v-model="consoleTpEnabled">{{ $t('quickTrade.floating.tp') }}</a-checkbox>
+              <a-input-number
+                v-model="tpPrice"
+                :disabled="!consoleTpEnabled"
+                :min="0"
+                :step="priceStep"
+                :precision="pricePrecision"
+                :placeholder="$t('quickTrade.tpPlaceholder')"
+              />
+            </div>
+            <div>
+              <a-checkbox v-model="consoleSlEnabled">{{ $t('quickTrade.floating.sl') }}</a-checkbox>
+              <a-input-number
+                v-model="slPrice"
+                :disabled="!consoleSlEnabled"
+                :min="0"
+                :step="priceStep"
+                :precision="pricePrecision"
+                :placeholder="$t('quickTrade.slPlaceholder')"
+              />
+            </div>
             </div>
           </details>
           <div class="qtc-submit">
@@ -462,15 +558,22 @@
                   <span
                     v-if="embeddedDock && isSwapMode"
                     class="qt-inline-notional"
-                    :title="$t('quickTrade.marginNotionalFormula', {
+                    :title="String($t('quickTrade.marginNotionalFormula', {
                       margin: formatPrice(amount),
                       leverage: leverage,
                       notional: formatPrice(estimatedNotionalUsdt),
                       currency: orderCurrency
-                    })"
+                    }))"
                   >≈ {{ formatPrice(estimatedNotionalUsdt) }} {{ orderCurrency }}</span>
                 </div>
-                <a-input-number v-model="amount" :min="1" :step="10" :precision="2" style="width: 100%" :placeholder="$t('quickTrade.enterAmount')" />
+                <a-input-number
+                  v-model="amount"
+                  :min="1"
+                  :step="10"
+                  :precision="2"
+                  style="width: 100%"
+                  :placeholder="$t('quickTrade.enterAmount')"
+                />
                 <div v-if="isSwapMode" class="qt-quick-amounts qt-quick-amounts--swap">
                   <a-button
                     v-for="percent in [10, 25, 50, 100]"
@@ -645,7 +748,7 @@
               type="button"
               class="qt-floating-activity-toggle"
               :class="{ 'is-expanded': floatingActivityExpanded }"
-              :aria-label="$t('quickTrade.floating.activity')"
+              :aria-label="String($t('quickTrade.floating.activity'))"
               :aria-expanded="floatingActivityExpanded ? 'true' : 'false'"
               @click="floatingActivityExpanded = !floatingActivityExpanded"
             >
@@ -672,7 +775,14 @@
                     <td>{{ pos.entry_price > 0 ? formatPrice(pos.entry_price) : '—' }}</td>
                     <td>{{ pos.mark_price > 0 ? formatPrice(pos.mark_price) : '—' }}</td>
                     <td><div class="qtc-position-actions">
-                      <a-button size="small" class="qtc-close" :title="$t(isSwapMode ? 'quickTrade.workflow.marketExitHint' : 'quickTrade.workflow.marketSellHint')" :loading="closingPositionSide === pos.side" :disabled="!!closingPositionSide || !!submitting" @click="handleClosePosition(pos)">{{ isSwapMode ? $t('quickTrade.floating.closeAll') : $t('quickTrade.floating.sellAll') }}</a-button>
+                      <a-button
+                        size="small"
+                        class="qtc-close"
+                        :title="$t(isSwapMode ? 'quickTrade.workflow.marketExitHint' : 'quickTrade.workflow.marketSellHint')"
+                        :loading="closingPositionSide === pos.side"
+                        :disabled="!!closingPositionSide || !!submitting"
+                        @click="handleClosePosition(pos)"
+                      >{{ isSwapMode ? $t('quickTrade.floating.closeAll') : $t('quickTrade.floating.sellAll') }}</a-button>
                       <a-dropdown v-if="isCryptoMarket" :trigger="['click']" :get-popup-container="qtSelectPopupContainer" :overlay-class-name="qtSelectDropdownClass">
                         <a-button size="small" class="qtc-more" :disabled="!!closingPositionSide || !!submitting" :aria-label="$t('quickTrade.workflow.moreActions')"><a-icon type="ellipsis" /></a-button>
                         <a-menu slot="overlay">
@@ -694,7 +804,14 @@
                 <div class="qtc-exit-editor-heading"><strong>{{ $t(positionEditor.mode === 'limit' ? (isSwapMode ? 'quickTrade.workflow.limitClose' : 'quickTrade.workflow.limitSell') : 'quickTrade.workflow.addProtection') }} · {{ $t(isSwapMode ? (positionEditor.side === 'long' ? 'quickTrade.long' : 'quickTrade.short') : 'quickTrade.spotHold') }}</strong><a-button type="link" size="small" @click="positionEditor = null">{{ $t('quickTrade.workflow.cancel') }}</a-button></div>
                 <div class="qtc-exit-editor-fields">
                   <a-radio-group v-if="positionEditor.mode === 'protection'" v-model="positionEditor.kind" size="small"><a-radio-button value="tp">{{ $t('quickTrade.tp') }}</a-radio-button><a-radio-button value="sl">{{ $t('quickTrade.sl') }}</a-radio-button></a-radio-group>
-                  <a-input-number v-model="positionEditor.price" :min="0" :step="priceStep" :precision="pricePrecision" :placeholder="$t(positionEditor.mode === 'limit' ? 'quickTrade.limitPrice' : 'quickTrade.workflow.triggerPrice')" :aria-label="$t(positionEditor.mode === 'limit' ? 'quickTrade.limitPrice' : 'quickTrade.workflow.triggerPrice')" />
+                  <a-input-number
+                    v-model="positionEditor.price"
+                    :min="0"
+                    :step="priceStep"
+                    :precision="pricePrecision"
+                    :placeholder="$t(positionEditor.mode === 'limit' ? 'quickTrade.limitPrice' : 'quickTrade.workflow.triggerPrice')"
+                    :aria-label="$t(positionEditor.mode === 'limit' ? 'quickTrade.limitPrice' : 'quickTrade.workflow.triggerPrice')"
+                  />
                   <a-button type="primary" size="small" :disabled="!(positionEditor.price > 0)" :loading="savingProtection || !!closingPositionSide" @click="submitPositionEditor">{{ $t(positionEditor.mode === 'limit' ? (isSwapMode ? 'quickTrade.workflow.submitExit' : 'quickTrade.workflow.submitSell') : 'common.save') }}</a-button>
                 </div>
                 <small v-if="positionEditor.mode === 'protection'">{{ $t('quickTrade.workflow.protectionHint') }}</small>
@@ -793,7 +910,7 @@
                   <span>{{ activeDockTab === 'openOrders' ? requestedOrderPriceLabel(t) : tradeFillPrice(t) > 0 ? formatPrice(tradeFillPrice(t)) : '—' }}</span>
                   <span>{{ activeDockTab === 'openOrders' ? formatRequestedOrderSize(t) : t.filled_amount > 0 ? formatQuantity(t.filled_amount) : '—' }}</span>
                   <span>{{ activeDockTab === 'openOrders' ? formatQuantity(t.filled_amount) : formatTradeCommission(t) }}</span>
-                  <button type="button" class="qt-trade-detail-toggle" :aria-label="$t(isTradeDetailsExpanded(t.id) ? 'quickTrade.hideDetails' : 'quickTrade.details')" :aria-expanded="isTradeDetailsExpanded(t.id)" @click="toggleTradeDetails(t.id)"><a-icon :type="isTradeDetailsExpanded(t.id) ? 'up' : 'down'" /></button>
+                  <button type="button" class="qt-trade-detail-toggle" :aria-label="String($t(isTradeDetailsExpanded(t.id) ? 'quickTrade.hideDetails' : 'quickTrade.details'))" :aria-expanded="isTradeDetailsExpanded(t.id)" @click="toggleTradeDetails(t.id)"><a-icon :type="isTradeDetailsExpanded(t.id) ? 'up' : 'down'" /></button>
                 </div>
                 <div v-if="!floatingConsole" class="qt-trade-card-head">
                   <div class="qt-trade-card-identity">
@@ -901,7 +1018,15 @@
             </div>
           </div>
 
-          <PositionActivity ref="positionActivity" v-if="floatingConsole && floatingActivityExpanded && selectedCredentialId && (activeDockTab === 'positionHistory' || showNativeOrderActivity)" :credential-id="selectedCredentialId" :symbol="currentSymbol" :market-type="effectiveMarketType" :history="activeDockTab === 'positionHistory'" :show-empty="!dockTradeRows.length" />
+          <PositionActivity
+            ref="positionActivity"
+            v-if="floatingConsole && floatingActivityExpanded && selectedCredentialId && (activeDockTab === 'positionHistory' || showNativeOrderActivity)"
+            :credential-id="selectedCredentialId"
+            :symbol="currentSymbol"
+            :market-type="effectiveMarketType"
+            :history="activeDockTab === 'positionHistory'"
+            :show-empty="!dockTradeRows.length"
+          />
 
           <div class="qt-history-section" v-if="!embeddedDock && recentTrades.length > 0">
             <a-collapse :bordered="false" :activeKey="historyCollapsed ? [] : ['history']" @change="handleHistoryCollapse">
@@ -961,6 +1086,25 @@ import { parseUtcAwareInstant } from '@/utils/utcInstant'
 import { broker } from '@/api/broker'
 import { calculatePositionMetrics } from './positionMetrics'
 
+/**
+ * @typedef {Object} QuickTradeBalanceLeg
+ * @property {string|number} [available]
+ * @property {string|number} [total]
+ * @property {string} [error]
+ */
+
+/**
+ * @typedef {Object} QuickTradeBalance
+ * @property {string|number} available
+ * @property {string|number} total
+ * @property {QuickTradeBalanceLeg} swap
+ * @property {QuickTradeBalanceLeg} spot
+ * @property {string} [currency]
+ * @property {string} [error]
+ * @property {string} [error_hint_key]
+ * @property {string} [request_ip]
+ */
+
 export default {
   name: 'QuickTradePanel',
   components: { ExchangeAccountModal, PositionActivity },
@@ -982,14 +1126,18 @@ export default {
     consoleMinimized: { type: Boolean, default: false },
     overlayGetContainer: { type: Function, default: null }
   },
-  data () {
-    return {
+  data: () => ({
       // exchange
       credentials: [],
       selectedCredentialId: undefined,
       credLoading: false,
       balanceLoading: false,
       balanceRequestId: 0,
+      positionRequestId: 0,
+      lastBalancePoll: 0,
+      accountRefreshUntil: 0,
+      postTradeRefresh: null,
+      /** @type {QuickTradeBalance} */
       balance: {
         available: 0,
         total: 0,
@@ -998,7 +1146,7 @@ export default {
       },
       // order
       side: 'buy',
-      orderType: 'market',
+      orderType: /** @type {string} */ ('market'),
       limitPrice: 0,
       amount: 100,
       buyQuantity: null,
@@ -1043,12 +1191,11 @@ export default {
       pricePoller: null,
       accountPoller: null,
       showAddExchangeModal: false
-    }
-  },
-  computed: {
-    ...mapState({
-      navTheme: state => state.app.theme
     }),
+  computed: {
+    ...(/** @type {{ navTheme: () => string }} */ (mapState({
+      navTheme: state => state.app.theme
+    }))),
     isDark () {
       return this.navTheme === 'dark' || this.navTheme === 'realdark'
     },
@@ -1114,15 +1261,15 @@ export default {
     },
     swapBalanceAvailable () {
       const leg = this.balance && this.balance.swap
-      if (leg && leg.available != null) return parseFloat(leg.available) || 0
+      if (leg && leg.available != null) return parseFloat(String(leg.available)) || 0
       if (!this.isSwapMode) return 0
-      return parseFloat(this.balance.available) || 0
+      return parseFloat(String(this.balance.available)) || 0
     },
     spotBalanceAvailable () {
       const leg = this.balance && this.balance.spot
-      if (leg && leg.available != null) return parseFloat(leg.available) || 0
+      if (leg && leg.available != null) return parseFloat(String(leg.available)) || 0
       if (this.isSwapMode) return 0
-      return parseFloat(this.balance.available) || 0
+      return parseFloat(String(this.balance.available)) || 0
     },
     spotSellAvailable () {
       if (!this.isSpotCashOrder) return 0
@@ -1157,19 +1304,19 @@ export default {
     },
     buyFundsWarning () {
       if (!this.buyFundsInsufficient) return ''
-      return this.$t(this.isStockMarket ? 'quickTrade.insufficientBuyingPower' : 'quickTrade.insufficientSpotBalance', {
+      return String(this.$t(this.isStockMarket ? 'quickTrade.insufficientBuyingPower' : 'quickTrade.insufficientSpotBalance', {
         required: this.formatPrice(this.spotBuyRequestedValue),
         available: this.formatPrice(this.activeBalanceAvailable),
         currency: this.orderCurrency
-      })
+      }))
     },
     activeBalanceAvailable () {
       return this.isSwapMode ? this.swapBalanceAvailable : this.spotBalanceAvailable
     },
     activeBalanceTotal () {
-      if (this.isStockMarket) return parseFloat(this.balance.total) || this.activeBalanceAvailable
+      if (this.isStockMarket) return parseFloat(String(this.balance.total)) || this.activeBalanceAvailable
       const leg = this.isSwapMode ? this.balance.swap : this.balance.spot
-      return parseFloat((leg && leg.total) || this.balance.total) || 0
+      return parseFloat(String((leg && leg.total) || this.balance.total)) || 0
     },
     scopedTradeRows () {
       const symbol = String(this.currentSymbol || '').toUpperCase()
@@ -1467,7 +1614,8 @@ export default {
       const target = event && event.currentTarget
       this.$nextTick(() => {
         if (key === 'positionHistory' && this.$refs.positionActivity) {
-          this.$refs.positionActivity.load()
+          const ref = /** @type {{ load: () => void }} */ (/** @type {unknown} */ (this.$refs.positionActivity))
+          ref.load()
         }
         if (target && typeof target.scrollIntoView === 'function') {
           target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
@@ -1511,14 +1659,14 @@ export default {
         return cred.name || this.$t('quickTrade.alpacaAccount')
       }
       return formatExchangeCredentialLabel(cred, {
-        unnamed: this.$t('brokerAccounts.cryptoSection.unnamed')
+        unnamed: String(this.$t('brokerAccounts.cryptoSection.unnamed'))
       })
     },
     qtSelectPopupContainer (triggerNode) {
       if (typeof this.overlayGetContainer === 'function') {
         return this.overlayGetContainer(triggerNode)
       }
-      const fs = document.fullscreenElement || document.webkitFullscreenElement
+      const fs = document.fullscreenElement || /** @type {Document & { webkitFullscreenElement?: Element }} */ (document).webkitFullscreenElement
       const el = this.$el
       if (el && fs && typeof fs.contains === 'function' && fs.contains(el)) return fs
       return document.body
@@ -1528,7 +1676,7 @@ export default {
         const n = this.overlayGetContainer()
         return n || document.body
       }
-      const fs = document.fullscreenElement || document.webkitFullscreenElement
+      const fs = document.fullscreenElement || /** @type {Document & { webkitFullscreenElement?: Element }} */ (document).webkitFullscreenElement
       const el = this.$el
       if (el && fs && typeof fs.contains === 'function' && fs.contains(el)) return fs
       return document.body
@@ -1570,7 +1718,7 @@ export default {
         // If not in store, fetch from API
         const res = await getUserInfo()
         if (res && res.code === 1 && res.data) {
-          this.userId = res.data.id
+          this.userId = /** @type {{ id?: number|string }} */ (res.data).id
           // Update store
           if (store) {
             store.commit('SET_INFO', res.data)
@@ -1762,7 +1910,8 @@ export default {
         const targetMarket = this.priceMarketParam.toLowerCase()
         const res = await getWatchlist({ userid: this.userId })
         if (res && res.code === 1 && res.data) {
-          const symbols = (res.data || []).filter(item =>
+          const data = /** @type {Array<{ market?: string, symbol?: string, name?: string }>} */ (res.data)
+          const symbols = (data || []).filter(item =>
             (item.market || '').toLowerCase() === targetMarket
           ).map(item => ({
             value: item.symbol || '',
@@ -1793,8 +1942,10 @@ export default {
         this.symbolSearching = true
         try {
           const res = await searchSymbols({ market: this.priceMarketParam, keyword: value.trim(), limit: 20 })
-          if (res && res.code === 1 && res.data) {
-            this.symbolSuggestions = (res.data.items || res.data || []).map(item => ({
+          const data = /** @type {{ items?: Array<{ symbol?: string, name?: string }> }} */ (res && res.data)
+          if (res && res.code === 1 && data) {
+            const items = /** @type {Array<{ symbol?: string, name?: string }>} */ (data.items || data || [])
+            this.symbolSuggestions = items.map(item => ({
               value: item.symbol || '',
               symbol: item.symbol || '',
               name: item.name || ''
@@ -1843,7 +1994,8 @@ export default {
         })
         if (symbol !== this.currentSymbol || marketType !== this.effectiveMarketType || (this.isCryptoMarket && exchangeId !== String((this.selectedCredential && this.selectedCredential.exchange_id) || this.exchangeId || ''))) return
         if (res && res.code === 1 && res.data) {
-          this.applyNewPrice(res.data.price || res.data.latest || res.data.last)
+          const data = /** @type {{ price?: number|string, latest?: number|string, last?: number|string }} */ (res.data)
+          this.applyNewPrice(data.price || data.latest || data.last)
           return
         }
         if (this.isStockMarket) {
@@ -1898,7 +2050,8 @@ export default {
         }
         const res = await listExchangeCredentials()
         if (res.code === 1 && res.data) {
-          const all = res.data.items || res.data || []
+          const data = /** @type {{ items?: Array<Record<string, unknown>> }} */ (res.data)
+          const all = /** @type {Array<Record<string, unknown>>} */ (data.items || data || [])
           this.credentials = all.filter(isQuickTradeExchangeCredential)
           if (this.selectedCredentialId && !this.credentials.some(c => c.id === this.selectedCredentialId)) {
             this.selectedCredentialId = undefined
@@ -1926,7 +2079,7 @@ export default {
         this.selectedCredentialId = newId
         await this.onCredentialChange(newId)
       } else if (newId) {
-        this.$message.warning(this.$t('quickTrade.noExchange'))
+        this.$message.warning(String(this.$t('quickTrade.noExchange')))
       } else if (!prevId && this.credentials.length === 1) {
         this.selectedCredentialId = this.credentials[0].id
         await this.onCredentialChange(this.selectedCredentialId)
@@ -1935,7 +2088,7 @@ export default {
     async onCredentialChange (credId) {
       if (!this.credentials.some(c => c.id === credId)) {
         this.selectedCredentialId = undefined
-        this.$message.warning(this.isStockMarket ? this.$t('quickTrade.noBrokerAccount') : this.$t('quickTrade.noExchange'))
+        this.$message.warning(this.isStockMarket ? String(this.$t('quickTrade.noBrokerAccount')) : String(this.$t('quickTrade.noExchange')))
         return
       }
       this.selectedCredentialId = credId
@@ -1973,36 +2126,38 @@ export default {
         })
         if (!isCurrent()) return
         if (res.code === 1 && res.data) {
-          const d = res.data || {}
+          const d = /** @type {{ available?: string|number, total?: string|number, currency?: string, error?: string, error_hint_key?: string, request_ip?: string, swap?: QuickTradeBalanceLeg, spot?: QuickTradeBalanceLeg }} */ (res.data || {})
+          /** @type {QuickTradeBalanceLeg} */
           const swap = d.swap && typeof d.swap === 'object' ? d.swap : {}
+          /** @type {QuickTradeBalanceLeg} */
           const spot = d.spot && typeof d.spot === 'object' ? d.spot : {}
           const activeLeg = marketType === 'swap' ? swap : spot
           if (d.error || activeLeg.error) {
             this.balance = { ...this.balance, error: d.error || activeLeg.error, error_hint_key: d.error_hint_key || '', request_ip: d.request_ip || '' }
             return
           }
-          const activeAvail = parseFloat(activeLeg.available ?? d.available) || 0
+          const activeAvail = parseFloat(String(activeLeg.available ?? d.available)) || 0
           this.balance = {
             available: activeAvail,
-            total: parseFloat(d.total) || 0,
+            total: parseFloat(String(d.total)) || 0,
             currency: d.currency || 'USDT',
             swap: {
-              available: parseFloat(swap.available) || 0,
-              total: parseFloat(swap.total) || 0
+              available: parseFloat(String(swap.available)) || 0,
+              total: parseFloat(String(swap.total)) || 0
             },
             spot: {
-              available: parseFloat(spot.available) || 0,
-              total: parseFloat(spot.total) || 0
+              available: parseFloat(String(spot.available)) || 0,
+              total: parseFloat(String(spot.total)) || 0
             },
             error: d.error || swap.error || spot.error || '',
             error_hint_key: d.error_hint_key || '',
             request_ip: d.request_ip || ''
           }
           if (d.error && this.$message) {
-            this.$message.warning(this.balanceErrorMessage || d.error, 6)
+            this.$message.warning(String(this.balanceErrorMessage || d.error), 6)
           }
         } else {
-          this.balance = { ...this.balance, error: res.msg || res.message || this.$t('quickTrade.refreshFailed') }
+          this.balance = { ...this.balance, error: String(res.msg || /** @type {{ message?: string }} */ (res).message || this.$t('quickTrade.refreshFailed')) }
         }
       } catch (e) {
         console.warn('loadBalance error:', e)
@@ -2036,10 +2191,11 @@ export default {
         }
         const res = await getQuickTradePosition({ credential_id: credentialId, symbol, market_type: marketType, refresh: fresh === true ? '1' : undefined })
         if (!isCurrent()) return
-        if (res.code === 1 && res.data && Array.isArray(res.data.positions)) {
-          this.currentPositions = res.data.positions.map(p => this.normalizePosition(p))
-          this.strategyConflict = res.data.strategy_conflict && res.data.strategy_conflict.active
-            ? res.data.strategy_conflict
+        const data = /** @type {{ positions?: unknown[], strategy_conflict?: { active?: boolean } }} */ (res.data)
+        if (res.code === 1 && data && Array.isArray(data.positions)) {
+          this.currentPositions = data.positions.map(p => this.normalizePosition(p))
+          this.strategyConflict = data.strategy_conflict && data.strategy_conflict.active
+            ? data.strategy_conflict
             : null
           return this.currentPositions.length > 0
         }
@@ -2119,7 +2275,8 @@ export default {
           this.effectiveMarketType !== marketType
         ) return
         if (res.code === 1 && res.data) {
-          this.recentTrades = res.data.trades || []
+          const data = /** @type {{ trades?: unknown[] }} */ (res.data)
+          this.recentTrades = data.trades || []
         }
       } catch (e) {
         console.warn('loadHistory error:', e)
@@ -2139,24 +2296,25 @@ export default {
         const res = this.isStockMarket
           ? await broker.alpaca.cancelOrder(trade.id, { credential_id: this.selectedCredentialId })
           : await cancelQuickTradeOrder({ trade_id: trade.id })
+        const brokerRes = /** @type {{ success?: boolean, data?: { success?: boolean } }} */ (res)
         const succeeded = this.isStockMarket
-          ? !!(res && (res.success || (res.data && res.data.success)))
+          ? !!(res && (brokerRes.success || (brokerRes.data && brokerRes.data.success)))
           : !!(res && res.code === 1)
         if (succeeded) {
-          this.$message.success(this.$t('brokerAccounts.cancelRequested'))
+          this.$message.success(String(this.$t('brokerAccounts.cancelRequested')))
           this.refreshAfterTrade()
         } else {
-          const hint = res && res.error_hint && this.$te(res.error_hint) ? this.$t(res.error_hint) : ''
+          const hint = res && res.error_hint && this.$te(res.error_hint) ? String(this.$t(res.error_hint)) : ''
           this.$notification.error({
-            message: this.$t('brokerAccounts.cancelFailed'),
+            message: String(this.$t('brokerAccounts.cancelFailed')),
             description: hint
           })
         }
       } catch (e) {
         const rd = (e && e.response && e.response.data) || {}
-        const hint = rd.error_hint && this.$te(rd.error_hint) ? this.$t(rd.error_hint) : ''
+        const hint = rd.error_hint && this.$te(rd.error_hint) ? String(this.$t(rd.error_hint)) : ''
         this.$notification.error({
-          message: this.$t('brokerAccounts.cancelFailed'),
+          message: String(this.$t('brokerAccounts.cancelFailed')),
           description: hint
         })
       } finally {
@@ -2172,7 +2330,7 @@ export default {
           this.loadBalance(),
           this.loadPosition(),
           this.loadHistory(),
-          this.$refs.positionActivity ? this.$refs.positionActivity.load() : Promise.resolve()
+          this.$refs.positionActivity ? /** @type {{ load: () => Promise<unknown> }} */ (/** @type {unknown} */ (this.$refs.positionActivity)).load() : Promise.resolve()
         ])
       } finally {
         this.dockRefreshing = false
@@ -2203,7 +2361,7 @@ export default {
       if (!canSubmitSide) {
         if (side === 'buy' && this.buyFundsInsufficient) {
           this.$notification.warning({
-            message: this.$t('quickTrade.insufficientFundsTitle'),
+            message: String(this.$t('quickTrade.insufficientFundsTitle')),
             description: this.buyFundsWarning
           })
           return
@@ -2213,8 +2371,8 @@ export default {
           : Number(this.sellQuantity) > this.spotSellAvailable
         if (side === 'sell' && (this.isStockMarket || this.isCryptoMarket) && !this.isSwapMode && exceedsSpotBalance) {
           this.$notification.error({
-            message: this.$t('quickTrade.orderFailed'),
-            description: this.$t('quickTrade.insufficientSpotQuantity')
+            message: String(this.$t('quickTrade.orderFailed')),
+            description: String(this.$t('quickTrade.insufficientSpotQuantity'))
           })
         }
         return
@@ -2262,20 +2420,20 @@ export default {
             this.refreshAfterTrade()
           }
         } else {
-          const hint = res.error_hint ? this.$t(res.error_hint) : ''
+          const hint = res.error_hint ? String(this.$t(res.error_hint)) : ''
           this.$notification.error({
-            message: this.$t('quickTrade.orderFailed'),
+            message: String(this.$t('quickTrade.orderFailed')),
             description: hint || res.msg || ''
           })
         }
       } catch (e) {
         const rd = (e && e.response && e.response.data) || {}
-        const hint = rd.error_hint ? this.$t(rd.error_hint) : ''
+        const hint = rd.error_hint ? String(this.$t(rd.error_hint)) : ''
         const description = typeof this.friendlyOrderErrorMessage === 'function'
           ? this.friendlyOrderErrorMessage(rd, e.message || '')
           : (rd.msg || e.message || '')
         this.$notification.error({
-          message: this.$t('quickTrade.orderFailed'),
+          message: String(this.$t('quickTrade.orderFailed')),
           description: hint || description
         })
       } finally {
@@ -2284,11 +2442,11 @@ export default {
       }
     },
     async submitAlpacaOrder (side) {
-      const price = this.orderType === 'limit' ? parseFloat(this.limitPrice || 0) : parseFloat(this.currentPrice || 0)
+      const price = this.orderType === 'limit' ? parseFloat(String(this.limitPrice || 0)) : parseFloat(String(this.currentPrice || 0))
       if (!(price > 0)) {
         this.$notification.error({
-          message: this.$t('quickTrade.orderFailed'),
-          description: this.$t('quickTrade.enterPrice')
+          message: String(this.$t('quickTrade.orderFailed')),
+          description: String(this.$t('quickTrade.enterPrice'))
         })
         return
       }
@@ -2301,8 +2459,8 @@ export default {
         : 0
       if (!(quantity > 0) && !(notional > 0)) {
         this.$notification.error({
-          message: this.$t('quickTrade.orderFailed'),
-          description: this.$t('quickTrade.errorHints.invalidSize')
+          message: String(this.$t('quickTrade.orderFailed')),
+          description: String(this.$t('quickTrade.errorHints.invalidSize'))
         })
         return
       }
@@ -2332,7 +2490,7 @@ export default {
       } else {
         const data = this.apiPayload(res)
         this.$notification.error({
-          message: this.$t('quickTrade.orderFailed'),
+          message: String(this.$t('quickTrade.orderFailed')),
           description: this.friendlyOrderErrorMessage(data, data.msg || data.message || '')
         })
       }
@@ -2361,18 +2519,18 @@ export default {
       const editor = this.positionEditor
       if (!editor || this.savingProtection || this.closingPositionSide) return
       const pos = this.currentPositions.find(p => p.side === editor.side)
-      if (!pos) { this.$message.warning(this.$t('quickTrade.workflow.positionChanged')); return }
+      if (!pos) { this.$message.warning(String(this.$t('quickTrade.workflow.positionChanged'))); return }
       if (editor.mode === 'limit') return this.handleClosePosition(pos, 'limit', Number(editor.price))
       this.savingProtection = true
       try {
         const res = await updateQuickPositionProtection({ credential_id: this.selectedCredentialId, symbol: this.currentSymbol, position_side: editor.side, kind: editor.kind, price: Number(editor.price) })
         if (res.code !== 1) throw new Error(res.msg)
-        this.$message.success(this.$t('quickTrade.workflow.protectionAccepted'))
+        this.$message.success(String(this.$t('quickTrade.workflow.protectionAccepted')))
         this.positionEditor = null
         this.activeDockTab = 'openOrders'
       } catch (e) {
         const msg = (e.response && e.response.data && e.response.data.msg) || e.message
-        this.$message.error(this.$te(msg) ? this.$t(msg) : this.$t('quickTrade.workflow.protectionFailed'))
+        this.$message.error(this.$te(msg) ? String(this.$t(msg)) : String(this.$t('quickTrade.workflow.protectionFailed')))
       } finally { this.savingProtection = false }
     },
     async handleClosePosition (pos, exitType = 'market', exitPrice = 0) {
@@ -2394,14 +2552,14 @@ export default {
             source: 'manual'
           })
           if (this.apiSuccess(res)) {
-            this.$message.success(this.$t('quickTrade.positionClosed'))
+            this.$message.success(String(this.$t('quickTrade.positionClosed')))
             await this.loadBalance()
             await this.loadHistory()
             await this.loadPositionWithRetry()
           } else {
             const data = this.apiPayload(res)
             this.$notification.error({
-              message: this.$t('quickTrade.orderFailed'),
+              message: String(this.$t('quickTrade.orderFailed')),
               description: data.msg || data.message || ''
             })
           }
@@ -2419,8 +2577,9 @@ export default {
           source: 'manual'
         }
         const res = await closeQuickTradePosition(payload)
+        const resData = /** @type {{ status?: string }} */ (res.data)
         if (res.code === 1) {
-          this.$message.success(this.$t(res.data && res.data.status === 'filled' ? 'quickTrade.workflow.exitFilled' : 'quickTrade.workflow.orderAccepted'))
+          this.$message.success(String(this.$t(resData && resData.status === 'filled' ? 'quickTrade.workflow.exitFilled' : 'quickTrade.workflow.orderAccepted')))
           if (this.selectedCredentialId === payload.credential_id && this.currentSymbol === payload.symbol && this.effectiveMarketType === payload.market_type) {
             this.applyConfirmedClose(res.data, leg)
             this.positionEditor = null
@@ -2428,17 +2587,17 @@ export default {
             this.refreshAfterTrade()
           }
         } else {
-          const hint = res.error_hint ? this.$t(res.error_hint) : ''
+          const hint = res.error_hint ? String(this.$t(res.error_hint)) : ''
           this.$notification.error({
-            message: this.$t('quickTrade.orderFailed'),
+            message: String(this.$t('quickTrade.orderFailed')),
             description: hint || res.msg || ''
           })
         }
       } catch (e) {
         const rd = (e && e.response && e.response.data) || {}
-        const hint = rd.error_hint ? this.$t(rd.error_hint) : ''
+        const hint = rd.error_hint ? String(this.$t(rd.error_hint)) : ''
         this.$notification.error({
-          message: this.$t('quickTrade.orderFailed'),
+          message: String(this.$t('quickTrade.orderFailed')),
           description: hint || rd.msg || e.message || ''
         })
       } finally {
@@ -2552,7 +2711,7 @@ export default {
       const normalized = String(source || 'manual').toLowerCase()
       const supported = ['manual', 'indicator', 'ai_radar', 'ai_analysis']
       const key = `quickTrade.source.${supported.includes(normalized) ? normalized : 'manual'}`
-      return this.$t(key)
+      return String(this.$t(key))
     },
     tradeStatusLabel (status) {
       const normalized = String(status || 'submitted').toLowerCase().replace(/-/g, '_')
@@ -5014,8 +5173,6 @@ export default {
     color: #888;
   }
 
-
-
   .qt-floating-activity-toggle {
     color: rgba(255, 255, 255, .62);
     border-color: transparent;
@@ -5188,7 +5345,6 @@ export default {
     color: rgba(255, 255, 255, 0.86);
   }
 }
-
 
 </style>
 

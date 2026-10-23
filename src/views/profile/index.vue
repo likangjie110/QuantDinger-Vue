@@ -849,6 +849,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { getProfile, updateProfile, getLoginLogs, getMyCreditsLog, getMyReferrals, getNotificationSettings, updateNotificationSettings, testNotificationSettings, getMfaStatus, startMfaSetup, confirmMfaSetup, disableMfa } from '@/api/user'
 import { createReferralWithdrawal, getReferralRewards } from '@/api/billing'
 import { getSettingsValues } from '@/api/settings'
@@ -856,12 +857,90 @@ import { baseMixin } from '@/store/app-mixin'
 import ProfileAgentTokens from '@/views/profile/components/ProfileAgentTokens.vue'
 import { formatBrowserLocalDateTime } from '@/utils/userTime'
 
+/**
+ * @typedef {Object} NotificationSettingsPayload
+ * @property {unknown} [default_channels]
+ * @property {string} [telegram_bot_token]
+ * @property {string} [telegram_chat_id]
+ * @property {string} [email]
+ * @property {string} [phone]
+ * @property {string} [discord_webhook]
+ * @property {string} [webhook_url]
+ * @property {string} [webhook_token]
+ * @property {string} [webhook_signing_secret]
+ */
+
+/**
+ * @typedef {Object} ProfileBillingPayload
+ * @property {number} [credits]
+ * @property {boolean} [is_vip]
+ * @property {string|null} [vip_expires_at]
+ * @property {boolean} [billing_enabled]
+ * @property {Record<string, unknown>} [feature_costs]
+ */
+
+/**
+ * @typedef {Object} ProfilePayload
+ * @property {number|null} [id]
+ * @property {string} [username]
+ * @property {string} [nickname]
+ * @property {string} [email]
+ * @property {string} [avatar]
+ * @property {string} [timezone]
+ * @property {string} [role]
+ * @property {string|null} [last_login_at]
+ * @property {ProfileBillingPayload} [billing]
+ * @property {NotificationSettingsPayload} [notification_settings]
+ */
+
+/**
+ * @typedef {Object} MfaStatusPayload
+ * @property {boolean} [system_enabled]
+ * @property {boolean} [enabled]
+ * @property {string|null} [confirmed_at]
+ * @property {boolean} [risk_login_only]
+ */
+
+/**
+ * @typedef {Object} PagedPayload
+ * @property {unknown[]} [items]
+ * @property {number} [total]
+ */
+
+/**
+ * @typedef {Object} ReferralPayload
+ * @property {unknown[]} [list]
+ * @property {number} [total]
+ * @property {string} [referral_code]
+ * @property {number} [referral_bonus]
+ * @property {number} [register_bonus]
+ */
+
+/**
+ * @typedef {Object} RewardChannel
+ * @property {string} [currency]
+ * @property {string} [code]
+ */
+
+/**
+ * @typedef {Object} RewardPayload
+ * @property {Record<string, number>} [account]
+ * @property {unknown[]} [ledger]
+ * @property {unknown[]} [withdrawals]
+ * @property {RewardChannel[]} [channels]
+ */
+
+/**
+ * @typedef {Object} NotificationTestPayload
+ * @property {Record<string, { ok?: boolean, error?: string }>} [results]
+ */
+
 const DEFAULT_NOTIFICATION_CHANNELS = ['browser', 'email']
 const normalizeNotificationChannels = channels => (
   Array.isArray(channels) && channels.length ? channels : DEFAULT_NOTIFICATION_CHANNELS
 )
 
-export default {
+export default Vue.extend({
   name: 'Profile',
   components: { ProfileAgentTokens },
   mixins: [baseMixin],
@@ -1232,9 +1311,10 @@ export default {
     }
   },
   beforeCreate () {
-    this.profileForm = this.$form.createForm(this, { name: 'profile' })
-    this.passwordForm = this.$form.createForm(this, { name: 'password' })
-    this.notificationForm = this.$form.createForm(this, { name: 'notification' })
+    const vm = /** @type {Vue & { profileForm: import('ant-design-vue/types/form/form').WrappedFormUtils, passwordForm: import('ant-design-vue/types/form/form').WrappedFormUtils, notificationForm: import('ant-design-vue/types/form/form').WrappedFormUtils }} */ (this)
+    vm.profileForm = this.$form.createForm(this, { name: 'profile' })
+    vm.passwordForm = this.$form.createForm(this, { name: 'password' })
+    vm.notificationForm = this.$form.createForm(this, { name: 'notification' })
   },
   mounted () {
     this.syncProfileViewport()
@@ -1273,20 +1353,21 @@ export default {
       try {
         const res = await getProfile()
         if (res.code === 1) {
-          this.profile = res.data
-          if (res.data.billing) {
-            this.billing = res.data.billing
+          const data = /** @type {ProfilePayload} */ (res.data || {})
+          this.profile = data
+          if (data.billing) {
+            this.billing = data.billing
           }
-          if (res.data.notification_settings) {
+          if (data.notification_settings) {
             this.notificationSettings = {
-              default_channels: normalizeNotificationChannels(res.data.notification_settings.default_channels),
-              telegram_bot_token: res.data.notification_settings.telegram_bot_token || '',
-              telegram_chat_id: res.data.notification_settings.telegram_chat_id || '',
-              email: res.data.notification_settings.email || res.data.email || '',
-              phone: res.data.notification_settings.phone || '',
-              discord_webhook: res.data.notification_settings.discord_webhook || '',
-              webhook_url: res.data.notification_settings.webhook_url || '',
-              webhook_token: res.data.notification_settings.webhook_token || ''
+              default_channels: normalizeNotificationChannels(data.notification_settings.default_channels),
+              telegram_bot_token: data.notification_settings.telegram_bot_token || '',
+              telegram_chat_id: data.notification_settings.telegram_chat_id || '',
+              email: data.notification_settings.email || data.email || '',
+              phone: data.notification_settings.phone || '',
+              discord_webhook: data.notification_settings.discord_webhook || '',
+              webhook_url: data.notification_settings.webhook_url || '',
+              webhook_token: data.notification_settings.webhook_token || ''
             }
           }
           this.$nextTick(() => {
@@ -1310,8 +1391,11 @@ export default {
       if (this.profile.role === 'admin') {
         try {
           const res = await getSettingsValues()
-          if (res.code === 1 && res.data && res.data.billing) {
-            this.rechargeTelegramUrl = res.data.billing.RECHARGE_TELEGRAM_URL || this.rechargeTelegramUrl
+          if (res.code === 1 && res.data) {
+            const data = /** @type {{ billing?: Record<string, string> }} */ (res.data)
+            if (data.billing) {
+              this.rechargeTelegramUrl = data.billing.RECHARGE_TELEGRAM_URL || this.rechargeTelegramUrl
+            }
           }
         } catch (e) {
         }
@@ -1458,7 +1542,8 @@ export default {
       try {
         const res = await getMfaStatus()
         if (res.code === 1 && res.data) {
-          this.mfaStatus = { ...this.mfaStatus, ...res.data }
+          const data = /** @type {MfaStatusPayload} */ (res.data)
+          this.mfaStatus = { ...this.mfaStatus, ...data }
         }
       } catch (error) {
         this.$message.error(error.response?.data?.msg || this.$t('profile.mfa.loadStatusFailed'))
@@ -1494,7 +1579,8 @@ export default {
         const res = await confirmMfaSetup({ code })
         if (res.code === 1) {
           this.$message.success(res.msg || this.$t('profile.mfa.enabledSuccess'))
-          this.mfaRecoveryCodes = (res.data && res.data.recovery_codes) || []
+          const data = /** @type {{ recovery_codes?: string[] }} */ (res.data || {})
+          this.mfaRecoveryCodes = data.recovery_codes || []
           this.resetMfaSetup()
           this.showMfaRecoveryModal = this.mfaRecoveryCodes.length > 0
           this.loadMfaStatus()
@@ -1574,8 +1660,9 @@ export default {
           page_size: this.loginLogsPagination.pageSize
         })
         if (res.code === 1) {
-          this.loginLogs = res.data.items || []
-          this.loginLogsPagination.total = res.data.total || 0
+          const data = /** @type {PagedPayload} */ (res.data || {})
+          this.loginLogs = data.items || []
+          this.loginLogsPagination.total = data.total || 0
         }
       } catch (e) {
         this.$message.error(this.$t('profile.loginLogs.loadFailed') || '加载登录日志失败')
@@ -1598,8 +1685,9 @@ export default {
           page_size: this.creditsLogPagination.pageSize
         })
         if (res.code === 1) {
-          this.creditsLog = res.data.items || []
-          this.creditsLogPagination.total = res.data.total || 0
+          const data = /** @type {PagedPayload} */ (res.data || {})
+          this.creditsLog = data.items || []
+          this.creditsLogPagination.total = data.total || 0
         }
       } catch (e) {
         this.$message.error('Failed to load credits log')
@@ -1622,14 +1710,15 @@ export default {
           page_size: this.referralPagination.pageSize
         })
         if (res.code === 1) {
+          const data = /** @type {ReferralPayload} */ (res.data || {})
           this.referralData = {
-            list: res.data.list || [],
-            total: res.data.total || 0,
-            referral_code: res.data.referral_code || '',
-            referral_bonus: res.data.referral_bonus || 0,
-            register_bonus: res.data.register_bonus || 0
+            list: data.list || [],
+            total: data.total || 0,
+            referral_code: data.referral_code || '',
+            referral_bonus: data.referral_bonus || 0,
+            register_bonus: data.register_bonus || 0
           }
-          this.referralPagination.total = res.data.total || 0
+          this.referralPagination.total = data.total || 0
         }
       } catch (e) {
         this.$message.error('Failed to load referral data')
@@ -1642,13 +1731,14 @@ export default {
       try {
         const res = await getReferralRewards({ page: 1, page_size: 50 })
         if (res && res.code === 1) {
+          const data = /** @type {RewardPayload} */ (res.data || {})
           this.rewardData = {
             ...this.rewardData,
-            ...(res.data || {}),
-            account: { ...this.rewardData.account, ...((res.data && res.data.account) || {}) },
-            ledger: (res.data && res.data.ledger) || [],
-            withdrawals: (res.data && res.data.withdrawals) || [],
-            channels: (res.data && res.data.channels) || []
+            ...data,
+            account: { ...this.rewardData.account, ...(data.account || {}) },
+            ledger: data.ledger || [],
+            withdrawals: data.withdrawals || [],
+            channels: data.channels || []
           }
         }
       } catch (e) {
@@ -1831,16 +1921,17 @@ export default {
       try {
         const res = await getNotificationSettings()
         if (res.code === 1 && res.data) {
+          const data = /** @type {NotificationSettingsPayload} */ (res.data)
           this.notificationSettings = {
-            default_channels: normalizeNotificationChannels(res.data.default_channels),
-            telegram_bot_token: res.data.telegram_bot_token || '',
-            telegram_chat_id: res.data.telegram_chat_id || '',
-            email: res.data.email || this.profile.email || '',
-            phone: res.data.phone || '',
-            discord_webhook: res.data.discord_webhook || '',
-            webhook_url: res.data.webhook_url || '',
-            webhook_token: res.data.webhook_token || '',
-            webhook_signing_secret: res.data.webhook_signing_secret || ''
+            default_channels: normalizeNotificationChannels(data.default_channels),
+            telegram_bot_token: data.telegram_bot_token || '',
+            telegram_chat_id: data.telegram_chat_id || '',
+            email: data.email || this.profile.email || '',
+            phone: data.phone || '',
+            discord_webhook: data.discord_webhook || '',
+            webhook_url: data.webhook_url || '',
+            webhook_token: data.webhook_token || '',
+            webhook_signing_secret: data.webhook_signing_secret || ''
           }
           // Update form values
           this.$nextTick(() => {
@@ -1982,7 +2073,8 @@ export default {
           return
         }
 
-        const results = (testRes.data && testRes.data.results) || {}
+        const data = /** @type {NotificationTestPayload} */ (testRes.data || {})
+        const results = data.results || {}
         const failed = Object.keys(results).filter((k) => !results[k].ok)
         if (failed.length === 0) {
           this.$message.success(this.$t('profile.notifications.testSent') || '测试通知已发送，请检查各渠道')
@@ -2004,7 +2096,7 @@ export default {
       }
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

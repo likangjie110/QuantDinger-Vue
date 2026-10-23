@@ -368,12 +368,13 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { mapState } from 'vuex'
 import CommentList from './CommentList.vue'
 import request from '@/utils/request'
 import fallbackCover from '@/assets/marketplace/indicator-preview-default.svg'
 
-export default {
+export default Vue.extend({
   name: 'IndicatorDetail',
   components: {
     CommentList
@@ -749,12 +750,13 @@ export default {
           params: { page, page_size: 10 }
         })
         if (res.code === 1) {
+          const data = /** @type {{ items: Array<Record<string, unknown>>, total: number }} */ (res.data)
           if (page === 1) {
-            this.comments.items = res.data.items
+            this.comments.items = data.items
           } else {
-            this.comments.items = [...this.comments.items, ...res.data.items]
+            this.comments.items = [...this.comments.items, ...data.items]
           }
-          this.comments.total = res.data.total
+          this.comments.total = data.total
           this.comments.page = page
         }
       } catch (e) {
@@ -838,7 +840,8 @@ export default {
           method: 'post'
         })
         if (res.code === 1) {
-          const assetType = res.data && res.data.asset_type
+          const data = /** @type {{ asset_type?: string } | null} */ (res.data)
+          const assetType = data && data.asset_type
           let successKey = 'community.purchaseSuccess'
           if (assetType === 'script_template') {
             successKey = 'community.scriptTemplatePurchased'
@@ -1065,7 +1068,7 @@ export default {
       return ''
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

@@ -31,12 +31,13 @@ import CandidateList from './components/CandidateList.vue'
 
 const TABS = ['submit', 'jobs', 'candidates']
 
-export default {
+const options = {
   name: 'FactorMining',
   components: { SubmitJob, JobList, CandidateList },
   data () {
+    const tab = this.$route.query.tab
     return {
-      activeTab: TABS.includes(this.$route.query.tab) ? this.$route.query.tab : 'submit',
+      activeTab: typeof tab === 'string' && TABS.includes(tab) ? tab : 'submit',
       replayJob: null
     }
   },
@@ -91,6 +92,8 @@ export default {
     }
   }
 }
+
+export default options
 </script>
 
 <style lang="less" scoped>

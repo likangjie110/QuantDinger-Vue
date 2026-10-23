@@ -44,64 +44,64 @@
         rowKey="id"
         :scroll="{ x: compact ? 1060 : 1260 }"
       >
-        <template slot="symbol" slot-scope="text, record">
-          <strong>{{ record.symbol || text }}</strong>
+        <template v-slot:symbol="text">
+          <strong>{{ text }}</strong>
         </template>
-        <template slot="side" slot-scope="text, record">
-          <a-tag :color="(record.side || text) === 'long' ? 'green' : 'red'">
-            {{ (record.side || text) === 'long' ? $t('trading-assistant.table.long') : $t('trading-assistant.table.short') }}
+        <template v-slot:side="text">
+          <a-tag :color="text === 'long' ? 'green' : 'red'">
+            {{ text === 'long' ? $t('trading-assistant.table.long') : $t('trading-assistant.table.short') }}
           </a-tag>
         </template>
-        <template slot="entryPrice" slot-scope="text, record">
-          <span v-if="hasValidPrice(record.entry_price || text)">
-            ${{ parseFloat(record.entry_price || text).toFixed(4) }}
+        <template v-slot:entryPrice="text">
+          <span v-if="hasValidPrice(text)">
+            ${{ parseFloat(text).toFixed(4) }}
           </span>
           <span v-else>--</span>
         </template>
-        <template slot="currentPrice" slot-scope="text, record">
-          ${{ parseFloat(record.current_price || text || 0).toFixed(4) }}
+        <template v-slot:currentPrice="text">
+          ${{ parseFloat(text || 0).toFixed(4) }}
         </template>
-        <template slot="size" slot-scope="text, record">
-          {{ parseFloat(record.size || text || 0).toFixed(4) }}
+        <template v-slot:size="text">
+          {{ parseFloat(text || 0).toFixed(4) }}
         </template>
-        <template slot="positionCost" slot-scope="text, record">
+        <template v-slot:positionCost="record">
           <span v-if="getPositionCost(record) > 0">{{ formatMoney(getPositionCost(record)) }}</span>
           <span v-else>--</span>
         </template>
-        <template slot="marketValue" slot-scope="text, record">
+        <template v-slot:marketValue="record">
           <span v-if="getMarketValue(record) > 0">{{ formatMoney(getMarketValue(record)) }}</span>
           <span v-else>--</span>
         </template>
-        <template slot="valueSummary" slot-scope="text, record">
+        <template v-slot:valueSummary="record">
           <span class="position-value-summary">
             <span>{{ formatMoney(getPositionCost(record)) }}</span>
             <a-icon type="arrow-right" />
             <strong>{{ formatMoney(getMarketValue(record)) }}</strong>
           </span>
         </template>
-        <template slot="unrealizedPnl" slot-scope="text, record">
-          <span :class="{ 'profit': parseFloat(record.unrealized_pnl || text || 0) > 0, 'loss': parseFloat(record.unrealized_pnl || text || 0) < 0 }">
-            ${{ parseFloat(record.unrealized_pnl || text || 0).toFixed(2) }}
+        <template v-slot:unrealizedPnl="text">
+          <span :class="{ 'profit': parseFloat(text || 0) > 0, 'loss': parseFloat(text || 0) < 0 }">
+            ${{ parseFloat(text || 0).toFixed(2) }}
           </span>
         </template>
-        <template slot="positionRoi" slot-scope="text, record">
-          <span :class="pnlClass(record.position_margin_pnl_percent || text)">
-            {{ formatPercent(record.position_margin_pnl_percent || text) }}
+        <template v-slot:positionRoi="text">
+          <span :class="pnlClass(text)">
+            {{ formatPercent(text) }}
           </span>
         </template>
-        <template slot="capitalContribution" slot-scope="text, record">
-          <span :class="pnlClass(record.strategy_capital_pnl_percent || text)">
-            {{ formatPercent(record.strategy_capital_pnl_percent || text) }}
+        <template v-slot:capitalContribution="text">
+          <span :class="pnlClass(text)">
+            {{ formatPercent(text) }}
           </span>
         </template>
-        <template slot="priceSummary" slot-scope="text, record">
+        <template v-slot:priceSummary="record">
           <span class="position-price-summary">
             <span>{{ formatPrice(record.entry_price) }}</span>
             <a-icon type="arrow-right" />
             <strong>{{ formatPrice(record.current_price) }}</strong>
           </span>
         </template>
-        <template slot="pnlSummary" slot-scope="text, record">
+        <template v-slot:pnlSummary="record">
           <span class="position-pnl-summary" :class="pnlClass(record.unrealized_pnl)">
             <strong>{{ formatSignedMoney(record.unrealized_pnl) }}</strong>
             <small>{{ formatPercent(record.position_margin_pnl_percent) }}</small>
@@ -144,37 +144,37 @@
         size="small"
         :scroll="{ x: 960 }"
       >
-        <template slot="ownershipSide" slot-scope="text, record">
-          <a-tag :color="record.side === 'long' ? 'green' : 'red'">
-            {{ record.side === 'long' ? $t('trading-assistant.table.long') : $t('trading-assistant.table.short') }}
+        <template v-slot:ownershipSide="text">
+          <a-tag :color="text === 'long' ? 'green' : 'red'">
+            {{ text === 'long' ? $t('trading-assistant.table.long') : $t('trading-assistant.table.short') }}
           </a-tag>
         </template>
-        <template slot="ownershipQty" slot-scope="text">
+        <template v-slot:ownershipQty="text">
           {{ formatOwnershipQty(text) }}
         </template>
-        <template slot="ownershipDifference" slot-scope="text, record">
-          <span :class="{ 'text-danger': Number(text) < -Number(record.tolerance || 0) }">
-            {{ formatOwnershipQty(text) }}
+        <template v-slot:ownershipDifference="record">
+          <span :class="{ 'text-danger': Number(record.unknown_qty) < -Number(record.tolerance || 0) }">
+            {{ formatOwnershipQty(record.unknown_qty) }}
           </span>
           <div v-if="record.difference_quote != null">{{ $t(ownershipExchangeId === 'alpaca' ? 'strategyCenter.positionOwnership.alpacaQuoteDifference' : 'strategyCenter.positionOwnership.quoteDifference', { value: formatSignedMoney(record.difference_quote) }) }}</div>
         </template>
-        <template slot="ownershipAllocations" slot-scope="text, record">
+        <template v-slot:ownershipAllocations="record">
           <a-popover v-if="record.allocations && record.allocations.length" :title="$t('strategyCenter.positionOwnership.relatedStrategies')">
             <template slot="content">
               <div v-for="allocation in record.allocations" :key="allocation.strategy_id">
                 {{ allocation.strategy_name }} #{{ allocation.strategy_id }} · {{ formatOwnershipQty(allocation.quantity) }}
               </div>
             </template>
-            <a>{{ formatOwnershipQty(text) }} <a-icon type="info-circle" /></a>
+            <a>{{ formatOwnershipQty(record.strategy_qty) }} <a-icon type="info-circle" /></a>
           </a-popover>
-          <span v-else>{{ formatOwnershipQty(text) }}</span>
+          <span v-else>{{ formatOwnershipQty(record.strategy_qty) }}</span>
         </template>
-        <template slot="ownershipStatus" slot-scope="text, record">
-          <a-tag :color="record.status === 'ok' ? 'green' : 'orange'">
-            {{ record.status === 'ok' ? $t('strategyCenter.positionOwnership.normal') : $t('strategyCenter.positionOwnership.blocked') }}
+        <template v-slot:ownershipStatus="text">
+          <a-tag :color="text === 'ok' ? 'green' : 'orange'">
+            {{ text === 'ok' ? $t('strategyCenter.positionOwnership.normal') : $t('strategyCenter.positionOwnership.blocked') }}
           </a-tag>
         </template>
-        <template slot="ownershipActions" slot-scope="text, record">
+        <template v-slot:ownershipActions="record">
           <span v-if="record.repair_kind === 'allocation_shortfall'">
             <a-tooltip :title="$t('strategyCenter.positionOwnership.shortfallHelp')">
               <a-tag color="red">{{ $t('strategyCenter.positionOwnership.shortfall') }}</a-tag>
@@ -237,6 +237,8 @@ export default {
       default: false
     }
   },
+  // Break TS circular data/methods inference so methods remain visible to the template checker.
+  /** @this {object} */
   data () {
     return {
       positions: [],
@@ -295,18 +297,21 @@ export default {
           },
           {
             title: `${this.$t('trading-assistant.table.positionCost')} / ${this.$t('trading-assistant.table.marketValue')}`,
+            dataIndex: '__row',
             key: 'value_summary',
             width: 210,
             scopedSlots: { customRender: 'valueSummary' }
           },
           {
             title: `${this.$t('trading-assistant.table.averageEntryPrice')} / ${this.$t('trading-assistant.table.currentPrice')}`,
+            dataIndex: '__row',
             key: 'price_summary',
             width: 190,
             scopedSlots: { customRender: 'priceSummary' }
           },
           {
             title: `${this.$t('trading-assistant.table.unrealizedPnl')} / ${this.$t('trading-assistant.table.positionRoi')}`,
+            dataIndex: '__row',
             key: 'pnl_summary',
             width: 170,
             scopedSlots: { customRender: 'pnlSummary' }
@@ -343,14 +348,14 @@ export default {
         },
         {
           title: this.$t('trading-assistant.table.positionCost'),
-          dataIndex: 'position_cost',
+          dataIndex: '__row',
           key: 'position_cost',
           width: 140,
           scopedSlots: { customRender: 'positionCost' }
         },
         {
           title: this.$t('trading-assistant.table.marketValue'),
-          dataIndex: 'market_value',
+          dataIndex: '__row',
           key: 'market_value',
           width: 140,
           scopedSlots: { customRender: 'marketValue' }
@@ -398,11 +403,11 @@ export default {
         { title: this.$t('trading-assistant.table.symbol'), dataIndex: 'symbol', width: 118 },
         { title: this.$t('trading-assistant.table.side'), dataIndex: 'side', width: 76, scopedSlots: { customRender: 'ownershipSide' } },
         { title: this.$t('strategyCenter.positionOwnership.accountQty'), dataIndex: 'account_qty', width: 112, scopedSlots: quantitySlot },
-        { title: this.$t('strategyCenter.positionOwnership.relatedStrategies'), dataIndex: 'strategy_qty', width: 140, scopedSlots: { customRender: 'ownershipAllocations' } },
+        { title: this.$t('strategyCenter.positionOwnership.relatedStrategies'), dataIndex: '__row', width: 140, scopedSlots: { customRender: 'ownershipAllocations' } },
         { title: this.$t('strategyCenter.positionOwnership.protectedQty'), dataIndex: 'protected_qty', width: 112, scopedSlots: quantitySlot },
-        { title: this.$t('strategyCenter.positionOwnership.unknownQty'), dataIndex: 'unknown_qty', width: 150, scopedSlots: { customRender: 'ownershipDifference' } },
+        { title: this.$t('strategyCenter.positionOwnership.unknownQty'), dataIndex: '__row', width: 150, scopedSlots: { customRender: 'ownershipDifference' } },
         { title: this.$t('strategyCenter.positionOwnership.status'), dataIndex: 'status', width: 90, scopedSlots: { customRender: 'ownershipStatus' } },
-        { title: this.$t('common.actions'), key: 'actions', fixed: 'right', width: 120, scopedSlots: { customRender: 'ownershipActions' } }
+        { title: this.$t('common.actions'), dataIndex: '__row', key: 'actions', fixed: 'right', width: 120, scopedSlots: { customRender: 'ownershipActions' } }
       ]
     },
     effectiveLeverage () {
@@ -440,14 +445,18 @@ export default {
       this.ownershipLoading = true
       try {
         const res = await getStrategyPositionOwnership(this.strategyId)
-        if (res.code !== 1) throw new Error(this.$t(res.msg || 'strategyCenter.positionOwnership.loadFailed'))
-        const data = res.data || {}
+        if (res.code !== 1) throw new Error(String(this.$t(res.msg || 'strategyCenter.positionOwnership.loadFailed')))
+        const data = /** @type {{ items?: any[], exchange_id?: string }} */ (res.data || {})
         const rows = data.items || []
         this.ownershipExchangeId = String(data.exchange_id || '').toLowerCase()
-        this.ownershipRows = rows.map(row => ({
-          ...row,
-          rowKey: `${row.symbol || ''}:${row.side || ''}`
-        }))
+        this.ownershipRows = rows.map(row => {
+          const entry = {
+            ...row,
+            rowKey: `${row.symbol || ''}:${row.side || ''}`
+          }
+          entry.__row = entry
+          return entry
+        })
         return true
       } catch (error) {
         this.ownershipExchangeId = ''
@@ -467,8 +476,8 @@ export default {
           side: record.side,
           action
         })
-        if (res.code !== 1) throw new Error(res.msg ? this.$t(res.msg) : this.$t('strategyCenter.positionOwnership.repairFailed'))
-        this.$message.success(this.$t('strategyCenter.positionOwnership.repairSuccess'))
+        if (res.code !== 1) throw new Error(String(res.msg ? this.$t(res.msg) : this.$t('strategyCenter.positionOwnership.repairFailed')))
+        this.$message.success(String(this.$t('strategyCenter.positionOwnership.repairSuccess')))
         await this.loadOwnership()
         await this.loadPositions()
         this.$emit('ownership-reconciled')
@@ -488,8 +497,9 @@ export default {
       try {
         const res = await getStrategyPositions(this.strategyId)
         if (res.code === 1) {
-          const rawPositions = res.data.positions || res.data.items || []
-          this.reconciliation = res.data.account_reconciliation || {
+          const data = /** @type {{ positions?: any[], items?: any[], account_reconciliation?: any }} */ (res.data || {})
+          const rawPositions = data.positions || data.items || []
+          this.reconciliation = data.account_reconciliation || {
             status: 'not_checked',
             notes: [],
             account_positions: []
@@ -515,7 +525,7 @@ export default {
             let capitalPct = this.safeNumber(position.strategy_capital_pnl_percent ?? position.capital_contribution_percent ?? position.strategyCapitalPnlPercent)
             if (!Number.isFinite(capitalPct)) capitalPct = 0
 
-            return {
+            const row = {
               id: position.id || index,
               symbol: position.symbol || '',
               side: position.side || 'long',
@@ -532,6 +542,9 @@ export default {
               notional_value: positionCost,
               updated_at: position.updated_at || position.updatedAt || ''
             }
+            // Column slots receive the first cell argument, so let dataIndex '__row' return the row itself.
+            row.__row = row
+            return row
           })
         } else {
           this.positions = []

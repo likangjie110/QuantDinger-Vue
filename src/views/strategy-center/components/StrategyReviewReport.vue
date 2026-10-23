@@ -46,7 +46,7 @@
             </div>
             <p v-if="facts.median_holding_seconds != null" class="muted">{{ $t('strategyReviewV2.holding') }}: {{ formatNumber(facts.median_holding_seconds, 0) }} · {{ $t('strategyReviewV2.holdingNote') }}</p>
           </section>
-          <section v-if="charts.length" class="evidence-charts" :aria-label="$t('strategyReviewV2.chartTitle')">
+          <section v-if="charts.length" class="evidence-charts" :aria-label="String($t('strategyReviewV2.chartTitle'))">
             <figure v-for="chart in charts" :key="chart.code" class="evidence-chart">
               <figcaption><h4>{{ $t('strategyReviewV2.chart.' + chart.code) }}</h4><span class="muted">{{ quoteCurrency }}</span></figcaption>
               <div v-for="row in chart.rows" :key="row.code" class="chart-row">
@@ -82,7 +82,7 @@
                 <details v-if="issue.code === 'exits_check'" class="exit-breakdown">
                   <summary>{{ $t('strategyReviewV2.exitBreakdown') }}</summary>
                   <p class="muted">{{ $t('strategyReviewV2.exitNote') }}</p>
-                  <div class="table-scroll" tabindex="0" :aria-label="$t('strategyReviewV2.exitBreakdown')">
+                  <div class="table-scroll" tabindex="0" :aria-label="String($t('strategyReviewV2.exitBreakdown'))">
                     <table><thead><tr><th>{{ $t('strategyReviewV2.exitReason') }}</th><th>{{ $t('strategyReviewV2.closed') }}</th><th>{{ $t('strategyReviewV2.pnlCount') }}</th><th>{{ $t('strategyReviewV2.pnl') }}</th></tr></thead><tbody>
                       <tr v-for="group in evidence.exit_groups || []" :key="group.code"><td>{{ $t('strategyReviewV2.exit.' + group.code) }}</td><td>{{ group.count }}</td><td>{{ group.pnl_count }}</td><td :class="numberTone(group.net_pnl)">{{ formatNumber(group.net_pnl) }}</td></tr>
                     </tbody></table>
@@ -93,7 +93,7 @@
           </section>
           <section v-if="showTrades" id="review-trades" class="trade-evidence">
             <h3>{{ $t('strategyReviewV2.samples') }}</h3><p class="muted">{{ $t('strategyReviewV2.samplesNote') }}</p>
-            <div class="table-scroll" tabindex="0" :aria-label="$t('strategyReviewV2.samples')">
+            <div class="table-scroll" tabindex="0" :aria-label="String($t('strategyReviewV2.samples'))">
               <table><thead><tr><th scope="col">{{ $t('strategyReviewV2.time') }}</th><th scope="col">{{ $t('strategyReviewV2.type') }}</th><th scope="col">{{ $t('strategyReviewV2.price') }}</th><th scope="col">{{ $t('strategyReviewV2.pnl') }}</th></tr></thead>
                 <tbody><tr v-for="(trade, i) in evidence.trade_samples" :key="String(trade.id) + ':' + i"><td>{{ formatTime(trade.created_at) }}</td><td>{{ trade.type }}</td><td>{{ formatNumber(trade.price, 6) }}</td><td :class="numberTone(trade.profit)">{{ formatNumber(trade.profit) }}</td></tr></tbody>
               </table><p v-if="!evidence.trade_samples.length" class="muted">{{ $t('strategyReviewV2.noTrades') }}</p>
@@ -129,6 +129,8 @@ import { getStrategyReviewReport, getStrategyReviewReportHistory } from '@/api/s
 export default {
   name: 'StrategyReviewReport',
   props: { strategyId: { type: [Number, String], default: null }, isDark: { type: Boolean, default: false }, botType: { type: String, default: '' } },
+  // Break TS circular data/methods inference so methods remain visible to the template checker.
+  /** @this {object} */
   data () { return { loading: false, historyLoading: false, report: null, history: [], selectedHistoryId: undefined, lookbackDays: 30, includeAi: true, showTrades: false, requestSequence: 0, historySequence: 0 } },
   computed: {
     isV2 () { return this.report && this.report.schema_version === 2 && !!this.report.evidence },
@@ -181,15 +183,16 @@ export default {
       this.loading = true
       try {
         const res = await getStrategyReviewReport(this.strategyId, { lookback_days: this.lookbackDays, include_ai: this.includeAi, language: this.$i18n.locale })
-        if (res && res.data && res.data.billing && res.data.billing.remaining != null) this.$root.$emit('credits-updated', res.data.billing.remaining)
+        const data = /** @type {{ billing?: { remaining?: number }, history_id?: string | number }} */ ((res && res.data) || {})
+        if (data.billing && data.billing.remaining != null) this.$root.$emit('credits-updated', data.billing.remaining)
         if (seq !== this.requestSequence) return
         if (!res || res.code !== 1 || !res.data) throw new Error('review_unavailable')
         this.report = res.data
         this.showTrades = false
-        this.selectedHistoryId = res.data.history_id || undefined
+        this.selectedHistoryId = data.history_id || undefined
         this.loadHistory()
       } catch (err) {
-        if (seq === this.requestSequence) this.$message.error(this.$t('strategyReview.loadFailed'))
+        if (seq === this.requestSequence) this.$message.error(String(this.$t('strategyReview.loadFailed')))
       } finally { if (seq === this.requestSequence) this.loading = false }
     },
     async loadHistory () {
@@ -212,11 +215,12 @@ export default {
         const res = await getStrategyReviewReportHistory(this.strategyId, { report_id: id })
         if (seq !== this.requestSequence) return
         if (!res || res.code !== 1 || !res.data) throw new Error('review_unavailable')
+        const data = /** @type {{ lookback_days?: number }} */ (res.data)
         this.report = res.data
         this.showTrades = false
-        this.lookbackDays = res.data.lookback_days || 30
+        this.lookbackDays = data.lookback_days || 30
       } catch (err) {
-        if (seq === this.requestSequence) this.$message.error(this.$t('strategyReview.historyLoadFailed'))
+        if (seq === this.requestSequence) this.$message.error(String(this.$t('strategyReview.historyLoadFailed')))
       } finally { if (seq === this.requestSequence) this.loading = false }
     },
     annotation (issue) { return (Array.isArray(this.ai.issues) && this.ai.issues.find(item => item.code === issue.code)) || {} },

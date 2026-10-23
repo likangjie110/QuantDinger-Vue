@@ -42,12 +42,13 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { mapState } from 'vuex'
 import { getSharedChatReport } from '@/api/market'
 import { loadLanguageAsync } from '@/locales'
 import ProfessionalAnalysisReport from '@/views/ai-analysis/components/ProfessionalAnalysisReport.vue'
 
-export default {
+export default Vue.extend({
   name: 'PublicProfessionalReport',
   components: { ProfessionalAnalysisReport },
   data () {
@@ -77,9 +78,11 @@ export default {
   async created () {
     try {
       const res = await getSharedChatReport(this.$route.params.token)
-      if (!res || res.code === 0 || !res.data || !res.data.report) throw new Error((res && res.msg) || '')
+      if (!res || res.code === 0) throw new Error((res && res.msg) || '')
+      const data = /** @type {{ report?: unknown, language?: string } | null} */ (res.data)
+      if (!data || !data.report) throw new Error((res && res.msg) || '')
       this.share = res.data
-      if (res.data.language) await loadLanguageAsync(res.data.language)
+      if (data.language) await loadLanguageAsync(data.language)
     } catch (e) {
       this.error = (e && (e.backendMessage || e.message)) || this.$t('fastAnalysis.sharedReportUnavailableDescription')
     } finally {
@@ -92,7 +95,7 @@ export default {
       return Number.isNaN(date.getTime()) ? '--' : date.toLocaleString()
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

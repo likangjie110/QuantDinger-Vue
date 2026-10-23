@@ -102,6 +102,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import AlpacaConnectForm from './forms/AlpacaConnectForm.vue'
 import IbkrConnectForm from './forms/IbkrConnectForm.vue'
 import BrokerAccountCard from './BrokerAccountCard.vue'
@@ -119,12 +120,19 @@ const DOCS = {
   ibkr: 'https://www.interactivebrokers.com/en/trading/tws.php'
 }
 
-export default {
+/**
+ * @typedef {Object} BrokerAccountSummary
+ * @property {number|string} id
+ * @property {string} [name]
+ * @property {string} [api_key_hint]
+ */
+
+export default Vue.extend({
   name: 'BrokerPanel',
   components: { AlpacaConnectForm, IbkrConnectForm, BrokerAccountCard, BrokerPositionsTable, BrokerOrdersTable, ProviderLogo },
   props: {
     broker: { type: Object, required: true },
-    accounts: { type: Array, default: () => [] },
+    accounts: { type: /** @type {import('vue').PropType<BrokerAccountSummary[]>} */ (Array), default: () => [] },
     credentialId: { type: Number, default: null },
     refreshVersion: { type: Number, default: 0 },
     status: { type: Object, default: () => null },
@@ -193,7 +201,7 @@ export default {
       }
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

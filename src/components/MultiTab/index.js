@@ -1,5 +1,5 @@
 import events from './events'
-import MultiTab from './MultiTab'
+import MultiTab from './MultiTab.vue'
 import './index.less'
 
 const api = {
@@ -37,4 +37,4 @@ MultiTab.install = function (Vue) {
   Vue.component('MultiTab', MultiTab)
 }
 
-export default MultiTab
+export default /** @type {typeof MultiTab & { install: (Vue: import('vue').VueConstructor) => void }} */ (MultiTab)

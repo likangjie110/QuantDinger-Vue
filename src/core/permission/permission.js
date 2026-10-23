@@ -12,9 +12,18 @@ export const PERMISSION_ENUM = {
 
 /**
  * <a-button v-if="$auth('form.edit')">Button</a-button>
- * @param Vue
+ * @typedef {Object} VueConstructorLike
+ * @property {{ $auth?: unknown, $enum?: unknown }} prototype
  */
-function plugin (Vue) {
+
+/**
+ * @callback PermissionPlugin
+ * @param {VueConstructorLike} Vue
+ * @returns {void}
+ */
+
+/** @type {PermissionPlugin & { installed?: boolean }} */
+const plugin = function (Vue) {
   if (plugin.installed) {
     return
   }

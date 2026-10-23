@@ -3,7 +3,14 @@
     <div class="qtc-activity-toolbar">
       <span v-if="history" class="qtc-history-context"><strong>{{ symbol }}</strong><span v-if="rows.length">{{ $t('quickTrade.workflow.recent', { count: rows.length }) }}</span><a-tooltip :title="$t('quickTrade.workflow.historyHint')"><a-icon type="info-circle" /></a-tooltip></span>
       <span v-else>{{ $t('quickTrade.workflow.nativeOrders') }}</span>
-      <button type="button" class="qtc-refresh" :disabled="loading" :title="$t('quickTrade.workflow.refresh')" :aria-label="$t('quickTrade.workflow.refresh')" @click="load"><a-icon :type="loading ? 'loading' : 'reload'" /></button>
+      <button
+        type="button"
+        class="qtc-refresh"
+        :disabled="loading"
+        :title="String($t('quickTrade.workflow.refresh'))"
+        :aria-label="String($t('quickTrade.workflow.refresh'))"
+        @click="load"
+      ><a-icon :type="loading ? 'loading' : 'reload'" /></button>
     </div>
     <div v-if="error" class="qtc-activity-empty">{{ error }}</div>
     <div v-else-if="loading && !rows.length" class="qtc-activity-empty" role="status"><a-icon type="loading" /><span>{{ $t(history ? 'quickTrade.workflow.loading' : 'quickTrade.workflow.loadingOrders') }}</span></div>
@@ -43,9 +50,10 @@ export default {
         const res = await (this.history ? getQuickPositionHistory : getQuickPositionProtection)({ credential_id: this.credentialId, symbol: this.symbol, market_type: this.marketType })
         if (generation !== this.generation) return
         if (res.code !== 1) throw new Error(res.msg)
-        this.supported = res.data.supported
-        this.rows = res.data[this.history ? 'positions' : 'orders'] || []
-      } catch (e) { if (generation === this.generation) this.error = this.$t(this.history ? 'quickTrade.workflow.historyFailed' : 'quickTrade.workflow.protectionFailed') } finally { if (generation === this.generation) this.loading = false }
+        const data = /** @type {{ supported?: boolean, positions?: unknown[], orders?: unknown[] }} */ (res.data)
+        this.supported = data.supported
+        this.rows = data[this.history ? 'positions' : 'orders'] || []
+      } catch (e) { if (generation === this.generation) this.error = String(this.$t(this.history ? 'quickTrade.workflow.historyFailed' : 'quickTrade.workflow.protectionFailed')) } finally { if (generation === this.generation) this.loading = false }
     },
     async cancel (row) {
       if (this.cancelling) return
@@ -54,7 +62,7 @@ export default {
         const res = await updateQuickPositionProtection({ credential_id: this.credentialId, symbol: this.symbol, position_side: row.side, action: 'cancel', order_id: row.id })
         if (res.code !== 1) throw new Error(res.msg)
         await this.load()
-      } catch (e) { this.$message.error(this.$t('quickTrade.workflow.protectionFailed')) } finally { this.cancelling = '' }
+      } catch (e) { this.$message.error(String(this.$t('quickTrade.workflow.protectionFailed'))) } finally { this.cancelling = '' }
     }
   }
 }

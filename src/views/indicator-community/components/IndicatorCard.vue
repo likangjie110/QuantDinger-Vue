@@ -118,9 +118,10 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import fallbackCover from '@/assets/marketplace/indicator-preview-default.svg'
 
-export default {
+export default Vue.extend({
   name: 'IndicatorCard',
   props: {
     indicator: {
@@ -307,7 +308,7 @@ export default {
       if (!this.imageError) this.imageError = true
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

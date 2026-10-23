@@ -282,12 +282,28 @@ const AI_ROUNDS = { min: 1, max: 3 }
 const AI_PROPOSALS_PER_ROUND = { min: 1, max: 20 }
 const RESEARCH_NOTES_MAX = 8000
 
-export default {
+/**
+ * @typedef {(rule: unknown, value: unknown, callback: (error?: Error) => void) => void} FormValidator
+ */
+
+/**
+ * Data initialisation builds validators from methods, which the Vue 2.7 instance type omits.
+ * @typedef {import('vue/types/vue').Vue & {
+ *   aiIntegerRule: (bounds: { min: number, max: number }, messageKey: string) => FormValidator,
+ *   researchNotesRule: FormValidator,
+ *   evolutionRule: (field: string) => FormValidator,
+ *   holdoutRule: FormValidator
+ * }} SubmitJobVm
+ */
+
+const options = {
   name: 'SubmitJob',
   props: {
     replayJob: { type: Object, default: null }
   },
   data () {
+    // Methods are installed before data() runs; Vue 2.7's inferred data `this` omits them.
+    const vm = /** @type {SubmitJobVm} */ (/** @type {unknown} */ (this))
     return {
       markets: MARKETS,
       timeframes: TIMEFRAMES,
@@ -322,13 +338,13 @@ export default {
         timeframe: [{ required: true, message: this.$t('factorMining.submit.timeframeRequired'), trigger: 'change' }],
         startDate: [{ required: true, message: this.$t('factorMining.submit.startDateRequired'), trigger: 'change' }],
         endDate: [{ required: true, message: this.$t('factorMining.submit.endDateRequired'), trigger: 'change' }],
-        aiRounds: [{ validator: this.aiIntegerRule(AI_ROUNDS, 'factorMining.submit.aiRoundsInvalid'), trigger: 'change' }],
-        aiProposalsPerRound: [{ validator: this.aiIntegerRule(AI_PROPOSALS_PER_ROUND, 'factorMining.submit.aiProposalsPerRoundInvalid'), trigger: 'change' }],
-        researchNotes: [{ validator: this.researchNotesRule, trigger: 'change' }],
-        population: [{ validator: this.evolutionRule('population'), trigger: 'change' }],
-        generations: [{ validator: this.evolutionRule('generations'), trigger: 'change' }],
-        eliteRatio: [{ validator: this.evolutionRule('eliteRatio'), trigger: 'change' }],
-        holdoutRatio: [{ validator: this.holdoutRule, trigger: 'change' }]
+        aiRounds: [{ validator: vm.aiIntegerRule(AI_ROUNDS, 'factorMining.submit.aiRoundsInvalid'), trigger: 'change' }],
+        aiProposalsPerRound: [{ validator: vm.aiIntegerRule(AI_PROPOSALS_PER_ROUND, 'factorMining.submit.aiProposalsPerRoundInvalid'), trigger: 'change' }],
+        researchNotes: [{ validator: vm.researchNotesRule, trigger: 'change' }],
+        population: [{ validator: vm.evolutionRule('population'), trigger: 'change' }],
+        generations: [{ validator: vm.evolutionRule('generations'), trigger: 'change' }],
+        eliteRatio: [{ validator: vm.evolutionRule('eliteRatio'), trigger: 'change' }],
+        holdoutRatio: [{ validator: vm.holdoutRule, trigger: 'change' }]
       },
       estimating: false,
       submitting: false,
@@ -451,6 +467,8 @@ export default {
     }
   }
 }
+
+export default options
 </script>
 
 <style lang="less" scoped>

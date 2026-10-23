@@ -27,18 +27,18 @@
       rowKey="id"
       :scroll="{ x: 1370 }"
     >
-      <template slot="type" slot-scope="text, record">
+      <template v-slot:type="record">
         <div class="trade-type-cell">
-          <a-tag :color="getTradeTypeColor(text)" class="trade-type-tag">
-            {{ getTradeTypeText(text) }}
+          <a-tag :color="getTradeTypeColor(record.type)" class="trade-type-tag">
+            {{ getTradeTypeText(record.type) }}
           </a-tag>
           <div class="trade-type-desc">{{ getTradeActionDescription(record) }}</div>
         </div>
       </template>
-      <template slot="instrument" slot-scope="text, record">
+      <template v-slot:instrument="record">
         <span class="trade-instrument">{{ formatTradeInstrument(record) }}</span>
       </template>
-      <template slot="execution" slot-scope="text, record">
+      <template v-slot:execution="record">
         <div class="execution-cell">
           <a-tooltip :title="formatExecutionNumber(record.price) + (record.exchange_order_id ? ' · ' + $t('trading-assistant.execution.orderId') + ': ' + record.exchange_order_id : '')">
             <strong>{{ formatExecutionPrice(record.price) }}</strong>
@@ -48,7 +48,7 @@
           </a-tooltip>
         </div>
       </template>
-      <template slot="execution_quality" slot-scope="text, record">
+      <template v-slot:execution_quality="record">
         <div class="execution-quality-cell">
           <a-tooltip :title="formatExecutionNumber(record.reference_price)">
             <strong>{{ formatExecutionPrice(record.reference_price) }}</strong>
@@ -58,9 +58,9 @@
           </a-tooltip>
         </div>
       </template>
-      <template slot="exchange_pnl" slot-scope="text, record">
+      <template v-slot:exchange_pnl="record">
         <a-popover
-          v-if="text && text.status === 'reported'"
+          v-if="record.exchange_pnl && record.exchange_pnl.status === 'reported'"
           placement="top"
           trigger="hover"
           :overlay-class-name="isDark ? 'strategy-pnl-popover strategy-pnl-popover--dark' : 'strategy-pnl-popover'"
@@ -72,18 +72,18 @@
                 <p>{{ $t('trading-assistant.execution.exchangePnlHint') }}</p>
               </div>
             </div>
-            <div class="pnl-breakdown__badge">{{ $t('trading-assistant.execution.' + text.fee_basis) }}</div>
+            <div class="pnl-breakdown__badge">{{ $t('trading-assistant.execution.' + record.exchange_pnl.fee_basis) }}</div>
             <div class="pnl-breakdown__rows">
-              <div class="pnl-breakdown__row"><span>{{ $t('trading-assistant.execution.orderId') }}</span><strong>{{ text.order_id }}</strong></div>
-              <div class="pnl-breakdown__row"><span>{{ $t('trading-assistant.execution.reportedQuantity') }}</span><strong>{{ formatExecutionNumber(text.quantity) }}</strong></div>
-              <div class="pnl-breakdown__row"><span>{{ $t('trading-assistant.execution.reportSource') }}</span><strong>{{ text.source }}</strong></div>
+              <div class="pnl-breakdown__row"><span>{{ $t('trading-assistant.execution.orderId') }}</span><strong>{{ record.exchange_pnl.order_id }}</strong></div>
+              <div class="pnl-breakdown__row"><span>{{ $t('trading-assistant.execution.reportedQuantity') }}</span><strong>{{ formatExecutionNumber(record.exchange_pnl.quantity) }}</strong></div>
+              <div class="pnl-breakdown__row"><span>{{ $t('trading-assistant.execution.reportSource') }}</span><strong>{{ record.exchange_pnl.source }}</strong></div>
             </div>
           </div>
-          <span :class="['ta-pnl', { 'ta-pnl-pos': text.amount > 0, 'ta-pnl-neg': text.amount < 0 }]">{{ formatReportedPnl(text, record) }}</span>
+          <span :class="['ta-pnl', { 'ta-pnl-pos': record.exchange_pnl.amount > 0, 'ta-pnl-neg': record.exchange_pnl.amount < 0 }]">{{ formatReportedPnl(record.exchange_pnl, record) }}</span>
         </a-popover>
-        <span v-else class="pnl-status">{{ formatReportedPnl(text, record) }}</span>
+        <span v-else class="pnl-status">{{ formatReportedPnl(record.exchange_pnl, record) }}</span>
       </template>
-      <template slot="profit" slot-scope="text, record">
+      <template v-slot:profit="record">
         <a-popover
           v-if="hasRealizedProfit(record) || record.pnl_source === 'grid_exchange_order_pairs'"
           placement="top"
@@ -114,19 +114,19 @@
         </a-popover>
         <span v-else :class="['ta-pnl', profitToneClass(record)]">{{ formatProfit(record) }}</span>
       </template>
-      <template slot="grid_matched_profit" slot-scope="text, record">
+      <template v-slot:grid_matched_profit="record">
         <span :class="['ta-pnl', gridProfitToneClass(record)]">
           {{ formatGridProfit(record) }}
         </span>
       </template>
-      <template slot="commission" slot-scope="text, record">
+      <template v-slot:commission="record">
         <a-tooltip v-if="record.fee_source === 'virtual_simulation'" :title="virtualFeeBasis(record)">
-          <span>{{ formatCommission(text, record) }}</span>
+          <span>{{ formatCommission(record.commission, record) }}</span>
         </a-tooltip>
-        <span v-else>{{ formatCommission(text, record) }}</span>
+        <span v-else>{{ formatCommission(record.commission, record) }}</span>
       </template>
-      <template slot="time" slot-scope="text, record">
-        {{ formatTime(record.created_at || text) }}
+      <template v-slot:time="text">
+        {{ formatTime(text) }}
       </template>
     </a-table>
   </div>
@@ -235,28 +235,28 @@ export default {
         },
         {
           title: this.$t('trading-assistant.table.typeAndAction'),
-          dataIndex: 'type',
+          dataIndex: '__row',
           key: 'type',
           width: 190,
           scopedSlots: { customRender: 'type' }
         },
         {
           title: this.$t('trading-assistant.table.instrument'),
-          dataIndex: 'symbol',
+          dataIndex: '__row',
           key: 'symbol',
           width: 110,
           scopedSlots: { customRender: 'instrument' }
         },
         {
           title: this.$t('trading-assistant.execution.fillSummary'),
-          dataIndex: 'price',
+          dataIndex: '__row',
           key: 'execution',
           width: 190,
           scopedSlots: { customRender: 'execution' }
         },
         {
           title: this.$t(this.records.some(r => r.pnl_source === 'grid_exchange_order_pairs') ? 'trading-assistant.execution.gridNetPnl' : 'trading-assistant.execution.systemPnl'),
-          dataIndex: 'profit',
+          dataIndex: '__row',
           key: 'profit',
           className: 'pnl-column',
           width: 150,
@@ -266,7 +266,7 @@ export default {
       if (this.isGridBot && !this.records.some(r => r.pnl_source === 'grid_exchange_order_pairs')) {
         cols.push({
           title: this.$t('trading-assistant.table.gridMatchedProfit'),
-          dataIndex: 'grid_matched_profit',
+          dataIndex: '__row',
           key: 'grid_matched_profit',
           width: 130,
           scopedSlots: { customRender: 'grid_matched_profit' }
@@ -275,14 +275,14 @@ export default {
       cols.push(
         {
           title: this.$t('trading-assistant.table.commission'),
-          dataIndex: 'commission',
+          dataIndex: '__row',
           key: 'commission',
           width: 120,
           scopedSlots: { customRender: 'commission' }
         },
         {
           title: this.$t('trading-assistant.execution.exchangePnl'),
-          dataIndex: 'exchange_pnl',
+          dataIndex: '__row',
           key: 'exchange_pnl',
           className: 'pnl-column',
           width: 170,
@@ -290,7 +290,7 @@ export default {
         },
         {
           title: this.$t('trading-assistant.execution.qualitySummary'),
-          dataIndex: 'reference_price',
+          dataIndex: '__row',
           key: 'execution_quality',
           width: 160,
           scopedSlots: { customRender: 'execution_quality' }
@@ -299,6 +299,8 @@ export default {
       return cols
     }
   },
+  // Break TS circular data/methods inference so methods remain visible to the template checker.
+  /** @this {object} */
   data () {
     return {
       records: [],
@@ -358,8 +360,9 @@ export default {
         const res = await getStrategyTrades(this.strategyId, this.$i18n && this.$i18n.locale)
         if (requestId !== this.recordsRequestId) return
         if (res.code === 1) {
-          const list = res.data.trades || res.data.items || []
-          this.costSummary = res.data.cost_summary || null
+          const data = /** @type {{ trades?: any[], items?: any[], cost_summary?: any }} */ (res.data || {})
+          const list = data.trades || data.items || []
+          this.costSummary = data.cost_summary || null
           this.records = list.map(trade => {
             const t = { ...trade }
             t.time = t.created_at || t.time
@@ -386,10 +389,12 @@ export default {
             if ((t.value == null || t.value === '') && price != null && amount != null && !isNaN(price) && !isNaN(amount)) {
               t.value = price * amount
             }
+            // Column slots receive the first cell argument, so let dataIndex '__row' return the record itself.
+            t.__row = t
             return t
           })
         } else {
-          this.$message.error(res.msg || this.$t('trading-assistant.messages.loadTradesFailed'))
+          this.$message.error(String(res.msg || this.$t('trading-assistant.messages.loadTradesFailed')))
         }
       } catch (error) {
       } finally {

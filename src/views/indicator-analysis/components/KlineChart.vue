@@ -248,7 +248,7 @@
 
 <script>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch, shallowRef, getCurrentInstance } from 'vue'
-import { init, registerIndicator, registerOverlay } from 'klinecharts'
+import { init, registerIndicator, registerOverlay, IndicatorSeries, PolygonType } from 'klinecharts'
 import request from '@/utils/request'
 import { inferMarketPricePrecision } from '@/utils/marketPricePrecision.mjs'
 import { buildRenkoBricks } from '@/utils/renko.mjs'
@@ -648,7 +648,7 @@ export default {
       realtimeResyncTimer = setTimeout(() => {
         realtimeResyncTimer = null
         if (props.symbol && props.realtimeEnabled) {
-          loadKlineData(true)
+          loadKlineData()
         }
       }, 300)
     }
@@ -1069,6 +1069,7 @@ export default {
     const indicatorEditorVisible = ref(false)
     const indicatorEditorSaving = ref(false)
     const indicatorEditorTargetId = ref('')
+    /** @type {Record<string, string | number>} */
     const indicatorEditorForm = reactive({})
 
     const indicatorEditorTarget = computed(() => {
@@ -1095,7 +1096,7 @@ export default {
     const chartModalGetContainer = () => {
       try {
         const root = chartRootEl.value
-        const fs = document.fullscreenElement || document.webkitFullscreenElement
+        const fs = document.fullscreenElement || /** @type {{ webkitFullscreenElement?: Element | null }} */ (document).webkitFullscreenElement
         if (root && fs && typeof fs.contains === 'function' && fs.contains(root)) return fs
       } catch (_) {}
       return document.body
@@ -1307,7 +1308,7 @@ export default {
       if (Object.prototype.hasOwnProperty.call(nextParams, 'fast') &&
           Object.prototype.hasOwnProperty.call(nextParams, 'slow') &&
           Number(nextParams.fast) >= Number(nextParams.slow)) {
-        proxy.$message.warning(proxy.$t('indicatorIde.editor.fastLessThanSlow'))
+        proxy.$message.warning(String(proxy.$t('indicatorIde.editor.fastLessThanSlow')))
         return
       }
       const nextStyle = normalizeIndicatorStyle({
@@ -1738,6 +1739,10 @@ const shouldRenderSignalEntry = (entries, index, mode) => {
   return true
 }
 
+/**
+ * @param {Record<string, unknown>} [rawResult]
+ * @param {Array<Record<string, unknown>>} [internalData]
+ */
 const normalizeIndicatorRenderResult = (rawResult = {}, internalData = []) => {
   const result = rawResult && typeof rawResult === 'object' ? rawResult : {}
   const renderResult = {
@@ -1825,7 +1830,7 @@ registerOverlay({
       needDefaultXAxisFigure: false,
       needDefaultYAxisFigure: false,
 
-      checkEventOn: () => false,
+      .../** @type {{ checkEventOn: () => boolean }} */({ checkEventOn: () => false }),
 
       createPointFigures: ({ coordinates, overlay }) => {
         const { text } = overlay.extendData || {}
@@ -2038,7 +2043,7 @@ registerOverlay({
       needDefaultPointFigure: false,
       needDefaultXAxisFigure: false,
       needDefaultYAxisFigure: false,
-      checkEventOn: () => false,
+      .../** @type {{ checkEventOn: () => boolean }} */({ checkEventOn: () => false }),
       createPointFigures: ({ coordinates, overlay, bounding }) => {
         if (!coordinates[0] || !coordinates[1]) return []
         const data = overlay.extendData || {}
@@ -2058,6 +2063,7 @@ registerOverlay({
         const opacity = Number.isFinite(Number(data.opacity)) ? Math.min(Number(data.opacity), 0.10) : (isDark ? 0.075 : 0.055)
         const fillColor = resolveLayerColor(data.fillColor, color, opacity)
         const borderColor = resolveLayerColor(data.borderColor, color, isDark ? 0.48 : 0.42)
+        /** @type {import('klinecharts').OverlayFigure[]} */
         const figures = [
           {
             type: 'rect',
@@ -2112,11 +2118,12 @@ registerOverlay({
       needDefaultPointFigure: false,
       needDefaultXAxisFigure: false,
       needDefaultYAxisFigure: false,
-      checkEventOn: () => false,
+      .../** @type {{ checkEventOn: () => boolean }} */({ checkEventOn: () => false }),
       createPointFigures: ({ coordinates, overlay, bounding }) => {
         if (!coordinates[0] || !coordinates[1]) return []
         const data = overlay.extendData || {}
         const color = data.color || 'var(--primary-color, #1890ff)'
+        /** @type {import('klinecharts').OverlayFigure[]} */
         const figures = [
           {
             type: 'line',
@@ -2162,7 +2169,7 @@ registerOverlay({
       needDefaultPointFigure: false,
       needDefaultXAxisFigure: false,
       needDefaultYAxisFigure: false,
-      checkEventOn: () => false,
+      .../** @type {{ checkEventOn: () => boolean }} */({ checkEventOn: () => false }),
       createPointFigures: ({ coordinates, overlay }) => {
         if (!coordinates[0]) return []
         const data = overlay.extendData || {}
@@ -2215,7 +2222,7 @@ registerOverlay({
       needDefaultPointFigure: false,
       needDefaultXAxisFigure: false,
       needDefaultYAxisFigure: false,
-      checkEventOn: () => false,
+      .../** @type {{ checkEventOn: () => boolean }} */({ checkEventOn: () => false }),
       createPointFigures: ({ coordinates, overlay, bounding }) => {
         if (!coordinates[0] || !Number.isFinite(bounding?.width)) return []
         const isDark = chartTheme.value === 'dark'
@@ -2352,9 +2359,9 @@ registerOverlay({
       const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000)
 
       if (days > 0) {
-        timeSpan = `${days}${proxy.$t('dashboard.indicator.drawing.measureDayUnit')}${hours > 0 ? hours + proxy.$t('dashboard.indicator.drawing.measureHourUnit') : ''}`
+        timeSpan = `${days}${proxy.$t('dashboard.indicator.drawing.measureDayUnit')}${hours > 0 ? `${hours}${proxy.$t('dashboard.indicator.drawing.measureHourUnit')}` : ''}`
       } else if (hours > 0) {
-        timeSpan = `${hours}${proxy.$t('dashboard.indicator.drawing.measureHourUnit')}${minutes > 0 ? minutes + proxy.$t('dashboard.indicator.drawing.measureMinuteUnit') : ''}`
+        timeSpan = `${hours}${proxy.$t('dashboard.indicator.drawing.measureHourUnit')}${minutes > 0 ? `${minutes}${proxy.$t('dashboard.indicator.drawing.measureMinuteUnit')}` : ''}`
       } else if (minutes > 0) {
         timeSpan = `${minutes}${proxy.$t('dashboard.indicator.drawing.measureMinuteUnit')}`
       } else {
@@ -2846,8 +2853,9 @@ registerOverlay({
               formattedData = formatKlineData(response.data)
             } else {
               let errMsg = response.msg || 'Failed to load K-line data'
-              if (response.hint === 'tiingo_subscription') {
-                errMsg = proxy.$t('dashboard.indicator.error.tiingoSubscription') || 'Forex 1-minute data requires Tiingo paid subscription'
+              const hint = /** @type {{ hint?: string }} */ (response).hint
+              if (hint === 'tiingo_subscription') {
+                errMsg = String(proxy.$t('dashboard.indicator.error.tiingoSubscription') || 'Forex 1-minute data requires Tiingo paid subscription')
               }
               throw new Error(errMsg)
             }
@@ -3347,8 +3355,9 @@ registerOverlay({
       if (_cachedExchangeId && (now - _exchangeIdTs) < 300000) return _cachedExchangeId
       try {
         const res = await request({ url: '/api/settings/public-config', method: 'get' })
-        if (res && res.data && res.data.crypto_public_default_exchange) {
-          _cachedExchangeId = res.data.crypto_public_default_exchange
+        const publicConfig = /** @type {{ crypto_public_default_exchange?: string }} */ (res && res.data ? res.data : {})
+        if (publicConfig.crypto_public_default_exchange) {
+          _cachedExchangeId = publicConfig.crypto_public_default_exchange
           _exchangeIdTs = now
         }
       } catch (_) { /* keep cached or null */ }
@@ -3448,12 +3457,12 @@ registerOverlay({
         }
 
         try {
-          chartRef.value = init(container, {
+          chartRef.value = init(container, /** @type {import('klinecharts').Options & { drawingBarVisible?: boolean, overlay?: { visible?: boolean } }} */ ({
             drawingBarVisible: true,
             overlay: {
               visible: true
             }
-          })
+          }))
         } catch (e) {
           chartRef.value = init(container)
         }
@@ -4206,6 +4215,7 @@ registerOverlay({
         return { style, runtimeColor, runtimeSize }
       }
 
+      /** @type {import('klinecharts').IndicatorFigure & { lamp?: unknown }} */
       const figure = {
         key: figureKey,
         title: options.forceLamp ? '' : (plot.title === false ? '' : (plot.title || plot.name || plotName)),
@@ -4252,7 +4262,7 @@ registerOverlay({
       if (figureType === 'cloud') {
         figure.type = 'bar'
         figure.attrs = ({ coordinate, data, barSpace, yAxis }) => {
-          const currentCoordinate = coordinate?.current || {}
+          const currentCoordinate = /** @type {Record<string, number>} */ (coordinate?.current || {})
           const indicatorData = data?.current || {}
           const upperY = Number(currentCoordinate[figureKey])
           let lowerY = Number(currentCoordinate[lowerKey])
@@ -4281,7 +4291,7 @@ registerOverlay({
             ? Math.min(0.3, Math.max(0.02, requestedOpacity))
             : 0.08
           return {
-            style: 'fill',
+            style: PolygonType.Fill,
             color: resolveLayerColor(runtimeColor, styleColor, opacity),
             borderSize: 0
           }
@@ -4292,7 +4302,7 @@ registerOverlay({
         figure.attrs = ({ coordinate, data }) => {
           const indicatorData = data?.current || {}
           const { runtimeSize } = resolveRuntimeStyle(indicatorData)
-          const currentCoordinate = coordinate?.current || {}
+          const currentCoordinate = /** @type {Record<string, number>} */ (coordinate?.current || {})
           return {
             x: currentCoordinate.x,
             y: currentCoordinate[figureKey],
@@ -4304,7 +4314,7 @@ registerOverlay({
       if (options.forceLamp && figureType === 'bar') {
         figure.attrs = ({ coordinate, data, barSpace, bounding }) => {
           const indicatorData = data?.current || {}
-          const currentCoordinate = coordinate?.current || {}
+          const currentCoordinate = /** @type {Record<string, number>} */ (coordinate?.current || {})
           const runtimeSize = toPositiveNumber(indicatorData[sizeKey], pointSize)
           const baseBarWidth = Number(barSpace?.bar ?? barSpace?.gapBar ?? 8)
           const width = Math.max(3, Math.min(5, (Number.isFinite(baseBarWidth) ? baseBarWidth : 8) * 0.42, runtimeSize * 0.82))
@@ -4713,6 +4723,7 @@ registerOverlay({
     const registerCustomIndicator = (name, calcFunc, figures, calcParams = [], precision = -1, shouldOverlay = false, displayName = null, extraConfig = {}) => {
       if (precision < 0) precision = pricePrecision.value
       try {
+        /** @type {import('klinecharts').IndicatorTemplate} */
         const indicatorConfig = {
           name,
           shortName: displayName || name,
@@ -4720,7 +4731,7 @@ registerOverlay({
           figures,
           calcParams,
           precision,
-          series: shouldOverlay ? 'price' : 'normal',
+          series: shouldOverlay ? IndicatorSeries.Price : IndicatorSeries.Normal,
           ...extraConfig
         }
 

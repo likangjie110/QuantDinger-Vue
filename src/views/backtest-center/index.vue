@@ -497,6 +497,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import * as echarts from 'echarts'
 import moment from 'moment'
 import { mapState } from 'vuex'
@@ -527,7 +528,70 @@ import {
 import { ratioPercentInputFormatter, ratioPercentInputParser } from '@/utils/numberFormat'
 import { getFactorCatalog } from '@/api/factor'
 
-export default {
+/**
+ * @typedef {Object} StrategyManifest
+ * @property {string} [strategyType]
+ * @property {string} [codeHash]
+ * @property {{ reference?: string, instruments?: Array<Record<string, any>> }} [universe]
+ * @property {boolean} [leverageAllowed]
+ * @property {number} [maxLeverage]
+ * @property {Array<{ frequency?: string }>} [subscriptions]
+ * @property {string} [primaryFrequency]
+ * @property {Array<Record<string, any>>} [fundamentalDependencies]
+ */
+
+/**
+ * @typedef {Object} BacktestRangePolicy
+ * @property {number} [factorMaxSelectedDays]
+ * @property {number} [maxSelectedDays]
+ * @property {number} [timeframeSeconds]
+ * @property {number} [factorWarmupBars]
+ * @property {number} [warmupBars]
+ * @property {number} [maxBars]
+ */
+
+/**
+ * @typedef {Object} BacktestJob
+ * @property {string} [status]
+ * @property {Record<string, any>} [progress]
+ * @property {{ runId?: string|number, billing?: { remaining?: number } }} [result]
+ * @property {string} [error]
+ */
+
+/**
+ * @typedef {Object} BacktestRun
+ * @property {Record<string, any>} [result]
+ * @property {number|string} [initial_capital]
+ * @property {number|string} [leverage]
+ * @property {number|string} [commission]
+ * @property {number|string} [slippage]
+ * @property {string} [start_date]
+ * @property {string} [end_date]
+ * @property {Record<string, any>} [params]
+ * @property {number|string} [source_id]
+ */
+
+/**
+ * @typedef {Object} FactorResearchRun
+ * @property {Record<string, any>} [result]
+ * @property {string} [factor_id]
+ * @property {number|string} [groups_count]
+ * @property {number|string} [holding_period]
+ * @property {boolean} [neutralize_industry]
+ * @property {number|string} [commission]
+ * @property {number|string} [slippage]
+ * @property {string} [start_date]
+ * @property {string} [end_date]
+ * @property {number|string} [source_id]
+ */
+
+/**
+ * @typedef {Object} ScriptCompilation
+ * @property {StrategyManifest} [manifest]
+ * @property {BacktestRangePolicy} [backtestRangePolicy]
+ */
+
+export default Vue.extend({
   name: 'BacktestCenter',
   components: { PortfolioResult, FactorResearchResult, StrategyEvolution },
   data () {
@@ -923,6 +987,7 @@ export default {
       const strategyName = this.$t('strategyV2.backtest.strategyEquity')
       const benchmarkName = this.$t('strategyV2.backtest.spotBenchmark')
       const valueLabel = this.$t('strategyV2.backtest.equityValue')
+      /** @type {Array<Record<string, any>>} */
       const series = [{
         name: strategyName,
         type: 'line',
@@ -1007,7 +1072,7 @@ export default {
     async loadSources () {
       this.sourcesLoading = true
       try {
-        const response = await getScriptSourceList()
+        const response = /** @type {{ data?: { items?: Array<Record<string, any>> } }} */ (await getScriptSourceList())
         this.sources = (response.data && response.data.items) || []
       } finally {
         this.sourcesLoading = false
@@ -1049,7 +1114,9 @@ export default {
         console.warn('Refresh backtest sources failed:', error)
       })
     },
-    async loadHistory ({ mode = this.mode, force = false } = {}) {
+    async loadHistory (options = {}) {
+      const mode = options.mode === undefined ? this.mode : options.mode
+      const force = options.force === undefined ? false : options.force
       const requestedMode = mode === 'factor' ? 'factor' : 'portfolio'
       if (!force && this.historyLoadedByMode[requestedMode]) return
       const requestSequence = ++this.historyRequestSequence
@@ -1177,10 +1244,12 @@ export default {
           getScriptSourceDetail(sourceId),
           compileScriptSource({ sourceId })
         ])
+        const detail = /** @type {{ data?: Record<string, any> }} */ (response)
+        const compilation = /** @type {{ data?: ScriptCompilation }} */ (compiled)
         if (requestSequence !== this.sourceLoadSequence) return
-        this.source = response.data
-        this.manifest = compiled.data && compiled.data.manifest
-        this.backtestRangePolicy = compiled.data && compiled.data.backtestRangePolicy
+        this.source = detail.data
+        this.manifest = compilation.data && compilation.data.manifest
+        this.backtestRangePolicy = compilation.data && compilation.data.backtestRangePolicy
         this.applyBacktestRangePolicy()
         const nextCodeHash = String((this.manifest && this.manifest.codeHash) || '')
         const sameSourceVersion = Number(sourceId) === previousSourceId &&
@@ -1323,7 +1392,7 @@ export default {
       if (!this.activeJobId || !this.running) return
       try {
         const response = await getStrategyBacktestJob(this.activeJobId)
-        const job = response.data || {}
+        const job = /** @type {BacktestJob} */ (response.data || {})
         this.runProgress = { ...(job.progress || {}) }
         if (job.status === 'succeeded') {
           const result = job.result || {}
@@ -1368,7 +1437,7 @@ export default {
       this.runProgress = { phase: 'preparing', percent: 2 }
       this.startRunTimer()
       try {
-        const response = await startStrategyBacktestJob({
+        const response = /** @type {{ data?: { jobId?: string, progress?: Record<string, any>, billing?: { remaining?: number } } }} */ (await startStrategyBacktestJob({
           sourceId: this.form.sourceId,
           startDate: this.form.startDate.format('YYYY-MM-DD'),
           endDate: this.form.endDate.format('YYYY-MM-DD'),
@@ -1378,7 +1447,7 @@ export default {
           leverageEnabled: this.form.leverageEnabled,
           leverage: this.form.leverageEnabled ? this.form.leverage : 1,
           params: this.params
-        })
+        }))
         this.activeJobId = response.data && response.data.jobId
         this.runProgress = { ...((response.data && response.data.progress) || this.runProgress) }
         const billing = response.data && response.data.billing
@@ -1409,7 +1478,7 @@ export default {
       this.running = true
       this.startRunTimer()
       try {
-        const response = await runStrategyFactorResearch({
+        const response = /** @type {{ data?: { runId?: string|number, result?: Record<string, any> } }} */ (await runStrategyFactorResearch({
           sourceId: this.form.sourceId,
           startDate: this.form.startDate.format('YYYY-MM-DD'),
           endDate: this.form.endDate.format('YYYY-MM-DD'),
@@ -1420,7 +1489,7 @@ export default {
           groups: this.factorForm.groups,
           holdingPeriod: this.factorForm.holdingPeriod,
           neutralizeIndustry: this.factorForm.neutralizeIndustry
-        })
+        }))
         this.factorResult = response.data
         this.selectedRun = { id: response.data && response.data.runId }
         await this.loadHistory({ mode: 'factor', force: true })
@@ -1441,7 +1510,7 @@ export default {
       this.historyDetailRunId = item.id
       try {
         const response = await getStrategyBacktestRun(item.id)
-        const run = response.data || {}
+        const run = /** @type {BacktestRun} */ (response.data || {})
         this.selectedRun = run
         this.result = run.result || null
         const assumptions = (run.result && run.result.executionAssumptions) || {}
@@ -1465,12 +1534,12 @@ export default {
         this.params = run.params || {}
         if (run.source_id && Number(this.form.sourceId) !== Number(run.source_id)) {
           this.form.sourceId = Number(run.source_id)
-          const detail = await getScriptSourceDetail(run.source_id)
+          const detail = /** @type {{ data?: Record<string, any> }} */ (await getScriptSourceDetail(run.source_id))
           this.source = detail.data
           this.sourceCategory = this.source && this.source.asset_type === 'portfolio_strategy'
             ? 'portfolio_strategy'
             : 'script'
-          const compiled = await compileScriptSource({ sourceId: run.source_id })
+          const compiled = /** @type {{ data?: ScriptCompilation }} */ (await compileScriptSource({ sourceId: run.source_id }))
           this.manifest = compiled.data && compiled.data.manifest
           this.backtestRangePolicy = compiled.data && compiled.data.backtestRangePolicy
         } else if (this.source) {
@@ -1492,7 +1561,7 @@ export default {
       this.historyDetailRunId = item.id
       try {
         const response = await getStrategyFactorResearchRun(item.id)
-        const run = response.data || {}
+        const run = /** @type {FactorResearchRun} */ (response.data || {})
         this.selectedRun = run
         this.factorResult = run.result || null
         this.factorForm = {
@@ -1508,9 +1577,9 @@ export default {
         if (run.end_date) this.form.endDate = moment(run.end_date)
         if (run.source_id && Number(this.form.sourceId) !== Number(run.source_id)) {
           this.form.sourceId = Number(run.source_id)
-          const detail = await getScriptSourceDetail(run.source_id)
+          const detail = /** @type {{ data?: Record<string, any> }} */ (await getScriptSourceDetail(run.source_id))
           this.source = detail.data
-          const compiled = await compileScriptSource({ sourceId: run.source_id })
+          const compiled = /** @type {{ data?: ScriptCompilation }} */ (await compileScriptSource({ sourceId: run.source_id }))
           this.manifest = compiled.data && compiled.data.manifest
           this.backtestRangePolicy = compiled.data && compiled.data.backtestRangePolicy
         }
@@ -1573,7 +1642,7 @@ export default {
       return Number(item.total_return) >= 0 ? 'positive' : 'negative'
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

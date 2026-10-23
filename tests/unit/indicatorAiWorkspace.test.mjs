@@ -149,7 +149,7 @@ test('top navigation uses a compact terminal-style hierarchy', () => {
 
 test('collapsed header actions retain accessible names', () => {
   assert.match(layoutViewSource, /class="top-admin-shortcut"[\s\S]*?:aria-label="topAdminTitle"/)
-  assert.match(rightContentSource, /<button[\s\S]*?:aria-label="\$t\('app\.setting\.tooltip'\)"[\s\S]*?@click="handleSettingClick"/)
+  assert.match(rightContentSource, /<button[\s\S]*?:aria-label="String\(\$t\('app\.setting\.tooltip'\)\)"[\s\S]*?@click="handleSettingClick"/)
 })
 
 test('notification bell uses one centered action box without nested header padding', () => {

@@ -660,11 +660,12 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { mapState } from 'vuex'
 import StrategyEditor from './components/StrategyEditor.vue'
 import FactorLibraryModal from './FactorLibraryModal.vue'
 import UniverseLibraryModal from './UniverseLibraryModal.vue'
-import ExecutorStrategies from '@/views/executor-strategies'
+import ExecutorStrategies from '@/views/executor-strategies/index.vue'
 import IndicatorMarketPicker from '@/views/indicator-ide/components/IndicatorMarketPicker.vue'
 import { resolveIndicatorStrategyContext } from '@/utils/indicatorStrategyContext'
 import { renderSafeMarkdown } from '@/utils/safeMarkdown'
@@ -708,7 +709,7 @@ const createDefaultRunConfig = () => ({
   leverage: 5
 })
 
-export default {
+export default Vue.extend({
   name: 'StrategyIde',
   components: {
     StrategyEditor,
@@ -1117,11 +1118,12 @@ export default {
       this.strategyMarketVisible = false
       await this.openSource(local.id, { updateRoute: true })
     },
-    syncRunConfigFromCode (code = this.scriptCode) {
+    syncRunConfigFromCode (code) {
+      const targetCode = code === undefined ? this.scriptCode : code
       if (this.currentAssetType !== 'script' || this.scriptCodeHidden) return
-      const inferred = extractStrategyRuntimeContractFromCode(code).config
+      const inferred = extractStrategyRuntimeContractFromCode(targetCode).config
       this.runConfig = {
-        ...sanitizeRuntimeConfigForSource(this.runConfig, code),
+        ...sanitizeRuntimeConfigForSource(this.runConfig, targetCode),
         ...inferred
       }
     },
@@ -1135,7 +1137,7 @@ export default {
       this.strategySymbolLoading = true
       try {
         const res = await getWatchlist()
-        const data = res && res.data
+        const data = /** @type {{ watchlist?: unknown[] } | unknown[] | null | undefined} */ (res && res.data)
         const list = Array.isArray(data) ? data : ((data && data.watchlist) || [])
         this.strategyWatchlistOptions = list
           .map(item => this.normalizeStrategySymbolOption(item, true))
@@ -1208,7 +1210,7 @@ export default {
           keyword: term,
           limit: 20
         })
-        const data = res && res.data
+        const data = /** @type {{ results?: unknown[], symbols?: unknown[], items?: unknown[] } | unknown[] | null | undefined} */ (res && res.data)
         const list = Array.isArray(data) ? data : ((data && (data.results || data.symbols || data.items)) || [])
         this.strategySymbolOptions = list.map(this.normalizeStrategySymbolOption).filter(Boolean)
         this.ensureCurrentSymbolOption()
@@ -1239,7 +1241,11 @@ export default {
       }
       this.applyRuntimeConfigPatch(patch)
     },
+    /**
+     * @param {{ field?: string, value?: unknown }} [payload]
+     */
     handleRuntimeConfigChange ({ field, value } = {}) {
+      /** @type {Record<string, string>} */
       const capabilityByField = {
         exchange_id: 'hasExchange',
         market_type: 'hasProduct',
@@ -1345,7 +1351,18 @@ export default {
       try {
         const res = await getStrategyAiWorkspace(id, { assetType: this.currentAssetType })
         if (token !== this.aiWorkspaceLoadToken || Number(this.currentSourceId || 0) !== id) return
-        const data = (res && res.data) || {}
+        const data = /** @type {{
+          thread?: Record<string, unknown> | null,
+          messages?: Array<Record<string, unknown>>,
+          candidate?: {
+            candidate_code?: string,
+            id?: number | string,
+            base_code_hash?: string,
+            base_code_matches_current?: boolean,
+            validation?: Record<string, unknown>,
+            summary?: Record<string, unknown>
+          } | null
+        }} */ ((res && res.data) || {})
         this.aiThread = data.thread || null
         this.aiMessages = Array.isArray(data.messages) ? data.messages : []
         const candidate = data.candidate
@@ -1435,7 +1452,17 @@ export default {
           generationMode: 'authoring',
           context: { source: 'strategy_ide' }
         })
-        const data = (res && res.data) || {}
+        const data = /** @type {{
+          billing?: { remaining_credits?: number | string } | null,
+          remaining_credits?: number | string,
+          assistant_message?: { message_type?: string, [key: string]: unknown } | null,
+          reply_type?: string,
+          code?: string,
+          change_id?: number | string,
+          base_code_hash?: string,
+          validation?: Record<string, unknown>,
+          summary?: Record<string, unknown>
+        }} */ ((res && res.data) || {})
         const billing = (data.billing && typeof data.billing === 'object') ? data.billing : data
         const remainingCredits = Number(billing.remaining_credits)
         if (Number.isFinite(remainingCredits)) this.$root.$emit('credits-updated', remainingCredits)
@@ -1501,7 +1528,8 @@ export default {
       }
       this.applyStrategyAiCandidateCode()
     },
-    strategyAiCandidateHasSourceConflict (candidate = this.aiCandidate) {
+    strategyAiCandidateHasSourceConflict (candidate) {
+      if (candidate === undefined) candidate = this.aiCandidate
       if (!candidate) return false
       const current = this.getCurrentScriptCode()
       return candidate.baseCodeMatchesCurrent === false ||
@@ -1798,11 +1826,15 @@ export default {
       this.scriptVerified = !!(metadata.lifecycle_verified || metadata.script_verified)
       this.lastSavedSnapshot = this.scriptSnapshot()
     },
-    createNewDraft ({ openTemplate = false, updateRoute = true, assetType = this.currentAssetType } = {}) {
+    /**
+     * @param {{ openTemplate?: boolean, updateRoute?: boolean, assetType?: string }} [payload]
+     */
+    createNewDraft ({ openTemplate = false, updateRoute = true, assetType } = {}) {
+      const nextAssetType = assetType === undefined ? this.currentAssetType : assetType
       this.currentSource = null
       this.currentSourceId = null
       this.selectedScriptId = undefined
-      this.currentAssetType = assetType === 'portfolio_strategy' ? 'portfolio_strategy' : 'script'
+      this.currentAssetType = nextAssetType === 'portfolio_strategy' ? 'portfolio_strategy' : 'script'
       this.scriptCode = EMPTY_DRAFT_CODE
       this.scriptCodeHidden = false
       this.scriptTemplateKey = ''
@@ -2163,7 +2195,7 @@ export default {
       }
       try {
         const res = await verifyStrategyCode({ code })
-        const verification = (res && res.data) || {}
+        const verification = /** @type {{ valid?: boolean, error?: string, marketplace_contract?: Record<string, unknown> }} */ ((res && res.data) || {})
         if (!(res && res.code === 1 && verification.valid)) {
           const reason = verification.error || (res && res.msg) || this.text.verifyFailed
           this.$message.error(this.text.verifyBlocked.replace('{reason}', reason))
@@ -2240,7 +2272,7 @@ export default {
       try {
         const res = await updateScriptSource(this.currentSourceId, this.buildHiddenParamPayload())
         if (res && res.code === 1) {
-          const saved = (res && res.data) || {}
+          const saved = /** @type {Record<string, unknown>} */ ((res && res.data) || {})
           const metadata = this.parseObject(saved.metadata || (this.currentSource && this.currentSource.metadata))
           this.currentSource = {
             ...(this.currentSource || {}),
@@ -2295,7 +2327,8 @@ export default {
       if (!id) return false
       try {
         const res = await getScriptSourcePublishReadiness(id)
-        return !!(res && res.code === 1 && res.data && res.data.ready)
+        const data = /** @type {{ ready?: boolean } | null | undefined} */ (res && res.data)
+        return !!(res && res.code === 1 && data && data.ready)
       } catch (_) {
         return false
       }
@@ -2344,7 +2377,8 @@ export default {
           codeHidden: !!this.publishForm.codeHidden
         })
         if (res && res.code === 1) {
-          const action = res.data && res.data.publication_action
+          const data = /** @type {{ publication_action?: string } | null | undefined} */ (res.data)
+          const action = data && data.publication_action
           this.$message.success(action === 'updated' ? this.text.publishUpdateSuccess : this.text.publishSuccess)
           this.showPublishModal = false
           this.publishBacktestStatus = 'idle'
@@ -2812,7 +2846,7 @@ export default {
       return date.toLocaleString()
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

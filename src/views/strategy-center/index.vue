@@ -42,12 +42,14 @@ import LiveStrategyEditor from './components/LiveStrategyEditor.vue'
 export default {
   name: 'StrategyCenter',
   components: { LiveOperationsTable, LiveStrategyEditor },
+  // Break TS circular data/methods inference so methods remain visible to the template checker.
+  /** @this {object} */
   data () {
     return {
       strategies: [],
       loading: false,
       loadError: false,
-      refreshedAt: '',
+      refreshedAt: /** @type {Date | string} */ (''),
       refreshTimer: null,
       controlLoadingId: null,
       editorOpen: false,
@@ -127,15 +129,16 @@ export default {
       try {
         const res = await startStrategy(strategy.id)
         if (res && res.code === 1) {
-          const status = String((res.data && res.data.status) || '')
+          const data = /** @type {{ status?: string }} */ (res.data || {})
+          const status = String(data.status || '')
           if (status === 'starting') {
-            this.$message.info(this.$t('strategyV2.startQueued'))
+            this.$message.info(String(this.$t('strategyV2.startQueued')))
           } else {
-            this.$message.success(this.$t('trading-assistant.messages.startSuccess'))
+            this.$message.success(String(this.$t('trading-assistant.messages.startSuccess')))
           }
           await this.loadStrategies()
         } else {
-          this.$message.error((res && res.msg) || this.$t('trading-assistant.messages.startFailed'))
+          this.$message.error(String((res && res.msg) || this.$t('trading-assistant.messages.startFailed')))
         }
       } catch (error) {
         this.$message.error(error.backendMessage || error.message || this.$t('trading-assistant.messages.startFailed'))
@@ -151,8 +154,9 @@ export default {
         const res = await stopStrategy(strategy.id, closePositions)
         const feedback = strategyStopFeedback(res, key => this.$t(key), closePositions)
         this.$message[feedback.level](feedback.message)
-        const commandId = Number(res && res.data && res.data.command_id)
-        if (res && res.data && res.data.status === 'stopping' && commandId > 0) {
+        const data = /** @type {{ status?: string, command_id?: number | string }} */ (res.data || {})
+        const commandId = Number(data.command_id)
+        if (data.status === 'stopping' && commandId > 0) {
           this.trackStopCommand(strategy.id, commandId, closePositions)
         }
       } catch (error) {
@@ -239,7 +243,7 @@ export default {
       if (!savedId) return
       await this.$nextTick()
       const savedStrategy = this.strategies.find(item => Number(item.id) === savedId)
-      const operationsTable = this.$refs.operationsTable
+      const operationsTable = /** @type {{ selectStrategy?: (strategy: object) => void } | null} */ (this.$refs.operationsTable)
       if (savedStrategy && operationsTable && typeof operationsTable.selectStrategy === 'function') {
         operationsTable.selectStrategy(savedStrategy)
       }
@@ -259,7 +263,7 @@ export default {
       try {
         const res = await deleteStrategy(strategy.id)
         if (res && res.code === 1) {
-          this.$message.success(this.$t('trading-assistant.messages.deleteSuccess'))
+          this.$message.success(String(this.$t('trading-assistant.messages.deleteSuccess')))
           await this.loadStrategies()
         } else {
           this.$message.error(this.localizedBackendMessage(res && res.msg, 'trading-assistant.messages.deleteFailed'))

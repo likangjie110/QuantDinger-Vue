@@ -58,6 +58,8 @@
 </template>
 
 <script>
+import Vue from 'vue'
+
 const PRESETS = {
   twsLive: { host: '127.0.0.1', port: 7496 },
   twsPaper: { host: '127.0.0.1', port: 7497 },
@@ -65,7 +67,7 @@ const PRESETS = {
   gatewayPaper: { host: '127.0.0.1', port: 4002 }
 }
 
-export default {
+export default Vue.extend({
   name: 'IbkrConnectForm',
   props: {
     broker: { type: Object, required: true },
@@ -106,7 +108,7 @@ export default {
       })
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

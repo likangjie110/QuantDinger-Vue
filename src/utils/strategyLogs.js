@@ -18,6 +18,7 @@ export const strategyLogLevelKey = level => {
   return `trading-assistant.logs.level.${normalized}`
 }
 
+/** @type {ReadonlyArray<readonly [string, RegExp]>} */
 const EXCHANGE_ERROR_RULES = Object.freeze([
   ['credentials', /(?:http\s+401|(?:code|retcode|scode|error(?:\s+code)?)['" :=-]*(?:-1002|-1022|-2014|-2015|10003|10004|10005|10007|10010|33004|50103|50104|50105|50106|40018)\b|invalid api-?key|api key (?:is invalid|has expired)|permission denied|invalid signature|unmatched ip|ip (?:is )?not whitelisted|unauthorized)/i],
   ['clock_skew', /(?:(?:code|retcode|scode|error(?:\s+code)?)['" :=-]*(?:-1021|10002|50102)\b|invalid timestamp|outside of the recvwindow|timestamp request expired)/i],

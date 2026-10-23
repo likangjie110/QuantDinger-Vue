@@ -28,6 +28,15 @@ const DEFAULT_POLICY = {
   live_market_categories: ['Crypto', 'Forex', 'USStock']
 }
 
+/**
+ * Partial payload returned by /api/policy/broker-market.
+ * @typedef {Object} BrokerMarketPolicyPayload
+ * @property {Record<string, Record<string, string[]>>} [broker_markets]
+ * @property {string[]} [long_only_brokers]
+ * @property {Record<string, string[]>} [bot_type_markets]
+ * @property {string[]} [live_market_categories]
+ */
+
 const STORAGE_KEY = 'quantdinger.broker-market-policy.v1'
 
 function readCachedPolicy () {
@@ -77,18 +86,19 @@ const policy = {
       try {
         const res = await getBrokerMarketPolicy()
         if (res && res.code === 1 && res.data) {
+          const data = /** @type {BrokerMarketPolicyPayload} */ (res.data)
           // Shallow merge over defaults so a partial backend response still
           // produces a usable object.
           const merged = {
             ...DEFAULT_POLICY,
-            ...res.data,
+            ...data,
             broker_markets: {
               ...DEFAULT_POLICY.broker_markets,
-              ...(res.data.broker_markets || {})
+              ...(data.broker_markets || {})
             },
             bot_type_markets: {
               ...DEFAULT_POLICY.bot_type_markets,
-              ...(res.data.bot_type_markets || {})
+              ...(data.bot_type_markets || {})
             }
           }
           commit('SET_POLICY_CONFIG', merged)

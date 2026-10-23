@@ -72,7 +72,9 @@
 </template>
 
 <script>
-export default {
+import Vue from 'vue'
+
+export default Vue.extend({
   name: 'CommentList',
   props: {
     comments: {
@@ -174,7 +176,7 @@ export default {
       if (!dateStr) return ''
       const date = new Date(dateStr)
       const now = new Date()
-      const diff = now - date
+      const diff = now.getTime() - date.getTime()
 
       if (diff < 60000) {
         return this.$t('community.justNow')
@@ -194,7 +196,7 @@ export default {
       return date.toLocaleDateString()
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

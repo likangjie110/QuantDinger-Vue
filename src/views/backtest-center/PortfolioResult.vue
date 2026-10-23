@@ -296,6 +296,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import * as echarts from 'echarts'
 import moment from 'moment'
 import KlineChart from '@/views/indicator-analysis/components/KlineChart.vue'
@@ -310,7 +311,24 @@ import {
 import { timestampMillisecondsUtc } from '@/utils/utcInstant'
 import { formatBacktestTime } from '@/utils/userTime'
 
-export default {
+/**
+ * @typedef {Object} ReviewChartInstance
+ * @property {() => Array<Record<string, any>>} [getDataList]
+ * @property {() => { width?: number }} [getSize]
+ * @property {(barSpace: number) => void} [setBarSpace]
+ * @property {(index: number, distance: number) => void} [scrollToDataIndex]
+ * @property {(distance: number, offset: number) => void} [scrollByDistance]
+ * @property {(timestamp: number, offset: number) => void} [scrollToTimestamp]
+ */
+
+/**
+ * @typedef {Object} ReviewChartHandle
+ * @property {() => ReviewChartInstance | null} getChartInstance
+ * @property {() => void} clearBacktestOverlays
+ * @property {(overlay: Record<string, any>) => void} addBacktestOverlay
+ */
+
+export default Vue.extend({
   name: 'PortfolioResult',
   components: { KlineChart },
   props: {
@@ -660,7 +678,7 @@ export default {
       return [
         { title: this.$t('strategyV2.backtest.time'), dataIndex: 'eventTime', width: 165, customRender: this.formatDate },
         { title: this.$t('backtest-center.symbol'), dataIndex: 'symbol', width: 165 },
-        { title: this.$t('strategyV2.backtest.orderStatusLabel'), dataIndex: 'status', width: 90, customRender: value => this.$createElement('a-tag', { props: { color: this.statusColor(value) } }, this.$t(`strategyV2.backtest.orderStatus.${value}`)) },
+        { title: this.$t('strategyV2.backtest.orderStatusLabel'), dataIndex: 'status', width: 90, customRender: value => this.$createElement('a-tag', { props: { color: this.statusColor(value) } }, String(this.$t(`strategyV2.backtest.orderStatus.${value}`))) },
         { title: this.$t('strategyV2.backtest.statusReason'), dataIndex: 'statusReason', width: 180, customRender: this.formatStatusReason },
         { title: this.$t('strategyV2.backtest.requestedQuantity'), dataIndex: 'requestedQuantity', customRender: value => this.formatNumber(value, 6) },
         { title: this.$t('strategyV2.backtest.filledQuantity'), dataIndex: 'filledQuantity', customRender: value => this.formatNumber(value, 6) },
@@ -690,12 +708,13 @@ export default {
     },
     renderChart () {
       const curve = this.result.equityCurve || []
-      if (!this.$refs.chart || !curve.length) return
+      const chartEl = this.$refs.chart
+      if (!(chartEl instanceof HTMLElement) || !curve.length) return
       if (!this.chart) {
-        this.chart = echarts.init(this.$refs.chart)
+        this.chart = echarts.init(chartEl)
         if (typeof ResizeObserver !== 'undefined') {
           this.resizeObserver = new ResizeObserver(this.resizeChart)
-          this.resizeObserver.observe(this.$refs.chart)
+          this.resizeObserver.observe(chartEl)
         }
       }
       const firstValue = Number(curve[0].value || 0)
@@ -734,7 +753,7 @@ export default {
       const drawdownName = this.$t('strategyV2.backtest.drawdown')
       const longExposureName = this.$t('strategyV2.backtest.longExposure')
       const shortExposureName = this.$t('strategyV2.backtest.shortExposure')
-      const cashName = this.$t('strategyV2.backtest.ledgerCash')
+      const cashName = String(this.$t('strategyV2.backtest.ledgerCash'))
       const percentageSeries = new Set([drawdownName, longExposureName, shortExposureName])
       const formatTooltipValue = item => {
         const rawValue = Array.isArray(item.value) ? item.value[1] : item.value
@@ -801,7 +820,7 @@ export default {
     renderReviewMarkers () {
       if (this.reviewMarkerTimer) clearTimeout(this.reviewMarkerTimer)
       this.reviewMarkerTimer = setTimeout(() => {
-        const component = this.$refs.reviewChart
+        const component = /** @type {ReviewChartHandle|undefined} */ (this.$refs.reviewChart)
         const chart = component && component.getChartInstance ? component.getChartInstance() : null
         const entryTime = this.reviewWindow.entryTime
         const exitTime = this.reviewWindow.exitTime
@@ -889,7 +908,7 @@ export default {
     signedPercentCell (value) { return this.$createElement('span', { class: this.profitTone(value) }, this.formatPercent(Number(value || 0) * 100)) },
     statusColor (value) { return { filled: 'green', partial: 'orange', deferred: 'blue', rejected: 'red' }[value] || 'default' }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

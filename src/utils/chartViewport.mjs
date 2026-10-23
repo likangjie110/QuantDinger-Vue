@@ -28,7 +28,7 @@ export function captureChartViewport (chart, options = {}) {
     ? options
     : Number(options.indexTolerance ?? 1)
   const defaultRightOffsetDistance = typeof options === 'object'
-    ? Number(options.defaultRightOffsetDistance ?? 64)
+    ? Number(/** @type {{ defaultRightOffsetDistance?: number }} */ (options).defaultRightOffsetDistance ?? 64)
     : 64
 
   const rows = chart.getDataList()

@@ -209,9 +209,10 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { createUniverse, deleteUniverse, getUniverseMembers, getUniverses, replaceUniverseMembers } from '@/api/universe'
 
-export default {
+export default Vue.extend({
   name: 'UniverseLibraryModal',
   props: {
     visible: { type: Boolean, default: false },
@@ -304,7 +305,8 @@ export default {
       if (!this.visible || !this.loaded) return
       this.$nextTick(() => this.ensureSelection())
     },
-    async ensureSelection (force = false, preferredId = this.selectedUniverseId) {
+    async ensureSelection (force = false, preferredId) {
+      if (preferredId === undefined) preferredId = this.selectedUniverseId
       const selectedId = this.selected && this.selected.id
       const preferred = this.filteredUniverses.find(item => Number(item.id) === Number(preferredId)) ||
         this.filteredUniverses.find(item => Number(item.id) === Number(selectedId)) ||
@@ -485,7 +487,7 @@ export default {
       }
     }
   }
-}
+})
 </script>
 
 <style lang="less">

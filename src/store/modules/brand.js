@@ -50,6 +50,19 @@ const DEFAULT_BRAND = {
   }
 }
 
+/**
+ * Partial payload returned by /api/settings/brand-config.
+ * @typedef {Object} BrandConfigPayload
+ * @property {string} [app_name]
+ * @property {string} [app_version]
+ * @property {string} [copyright]
+ * @property {Record<string, string>} [logos]
+ * @property {Record<string, string>} [contact]
+ * @property {Record<string, string>} [legal]
+ * @property {Record<string, string>} [mobile_app]
+ * @property {Array<Record<string, string>>} [social_accounts]
+ */
+
 const STORAGE_KEY = 'quantdinger.brand-config.v1'
 
 function readCachedBrand () {
@@ -141,16 +154,17 @@ const brand = {
       try {
         const res = await getBrandConfig()
         if (res && res.code === 1 && res.data) {
+          const data = /** @type {BrandConfigPayload} */ (res.data)
           // Shallow-merge over defaults so a partial response still works.
           const merged = {
             ...DEFAULT_BRAND,
-            ...res.data,
-            logos: { ...DEFAULT_BRAND.logos, ...(res.data.logos || {}) },
-            contact: { ...DEFAULT_BRAND.contact, ...(res.data.contact || {}) },
-            legal: { ...DEFAULT_BRAND.legal, ...(res.data.legal || {}) },
-            mobile_app: { ...DEFAULT_BRAND.mobile_app, ...(res.data.mobile_app || {}) },
-            social_accounts: Array.isArray(res.data.social_accounts) && res.data.social_accounts.length > 0
-              ? res.data.social_accounts
+            ...data,
+            logos: { ...DEFAULT_BRAND.logos, ...(data.logos || {}) },
+            contact: { ...DEFAULT_BRAND.contact, ...(data.contact || {}) },
+            legal: { ...DEFAULT_BRAND.legal, ...(data.legal || {}) },
+            mobile_app: { ...DEFAULT_BRAND.mobile_app, ...(data.mobile_app || {}) },
+            social_accounts: Array.isArray(data.social_accounts) && data.social_accounts.length > 0
+              ? data.social_accounts
               : DEFAULT_BRAND.social_accounts
           }
           commit('SET_BRAND_CONFIG', merged)

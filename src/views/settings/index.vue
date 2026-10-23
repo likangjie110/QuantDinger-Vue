@@ -879,6 +879,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { getSettingsSchema, getSettingsValues, saveSettings, getOpenRouterBalance, getMarketCatalogOverview, syncMarketCatalog } from '@/api/settings'
 import { getMarketModules } from '@/api/marketModules'
 import { getSystemUniverseOverview, syncSystemUniverses } from '@/api/universe'
@@ -886,7 +887,7 @@ import { deleteAdminMembershipPlan, getAdminMembershipPlans, saveAdminMembership
 import { baseMixin } from '@/store/app-mixin'
 import FundamentalSyncPanel from './FundamentalSyncPanel.vue'
 
-export default {
+export default Vue.extend({
   name: 'Settings',
   components: { FundamentalSyncPanel },
   mixins: [baseMixin],
@@ -988,6 +989,7 @@ export default {
         sections.push({
           key: 'other',
           title: this.tOr('settings.nav.operations', 'Operations'),
+          keys: [],
           groups: remaining
         })
       }
@@ -1198,7 +1200,8 @@ export default {
     }
   },
   beforeCreate () {
-    this.form = this.$form.createForm(this)
+    const vm = /** @type {Vue & { form: import('ant-design-vue/types/form/form').WrappedFormUtils }} */ (this)
+    vm.form = this.$form.createForm(this)
   },
   mounted () {
     this.loadSettings()
@@ -1381,8 +1384,9 @@ export default {
       try {
         const res = await getSystemUniverseOverview()
         if (res.code === 1) {
-          this.universeOverview = res.data
-          if (!this.selectedUniverseCodes.length) this.selectedUniverseCodes = [...(res.data.syncable_codes || [])]
+          const data = /** @type {{ syncable_codes?: string[] }} */ (res.data || {})
+          this.universeOverview = data
+          if (!this.selectedUniverseCodes.length) this.selectedUniverseCodes = [...(data.syncable_codes || [])]
         }
       } finally {
         this.universeLoading = false
@@ -2068,12 +2072,13 @@ export default {
               ? this.$t(res.msg)
               : res.msg
             this.$message.success(responseMessage || this.$t('settings.saveSuccess'))
-            if (res.data && res.data.requires_restart) {
+            const payload = /** @type {{ requires_restart?: boolean, updated_keys?: string[] }} */ (res.data || {})
+            if (payload.requires_restart) {
               this.showRestartTip = true
             }
             this.loadSettings()
             const featureKeys = ['BILLING_ENABLED', 'MARKETPLACE_ENABLED', 'ENABLE_REGISTRATION']
-            const updatedKeys = (res.data && res.data.updated_keys) || []
+            const updatedKeys = payload.updated_keys || []
             if (updatedKeys.some(key => featureKeys.includes(key))) {
               await this.$store.dispatch('LoadFeatureConfig', { force: true }).catch(() => {})
               window.setTimeout(() => window.location.reload(), 250)
@@ -2093,7 +2098,7 @@ export default {
       })
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

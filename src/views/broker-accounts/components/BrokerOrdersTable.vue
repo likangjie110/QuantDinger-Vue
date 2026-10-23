@@ -53,11 +53,12 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { broker } from '@/api/broker'
 import { brokerOrderStatusColor, brokerOrderCanCancel } from '@/utils/brokerOrderStatus'
 import { firstValue, brokerPrice, brokerQuantity, brokerTime } from '@/utils/brokerAccountDisplay'
 
-export default {
+export default Vue.extend({
   name: 'BrokerOrdersTable',
   props: {
     brokerId: { type: String, required: true },
@@ -115,7 +116,7 @@ export default {
         this.rows = list || []
       } catch (_) {
         this.rows = []
-        this.$message.error(this.$t('brokerAccounts.ordersLoadFailed'))
+        this.$message.error(String(this.$t('brokerAccounts.ordersLoadFailed')))
       } finally {
         this.loading = false
       }
@@ -126,16 +127,16 @@ export default {
       try {
         const res = await broker[this.brokerId].cancelOrder(record.id, this.credentialId ? { credential_id: this.credentialId } : {})
         if (!(res && (res.success || (res.data && res.data.success)))) throw new Error('brokerAccounts.cancelFailed')
-        this.$message.success(this.$t('brokerAccounts.cancelRequested'))
+        this.$message.success(String(this.$t('brokerAccounts.cancelRequested')))
       } catch (_) {
-        this.$message.error(this.$t('brokerAccounts.cancelFailed'))
+        this.$message.error(String(this.$t('brokerAccounts.cancelFailed')))
       } finally {
         await this.load()
         this.cancellingId = null
       }
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

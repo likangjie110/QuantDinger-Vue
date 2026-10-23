@@ -32,7 +32,7 @@
             />
           </div>
         </div>
-        <nav class="master-tabs" :aria-label="$t('strategyCenter.console.filterLabel')">
+        <nav class="master-tabs" :aria-label="String($t('strategyCenter.console.filterLabel'))">
           <button
             v-for="tab in statusTabs"
             :key="tab.key"
@@ -178,7 +178,7 @@
           </div>
         </header>
 
-        <div class="runtime-status-bar" :aria-label="$t('strategyCenter.console.runtimeStatus')">
+        <div class="runtime-status-bar" :aria-label="String($t('strategyCenter.console.runtimeStatus'))">
           <span>
             {{ $t('liveMonitor.health') }}
             <strong :class="healthClass(selectedStrategy)">{{ healthLabel(selectedStrategy) }}</strong>
@@ -215,7 +215,7 @@
               <small>{{ financialMetricSuffix }}</small>
             </div>
             <div>
-              <span :title="$t('strategyCenter.console.currentExposureHint')">{{ $t('strategyCenter.console.currentExposure') }}</span>
+              <span :title="String($t('strategyCenter.console.currentExposureHint'))">{{ $t('strategyCenter.console.currentExposure') }}</span>
               <strong>{{ formatLiveMoney(performanceSummary.grossExposure) }}</strong>
               <small>{{ financialMetricSuffix }}</small>
             </div>
@@ -238,7 +238,7 @@
               <strong :class="hasFinancialLedger ? pnlClass(strategyPnl(selectedStrategy)) : ''">{{ formatLivePnl(strategyPnl(selectedStrategy)) }}</strong>
               <small
                 v-if="hasFinancialLedger && selectedStrategy.today_pnl_estimated"
-                :title="$t('strategyCenter.console.todayPnlEstimatedHint')"
+                :title="String($t('strategyCenter.console.todayPnlEstimatedHint'))"
               >{{ $t('strategyCenter.console.todayPnlEstimated') }}</small>
             </div>
             <div>
@@ -369,6 +369,8 @@ export default {
     initialStrategyId: { type: Number, default: 0 },
     controlLoadingId: { type: [Number, String], default: null }
   },
+  // Break TS circular data/methods inference so methods remain visible to the template checker.
+  /** @this {object} */
   data () {
     return {
       selectedId: null,
@@ -438,11 +440,9 @@ export default {
       return this.curve.filter(item => Number.isFinite(Number(item && (item.equity != null ? item.equity : item.value)))).length >= 2
     },
     performanceSummary () {
+      const payload = { strategy: this.selectedStrategy, curve: this.curve }
       return {
-        ...summarizeStrategyPerformance({
-          strategy: this.selectedStrategy,
-          curve: this.curve
-        }),
+        ...summarizeStrategyPerformance(payload),
         grossExposure: Number(this.health(this.selectedStrategy).gross_exposure || 0)
       }
     },
@@ -555,7 +555,7 @@ export default {
     },
     renderChart () {
       const el = this.$refs.equityChart
-      if (!el || !this.hasEquitySeries) {
+      if (!(el instanceof HTMLElement) || !this.hasEquitySeries) {
         if (this.chart) this.chart.clear()
         return
       }

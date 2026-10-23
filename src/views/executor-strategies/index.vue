@@ -764,6 +764,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { mapState } from 'vuex'
 import {
   createExecutorStrategy,
@@ -775,7 +776,102 @@ import { listExchangeCredentials } from '@/api/credentials'
 import { getWatchlist } from '@/api/market'
 import { getExchangeDisplayName, isCryptoExchangeCredential } from '@/utils/exchangeCredential'
 
-export default {
+/**
+ * @typedef {Object} ExecutorTemplate
+ * @property {string} [executor_type]
+ * @property {Record<string, any>} [defaults]
+ */
+
+/**
+ * @typedef {Object} ExecutorPreview
+ * @property {string} [executor_type]
+ * @property {Record<string, any>} [summary]
+ * @property {Array<Record<string, any>>} [levels]
+ * @property {string[]} [warnings]
+ * @property {Array<Record<string, any>>} [risk_diagnostics]
+ * @property {Record<string, any>} [config]
+ */
+
+/**
+ * @typedef {Object} ExecutorCredential
+ * @property {number|string} [id]
+ * @property {string} [exchange_id]
+ * @property {string} [name]
+ * @property {string} [api_key_hint]
+ */
+
+/**
+ * @typedef {Object} WatchlistRow
+ * @property {string} [market]
+ * @property {string} [symbol]
+ * @property {string} [name]
+ */
+
+/**
+ * @typedef {Object} ExecutorTemplatesPayload
+ * @property {ExecutorTemplate[]} [items]
+ * @property {Record<string, any>} [compatibility]
+ * @property {{ items?: ExecutorTemplate[], compatibility?: Record<string, any> }} [data]
+ */
+
+// Defined outside the component so data() does not depend on the methods map.
+function defaultForm () {
+  return {
+    executor_type: 'grid',
+    strategy_name: '',
+    credential_id: undefined,
+    symbol: 'BTC/USDT',
+    timeframe: '1m',
+    side: 'long',
+    market_type: 'swap',
+    execution_mode: 'live',
+    dynamic_anchor: true,
+    start_price: 0.98,
+    end_price: 1.02,
+    limit_price: 0.97,
+    grid_count: 8,
+    max_open_orders: 4,
+    grid_mode: 'arithmetic',
+    total_amount_quote: 8,
+    initial_position_pct: 0.6,
+    min_spread_between_orders: 0.0005,
+    entry_price: 1,
+    dca_interval_minutes: 1440,
+    dca_max_orders: 5,
+    dca_total_budget_pct: 1,
+    dca_price_filter_enabled: false,
+    dca_max_adverse_price_pct: 0.05,
+    base_order_size: 1,
+    safety_order_size: 1.2,
+    max_layers: 5,
+    layer_count: 5,
+    orders_per_layer: 3,
+    price_deviation_pct: 0.015,
+    intra_spacing_1_pct: 0.005,
+    intra_spacing_2_pct: 0.008,
+    inter_spacing_1_pct: 0.012,
+    inter_spacing_2_pct: 0.015,
+    inter_spacing_3_pct: 0.018,
+    inter_spacing_4_pct: 0.022,
+    step_multiplier: 1.2,
+    volume_multiplier: 1.15,
+    take_profit_pct: 0,
+    trailing_take_profit_enabled: true,
+    trailing_activation_pct: 0.006,
+    trailing_callback_pct: 0.002,
+    hard_stop_pct: 0.12,
+    equity_take_profit_pct: 0.10,
+    equity_stop_loss_pct: 0.06,
+    equity_trailing_enabled: true,
+    equity_trailing_activation_pct: 0.05,
+    equity_trailing_callback_pct: 0.03,
+    restart_after_stop: false,
+    final_level_uses_remaining_budget: true,
+    max_entry_drift_pct: 0.03
+  }
+}
+
+export default Vue.extend({
   name: 'ExecutorStrategies',
   props: {
     embedded: { type: Boolean, default: false }
@@ -788,13 +884,13 @@ export default {
       previewing: false,
       previewRequestId: 0,
       creating: false,
-      templates: [],
-      compatibility: {},
-      credentials: [],
-      watchlist: [],
-      preview: {},
+      templates: /** @type {ExecutorTemplate[]} */ ([]),
+      compatibility: /** @type {Record<string, any>} */ ({}),
+      credentials: /** @type {ExecutorCredential[]} */ ([]),
+      watchlist: /** @type {WatchlistRow[]} */ ([]),
+      preview: /** @type {ExecutorPreview} */ ({}),
       advancedKeys: this.embedded ? [] : ['advanced'],
-      form: this.defaultForm()
+      form: defaultForm()
     }
   },
   computed: {
@@ -1101,68 +1197,13 @@ export default {
     t (key, params) {
       return this.$t(key, params)
     },
-    defaultForm () {
-      return {
-        executor_type: 'grid',
-        strategy_name: '',
-        credential_id: undefined,
-        symbol: 'BTC/USDT',
-        timeframe: '1m',
-        side: 'long',
-        market_type: 'swap',
-        execution_mode: 'live',
-        dynamic_anchor: true,
-        start_price: 0.98,
-        end_price: 1.02,
-        limit_price: 0.97,
-        grid_count: 8,
-        max_open_orders: 4,
-        grid_mode: 'arithmetic',
-        total_amount_quote: 8,
-        initial_position_pct: 0.6,
-        min_spread_between_orders: 0.0005,
-        entry_price: 1,
-        dca_interval_minutes: 1440,
-        dca_max_orders: 5,
-        dca_total_budget_pct: 1,
-        dca_price_filter_enabled: false,
-        dca_max_adverse_price_pct: 0.05,
-        base_order_size: 1,
-        safety_order_size: 1.2,
-        max_layers: 5,
-        layer_count: 5,
-        orders_per_layer: 3,
-        price_deviation_pct: 0.015,
-        intra_spacing_1_pct: 0.005,
-        intra_spacing_2_pct: 0.008,
-        inter_spacing_1_pct: 0.012,
-        inter_spacing_2_pct: 0.015,
-        inter_spacing_3_pct: 0.018,
-        inter_spacing_4_pct: 0.022,
-        step_multiplier: 1.2,
-        volume_multiplier: 1.15,
-        take_profit_pct: 0,
-        trailing_take_profit_enabled: true,
-        trailing_activation_pct: 0.006,
-        trailing_callback_pct: 0.002,
-        hard_stop_pct: 0.12,
-        equity_take_profit_pct: 0.10,
-        equity_stop_loss_pct: 0.06,
-        equity_trailing_enabled: true,
-        equity_trailing_activation_pct: 0.05,
-        equity_trailing_callback_pct: 0.03,
-        restart_after_stop: false,
-        final_level_uses_remaining_budget: true,
-        max_entry_drift_pct: 0.03
-      }
-    },
     async loadTemplates () {
       this.loadingTemplates = true
       try {
         const res = await getExecutorTemplates()
-        const data = res && (res.data || res)
-        this.templates = ((data && data.items) || (data && data.data && data.data.items) || [])
-        this.compatibility = (data && data.compatibility) || (data && data.data && data.data.compatibility) || {}
+        const data = /** @type {ExecutorTemplatesPayload} */ (res.data || res)
+        this.templates = data.items || (data.data && data.data.items) || []
+        this.compatibility = data.compatibility || (data.data && data.data.compatibility) || {}
       } finally {
         this.loadingTemplates = false
       }
@@ -1171,7 +1212,8 @@ export default {
       this.loadingCredentials = true
       try {
         const res = await listExchangeCredentials()
-        this.credentials = res && res.code === 1 && res.data ? (res.data.items || []) : []
+        const data = /** @type {{ items?: ExecutorCredential[] }} */ (res && res.data ? res.data : {})
+        this.credentials = res && res.code === 1 && res.data ? (data.items || []) : []
       } catch (error) {
         this.credentials = []
       } finally {
@@ -1304,7 +1346,7 @@ export default {
       this.previewing = true
       try {
         const res = await previewExecutorStrategy(this.payload())
-        const body = res && (res.data || res)
+        const body = /** @type {ExecutorPreview & { data?: ExecutorPreview }} */ (res && (res.data || res))
         if (requestId !== this.previewRequestId) return
         this.preview = body && body.data ? body.data : body
       } catch (err) {
@@ -1327,7 +1369,7 @@ export default {
             execution_mode: 'signal',
             exchange_config: {}
           })
-          const body = res && (res.data || res)
+          const body = /** @type {{ code?: string, msg?: string, data?: { code?: string, msg?: string } }} */ (res && (res.data || res))
           const generated = body && body.data ? body.data : body
           if (!generated || !generated.code) {
             throw new Error((body && body.msg) || this.t('executorStrategies.createFailed'))
@@ -1336,7 +1378,7 @@ export default {
           return
         }
         const res = await createExecutorStrategy(this.payload())
-        const body = res && (res.data || res)
+        const body = /** @type {{ code?: number|string, msg?: string, id?: number|string }} */ (res && (res.data || res))
         if (body && Number(body.code) === 0) {
           throw new Error(body.msg || this.t('executorStrategies.createFailed'))
         }
@@ -1414,7 +1456,7 @@ export default {
       })
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

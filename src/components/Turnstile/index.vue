@@ -11,8 +11,21 @@
 <script>
 let turnstileScriptPromise = null
 
+/**
+ * @typedef {Object} TurnstileApi
+ * @property {(el: Element | string, options: Record<string, unknown>) => string} render
+ * @property {(widgetId: string) => void} execute
+ * @property {(widgetId: string) => void} reset
+ * @property {(widgetId: string) => void} remove
+ */
+
+function getTurnstileApi () {
+  return /** @type {Window & { turnstile?: TurnstileApi }} */ (window).turnstile
+}
+
 function hasTurnstileApi () {
-  return Boolean(window.turnstile && typeof window.turnstile.render === 'function')
+  const api = getTurnstileApi()
+  return Boolean(api && typeof api.render === 'function')
 }
 
 function loadTurnstileScript () {
@@ -20,6 +33,7 @@ function loadTurnstileScript () {
   if (turnstileScriptPromise) return turnstileScriptPromise
 
   turnstileScriptPromise = new Promise((resolve, reject) => {
+    /** @type {HTMLScriptElement | null} */
     let script = document.querySelector('script[data-quantdinger-turnstile]')
     let settled = false
     let pollTimer = null
@@ -175,10 +189,11 @@ export default {
     },
 
     renderWidget () {
-      if (!hasTurnstileApi()) throw new Error('turnstile_api_unavailable')
+      const api = getTurnstileApi()
+      if (!api) throw new Error('turnstile_api_unavailable')
       if (!this.$refs.turnstileRef) throw new Error('turnstile_container_unavailable')
 
-      this.widgetId = window.turnstile.render(this.$refs.turnstileRef, {
+      this.widgetId = api.render(/** @type {Element} */ (this.$refs.turnstileRef), {
         sitekey: this.siteKey,
         theme: this.theme,
         size: this.size,
@@ -247,7 +262,8 @@ export default {
       this.token = null
       this.error = null
       await this.initTurnstile()
-      if (!hasTurnstileApi() || this.widgetId === null) {
+      const api = getTurnstileApi()
+      if (!api || this.widgetId === null) {
         throw new Error('turnstile_unavailable')
       }
       return new Promise((resolve, reject) => {
@@ -262,7 +278,7 @@ export default {
         }, Math.max(5000, this.executeTimeoutMs))
         try {
           if (this.execution === 'execute') {
-            window.turnstile.execute(this.widgetId)
+            api.execute(this.widgetId)
           } else if (this.token) {
             resolve(this.token)
             this.clearPending()
@@ -283,8 +299,9 @@ export default {
         this.pendingReject(new Error('reset'))
         this.clearPending()
       }
-      if (window.turnstile && this.widgetId !== null) {
-        window.turnstile.reset(this.widgetId)
+      const api = getTurnstileApi()
+      if (api && this.widgetId !== null) {
+        api.reset(this.widgetId)
       } else {
         this.renderWidget()
       }
@@ -295,9 +312,10 @@ export default {
     },
 
     cleanup () {
-      if (window.turnstile && this.widgetId !== null) {
+      const api = getTurnstileApi()
+      if (api && this.widgetId !== null) {
         try {
-          window.turnstile.remove(this.widgetId)
+          api.remove(this.widgetId)
         } catch (e) {
           // Ignore cleanup errors
         }

@@ -106,6 +106,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import moment from 'moment'
 import { getUniverseFundamentals, syncUniverseFundamentals, scheduleUniverseFundamentals } from '@/api/factor'
 
@@ -122,7 +123,7 @@ function defaultAsOf (mode) {
   return value
 }
 
-export default {
+export default Vue.extend({
   name: 'FundamentalSyncPanel',
   props: { dark: { type: Boolean, default: false }, universes: { type: Array, default: () => [] } },
   data () {
@@ -247,7 +248,7 @@ export default {
       } catch (err) { this.error = this.$t((err.response && err.response.data && err.response.data.msg) || err.message || 'fundamentalSync.loadFailed') } finally { this.saving = false }
     }
   }
-}
+})
 </script>
 
 <style scoped lang="less">

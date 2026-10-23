@@ -7,7 +7,7 @@
       <button
         type="button"
         :class="[prefixCls, `${prefixCls}--icon-button`]"
-        :aria-label="$t('app.setting.tooltip')"
+        :aria-label="String($t('app.setting.tooltip'))"
         @click="handleSettingClick"
       >
         <a-icon type="setting" style="font-size: 16px;" />
@@ -17,7 +17,7 @@
 </template>
 
 <script>
-import AvatarDropdown from './AvatarDropdown'
+import AvatarDropdown from './AvatarDropdown.vue'
 import SelectLang from '@/components/SelectLang'
 import NoticeIcon from '@/components/NoticeIcon'
 import { mapGetters } from 'vuex'
@@ -47,11 +47,9 @@ export default {
       required: true
     }
   },
-  data () {
-    return {
-      apiBase: 'https://api.quantdinger.com/'
-    }
-  },
+  data: () => ({
+    apiBase: 'https://api.quantdinger.com/'
+  }),
   methods: {
     handleSettingClick () {
       this.$root.$emit('show-setting-drawer')

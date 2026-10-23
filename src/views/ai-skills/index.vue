@@ -147,9 +147,10 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { getAiSkills, getAiTools, installAiSkill, updateAiSkill, deleteAiSkill } from '@/api/market'
 
-export default {
+export default Vue.extend({
   name: 'AiSkills',
   data () {
     return {
@@ -356,7 +357,7 @@ export default {
       }
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

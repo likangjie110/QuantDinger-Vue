@@ -390,7 +390,6 @@
 
 <script>
 import { compileScriptSource, createStrategy, getScriptSourceDetail, getScriptSourceList, getStrategyDetail, updateScriptSource, updateStrategy } from '@/api/strategy'
-import { mapState } from 'vuex'
 import { listExchangeCredentials } from '@/api/credentials'
 import { getWatchlist, searchSymbols } from '@/api/market'
 import { getNotificationSettings } from '@/api/user'
@@ -489,6 +488,18 @@ const notificationTargets = settings => ({
   webhook_token: settings.webhook_token || ''
 })
 
+/**
+ * @typedef {Object} ParameterDefinition
+ * @property {string} name
+ * @property {string} type
+ * @property {number} [min]
+ * @property {number} [max]
+ * @property {number} [step]
+ * @property {any} [default]
+ * @property {string} [label]
+ * @property {string} [description]
+ */
+
 export default {
   name: 'LiveStrategyEditor',
   props: {
@@ -497,6 +508,8 @@ export default {
     strategyId: { type: Number, default: null },
     initialConfig: { type: Object, default: () => ({}) }
   },
+  // Break TS circular data/methods inference so methods remain visible to the template checker.
+  /** @this {object} */
   data () {
     return {
       expandedSections: [],
@@ -511,8 +524,8 @@ export default {
       sourceContractLoading: false,
       sourceContractError: false,
       savingSourceRuntime: false,
-      runtimeDraft: {},
-      runtimeOriginal: {},
+      runtimeDraft: /** @type {Record<string, any>} */ ({}),
+      runtimeOriginal: /** @type {Record<string, any>} */ ({}),
       runtimeSymbolOptions: [],
       runtimeWatchlistOptions: [],
       runtimeSymbolLoading: false,
@@ -526,9 +539,9 @@ export default {
     }
   },
   computed: {
-    ...mapState({ navTheme: state => state.app.theme }),
     isDarkTheme () {
-      return this.navTheme === 'dark' || this.navTheme === 'realdark'
+      const theme = this.$store.state.app.theme
+      return theme === 'dark' || theme === 'realdark'
     },
     isEdit () { return this.mode === 'edit' },
     modalTitle () {
@@ -541,6 +554,7 @@ export default {
     isPortfolioStrategy () {
       return this.strategyManifest.strategyType === 'portfolio'
     },
+    /** @returns {Record<string, any>} */
     strategyManifest () {
       return this.parseObject(this.compiledManifest)
     },
@@ -700,6 +714,9 @@ export default {
         { ...this.strategyManifest, metadata: this.parseObject(this.strategyManifest.metadata) }
       )
     },
+    /**
+     * @returns {{ config: Record<string, any>, hasInstrument: boolean, hasProduct: boolean, hasTimeframe: boolean, hasExchange: boolean }}
+     */
     sourceRuntimeContract () {
       return extractStrategyRuntimeContractFromCode(this.sourceDetail.code || '')
     },
@@ -715,6 +732,7 @@ export default {
         String(this.sourceDetail.code || '').trim()
       )
     },
+    /** @returns {Array<{ value: string, label: string }>} */
     runtimeExchangeOptions () {
       return CRYPTO_EXCHANGE_IDS.map(value => ({
         value,
@@ -738,6 +756,7 @@ export default {
         ...this.parseObject(this.sourceDetail.template_params)
       }
     },
+    /** @returns {ParameterDefinition[]} */
     parameterDefinitions () {
       const schema = this.parseObject(this.sourceDetail.param_schema)
       if (Array.isArray(schema.params) && schema.params.length) return schema.params.filter(item => item && item.name)
@@ -749,6 +768,7 @@ export default {
         default: this.sourceParameterValues[name]
       }))
     },
+    /** @returns {Array<Record<string, any>>} */
     compatibleCredentials () {
       return this.credentials.filter(credential => (
         credentialMatchesLiveStrategy(this.strategyManifest, credential.exchange_id)
@@ -833,7 +853,8 @@ export default {
       try {
         const res = await getScriptSourceList()
         const data = res && res.data
-        this.sources = Array.isArray(data) ? data : ((data && data.items) || [])
+        const payload = /** @type {{ items?: any[] }} */ (data || {})
+        this.sources = Array.isArray(data) ? data : (payload.items || [])
       } finally {
         this.loadingSources = false
       }
@@ -845,7 +866,7 @@ export default {
       this.loadingCredentials = true
       try {
         const res = await listExchangeCredentials({ user_id: 1 })
-        this.credentials = res && res.code === 1 && res.data ? (res.data.items || []) : []
+        this.credentials = res && res.code === 1 && res.data ? (/** @type {{ items?: any[] }} */ (res.data).items || []) : []
       } finally {
         this.loadingCredentials = false
       }
@@ -854,9 +875,10 @@ export default {
       try {
         const res = await getNotificationSettings()
         if (res && res.code === 1 && res.data) {
-          this.notificationSettings = res.data
-          if (Array.isArray(res.data.default_channels) && res.data.default_channels.length) {
-            this.model.notifyChannels = [...res.data.default_channels]
+          const settings = /** @type {{ default_channels?: string[] }} */ (res.data)
+          this.notificationSettings = settings
+          if (Array.isArray(settings.default_channels) && settings.default_channels.length) {
+            this.model.notifyChannels = [...settings.default_channels]
           }
         }
       } catch (error) {}
@@ -876,9 +898,12 @@ export default {
         const contractResult = await contractRequest
         if (String(this.model.scriptSourceId) !== sourceId) return
         this.sourceDetail = (res && res.data) || res || {}
-        const manifest = this.parseObject(contractResult.response && contractResult.response.data && contractResult.response.data.manifest)
+        const contractResponse = 'response' in contractResult ? contractResult.response : null
+        const contractError = 'error' in contractResult ? contractResult.error : null
+        const contractData = /** @type {{ manifest?: any }} */ ((contractResponse && contractResponse.data) || {})
+        const manifest = this.parseObject(contractData.manifest)
         this.compiledManifest = manifest
-        this.sourceContractError = Boolean(contractResult.error) || !Object.keys(manifest).length
+        this.sourceContractError = Boolean(contractError) || !Object.keys(manifest).length
         if (!this.model.name || (applyDefaults && !this.isEdit)) {
           this.model.name = this.sourceDetail.name || this.sourceDetail.title || ''
         }
@@ -911,7 +936,7 @@ export default {
     },
     async loadStrategy () {
       const res = await getStrategyDetail(this.strategyId)
-      const strategy = (res && res.data) || res || {}
+      const strategy = /** @type {{ trading_config?: any, strategy_name?: string, timeframe?: string, initial_capital?: number | string, execution_mode?: string, notification_config?: { channels?: string[] } }} */ ((res && res.data) || res || {})
       this.originalStrategy = strategy
       const config = this.parseObject(strategy.trading_config)
       const deploymentRisk = this.parseObject(config.deployment_risk)
@@ -1036,7 +1061,8 @@ export default {
       try {
         const res = await getWatchlist()
         const data = res && res.data
-        const list = Array.isArray(data) ? data : ((data && data.watchlist) || [])
+        const payload = /** @type {{ watchlist?: any[] }} */ (data || {})
+        const list = Array.isArray(data) ? data : (payload.watchlist || [])
         this.runtimeWatchlistOptions = list
           .map(item => this.normalizeRuntimeSymbolOption(item, true))
           .filter(Boolean)
@@ -1067,7 +1093,8 @@ export default {
       try {
         const res = await searchSymbols({ keyword: term, limit: 20 })
         const data = res && res.data
-        const list = Array.isArray(data) ? data : ((data && (data.results || data.symbols || data.items)) || [])
+        const payload = /** @type {{ results?: any[], symbols?: any[], items?: any[] }} */ (data || {})
+        const list = Array.isArray(data) ? data : (payload.results || payload.symbols || payload.items || [])
         this.runtimeSymbolOptions = list.map(item => this.normalizeRuntimeSymbolOption(item)).filter(Boolean)
       } catch (error) {
         this.runtimeSymbolOptions = []
@@ -1096,7 +1123,7 @@ export default {
       this.ensureCurrentRuntimeSymbolOption()
     },
     setRuntimeDraft (field, value) {
-      const next = { ...this.runtimeDraft, [field]: value }
+      const next = /** @type {Record<string, any>} */ ({ ...this.runtimeDraft, [field]: value })
       if (field === 'exchange_id') next.exchange_id = normalizeExchangeId(value)
       if (field === 'market_type') next.market_type = normalizeMarketType(value, next.market_category)
       if (next.market_category !== 'Crypto') {
@@ -1122,7 +1149,7 @@ export default {
       try {
         const code = applyStrategyRuntimeConfigToCode(this.sourceDetail.code || '', this.runtimeDraft)
         if (!code || code === this.sourceDetail.code) {
-          throw new Error(this.$t('strategyV2.sourceRuntimeUnsupported'))
+          throw new Error(String(this.$t('strategyV2.sourceRuntimeUnsupported')))
         }
         const metadata = this.sourceMetadata
         const description = this.sourceDetail.description || metadata.description || ''
@@ -1147,9 +1174,9 @@ export default {
             script_verified: false
           }
         })
-        if (!res || res.code !== 1) throw new Error((res && res.msg) || this.$t('strategyV2.sourceRuntimeUpdateFailed'))
+        if (!res || res.code !== 1) throw new Error(String((res && res.msg) || this.$t('strategyV2.sourceRuntimeUpdateFailed')))
         await this.loadSourceDetail(this.model.scriptSourceId, false)
-        if (!silentSuccess) this.$message.success(this.$t('strategyV2.sourceRuntimeUpdated'))
+        if (!silentSuccess) this.$message.success(String(this.$t('strategyV2.sourceRuntimeUpdated')))
         return true
       } catch (error) {
         this.$message.error(error.backendMessage || error.message || this.$t('strategyV2.sourceRuntimeUpdateFailed'))
@@ -1240,7 +1267,7 @@ export default {
     },
     async validateDeployment () {
       if (!this.model.scriptSourceId) {
-        this.$message.warning(this.$t('trading-assistant.form.scriptSourceRequired'))
+        this.$message.warning(String(this.$t('trading-assistant.form.scriptSourceRequired')))
         return false
       }
       if (this.runtimeDirty) {
@@ -1251,15 +1278,15 @@ export default {
         await this.loadSourceContract(this.model.scriptSourceId)
       }
       if (!this.hasCurrentContract) {
-        this.$message.warning(this.$t('strategyV2.sourceContractRequired'))
+        this.$message.warning(String(this.$t('strategyV2.sourceContractRequired')))
         return false
       }
       if (!this.model.name) {
-        this.$message.warning(this.$t('trading-assistant.validation.strategyNameRequired'))
+        this.$message.warning(String(this.$t('trading-assistant.validation.strategyNameRequired')))
         return false
       }
       if (!(Number(this.model.initialCapital) > 0)) {
-        this.$message.warning(this.$t('trading-assistant.validation.initialCapitalRequired'))
+        this.$message.warning(String(this.$t('trading-assistant.validation.initialCapitalRequired')))
         return false
       }
       return this.validateFinal()
@@ -1272,7 +1299,8 @@ export default {
       try {
         const res = await compileScriptSource({ sourceId: Number(sourceId) })
         if (String(this.model.scriptSourceId) !== sourceId) return false
-        const manifest = this.parseObject(res && res.data && res.data.manifest)
+        const payload = /** @type {{ manifest?: any }} */ ((res && res.data) || {})
+        const manifest = this.parseObject(payload.manifest)
         this.compiledManifest = manifest
         this.sourceContractError = !Object.keys(manifest).length
         this.normalizeExecutionFields()
@@ -1290,34 +1318,34 @@ export default {
     },
     validateFinal () {
       if (!this.model.notifyChannels.length) {
-        this.$message.warning(this.$t('trading-assistant.validation.notifyChannelRequired'))
+        this.$message.warning(String(this.$t('trading-assistant.validation.notifyChannelRequired')))
         return false
       }
       if (this.model.executionMode === 'live' && !this.model.disclaimer) {
-        this.$message.warning(this.$t('trading-assistant.liveDisclaimer.required'))
+        this.$message.warning(String(this.$t('trading-assistant.liveDisclaimer.required')))
         return false
       }
       if (this.model.executionMode === 'live' && !this.model.credentialId) {
-        this.$message.warning(this.$t('trading-assistant.validation.credentialRequired'))
+        this.$message.warning(String(this.$t('trading-assistant.validation.credentialRequired')))
         return false
       }
       if (
         this.model.executionMode === 'live' &&
         !this.compatibleCredentials.some(item => String(item.id) === String(this.model.credentialId))
       ) {
-        this.$message.warning(this.$t('trading-assistant.validation.credentialRequired'))
+        this.$message.warning(String(this.$t('trading-assistant.validation.credentialRequired')))
         return false
       }
       if (this.model.executionMode === 'live' && this.requiresDirectionFallback && !this.model.directionMode) {
-        this.$message.warning(this.$t('strategyCenter.editor.directionModeRequired'))
+        this.$message.warning(String(this.$t('strategyCenter.editor.directionModeRequired')))
         return false
       }
       if (this.model.equityStopLossEnabled && !(Number(this.model.equityStopLossPct) > 0 && Number(this.model.equityStopLossPct) <= 1)) {
-        this.$message.warning(this.$t('trading-assistant.validation.equityStopLossRequired'))
+        this.$message.warning(String(this.$t('trading-assistant.validation.equityStopLossRequired')))
         return false
       }
       if (this.model.equityTakeProfitEnabled && !(Number(this.model.equityTakeProfitPct) > 0 && Number(this.model.equityTakeProfitPct) <= 10)) {
-        this.$message.warning(this.$t('trading-assistant.validation.equityTakeProfitRequired'))
+        this.$message.warning(String(this.$t('trading-assistant.validation.equityTakeProfitRequired')))
         return false
       }
       return true
@@ -1347,9 +1375,9 @@ export default {
           ? await updateStrategy(this.strategyId, payload)
           : await createStrategy(payload)
         if (!res || res.code !== 1) throw new Error((res && res.msg) || '')
-        this.$message.success(this.$t(this.isEdit ? 'trading-assistant.messages.updateSuccess' : 'trading-assistant.messages.createSuccess'))
+        this.$message.success(String(this.$t(this.isEdit ? 'trading-assistant.messages.updateSuccess' : 'trading-assistant.messages.createSuccess')))
         this.$emit('saved', {
-          id: Number((res.data && res.data.id) || this.strategyId || 0),
+          id: Number((/** @type {{ id?: number | string }} */ (res.data || {})).id || this.strategyId || 0),
           mode: this.isEdit ? 'edit' : 'create'
         })
       } catch (error) {

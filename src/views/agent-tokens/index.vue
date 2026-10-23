@@ -235,6 +235,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { mapState } from 'vuex'
 import {
   issueAgentToken,
@@ -243,7 +244,20 @@ import {
   listAgentAudit
 } from '@/api/agent'
 
-export default {
+/** Fresh issue form state; shared with the reset action. */
+function freshIssueForm () {
+  return {
+    name: '',
+    scopes: ['R'],
+    markets: '*',
+    instruments: '*',
+    paper_only: true,
+    rate_limit_per_min: 60,
+    expires_in_days: 30
+  }
+}
+
+export default Vue.extend({
   name: 'AgentTokens',
   data () {
     return {
@@ -258,7 +272,7 @@ export default {
 
       issueModalVisible: false,
       issuing: false,
-      issueForm: this.freshIssueForm(),
+      issueForm: freshIssueForm(),
       issueRules: {
         name: [{
           required: true,
@@ -327,17 +341,6 @@ export default {
     this.loadTokens()
   },
   methods: {
-    freshIssueForm () {
-      return {
-        name: '',
-        scopes: ['R'],
-        markets: '*',
-        instruments: '*',
-        paper_only: true,
-        rate_limit_per_min: 60,
-        expires_in_days: 30
-      }
-    },
     tokenRowClassName (record) {
       const s = (record && String(record.status || '').toLowerCase()) || ''
       if (s === 'revoked') return 'token-row-revoked'
@@ -407,7 +410,7 @@ export default {
       }
     },
     openIssueModal () {
-      this.issueForm = this.freshIssueForm()
+      this.issueForm = freshIssueForm()
       this.issueModalVisible = true
     },
     closeIssueModal () {
@@ -428,9 +431,9 @@ export default {
             expires_in_days: Number(this.issueForm.expires_in_days) || 0
           }
           const resp = await issueAgentToken(payload)
-          const data = (resp && resp.data) || resp
+          const data = /** @type {{ token?: string } | undefined} */ ((resp && resp.data) || resp)
           if (!data || !data.token) {
-            throw new Error((resp && resp.message) || (this.$t('agentTokens.error.emptyResp') || 'Empty response'))
+            throw new Error((resp && resp.msg) || (this.$t('agentTokens.error.emptyResp') || 'Empty response'))
           }
           this.revealed = data
           this.issueModalVisible = false
@@ -481,7 +484,7 @@ export default {
       }
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

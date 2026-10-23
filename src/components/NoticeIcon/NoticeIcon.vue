@@ -158,6 +158,13 @@ import {
 } from '@/utils/noticeFormat'
 import { createVisibilityPolling } from '@/utils/visibilityPolling'
 
+/**
+ * @typedef {Object} NoticeApiItem
+ * @property {number} id
+ * @property {unknown} [payload_json]
+ * @property {number|boolean} [is_read]
+ */
+
 export default {
   name: 'HeaderNotice',
   data () {
@@ -223,8 +230,9 @@ export default {
     async fetchUnreadCount (silent = false) {
       try {
         const res = await getUnreadNotificationCount()
-        if (res && res.code === 1 && res.data && typeof res.data.unread !== 'undefined') {
-          this.unreadTotal = Number(res.data.unread || 0)
+        const data = /** @type {{ unread?: number }} */ (res && res.data)
+        if (res && res.code === 1 && data && typeof data.unread !== 'undefined') {
+          this.unreadTotal = Number(data.unread || 0)
         }
       } catch (e) {
         if (!silent) {
@@ -238,8 +246,9 @@ export default {
       }
       try {
         const res = await getStrategyNotifications({ limit: 50 })
-        if (res.code === 1 && res.data?.items) {
-          this.notifications = res.data.items.map(item => {
+        const data = /** @type {{ items?: NoticeApiItem[] }} */ (res && res.data)
+        if (res.code === 1 && data && data.items) {
+          this.notifications = data.items.map(item => {
             let payload = item.payload_json
             if (typeof payload === 'string') {
               try {
@@ -349,7 +358,7 @@ export default {
       }
 
       const now = new Date()
-      const diff = now - date
+      const diff = now.getTime() - date.getTime()
       const minutes = Math.floor(diff / 60000)
       const hours = Math.floor(diff / 3600000)
       const days = Math.floor(diff / 86400000)

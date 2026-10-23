@@ -174,11 +174,11 @@ export default {
     visible: { type: Boolean, default: false },
     overlayMount: { type: Function, default: null }
   },
-  data () {
-    return {
+  data: () => ({
       savingExchange: false,
       testingExchange: false,
       exchangeTestResult: null,
+      exchangeForm: null,
       addExchangeType: '',
       selectedExchangeId: '',
       selectedEnvironment: 'live',
@@ -193,12 +193,11 @@ export default {
         { id: 'gate', name: 'Gate.io', docsUrl: 'https://www.gate.com/docs/developers/apiv4/' },
         { id: 'htx', name: 'HTX', docsUrl: 'https://www.htx.com/en-us/opend/newApiPages/?id=414' }
       ]
-    }
-  },
-  computed: {
-    ...mapState({
-      navTheme: state => state.app.theme
     }),
+  computed: {
+    ...(/** @type {{ navTheme: () => string }} */ (mapState({
+      navTheme: state => state.app.theme
+    }))),
     isDarkTheme () {
       return this.navTheme === 'dark' || this.navTheme === 'realdark'
     },
@@ -260,8 +259,9 @@ export default {
       }
     }
   },
-  beforeCreate () {
-    this.exchangeForm = this.$form.createForm(this, { name: 'exchangeAccountModal' })
+  created () {
+    const vm = /** @type {import('vue/types/vue').Vue} */ (/** @type {unknown} */ (this))
+    this.exchangeForm = this.$form.createForm(vm, { name: 'exchangeAccountModal' })
   },
   methods: {
     exchangeModalGetContainer () {
@@ -332,13 +332,14 @@ export default {
       this.egressServerIpv6 = ''
       try {
         const res = await getCredentialsEgressIp()
-        if (res.code === 1 && res.data) {
-          const v4 = res.data.ipv4 != null ? String(res.data.ipv4).trim() : ''
-          const v6 = res.data.ipv6 != null ? String(res.data.ipv6).trim() : ''
+        const data = /** @type {{ ipv4?: string, ipv6?: string, ip?: string }} */ (res.data)
+        if (res.code === 1 && data) {
+          const v4 = data.ipv4 != null ? String(data.ipv4).trim() : ''
+          const v6 = data.ipv6 != null ? String(data.ipv6).trim() : ''
           this.egressServerIpv4 = v4
           this.egressServerIpv6 = v6
-          if (!v4 && !v6 && res.data.ip) {
-            const legacy = String(res.data.ip).trim()
+          if (!v4 && !v6 && data.ip) {
+            const legacy = String(data.ip).trim()
             if (legacy.includes(':')) {
               this.egressServerIpv6 = legacy
             } else {
@@ -356,7 +357,7 @@ export default {
     copyEgressIp (kind) {
       const ip = kind === 'v6' ? this.egressServerIpv6 : this.egressServerIpv4
       if (!ip) return
-      const ok = () => this.$message.success(this.$t('profile.exchange.whitelistIpCopied'))
+      const ok = () => this.$message.success(String(this.$t('profile.exchange.whitelistIpCopied')))
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(ip).then(ok).catch(() => this._fallbackCopyText(ip, ok))
       } else {
@@ -375,7 +376,7 @@ export default {
         document.body.removeChild(ta)
         if (onOk) onOk()
       } catch (e) {
-        this.$message.error(this.$t('profile.exchange.whitelistIpCopyFail'))
+        this.$message.error(String(this.$t('profile.exchange.whitelistIpCopyFail')))
       }
     },
     handleExchangeTypeChange (val) {
@@ -419,15 +420,15 @@ export default {
           const payload = this._normalizeCredentialPayload(values)
           const res = await createExchangeCredential(payload)
           if (res.code === 1) {
-            this.$message.success(this.$t('profile.exchange.saveSuccess'))
+            this.$message.success(String(this.$t('profile.exchange.saveSuccess')))
             this.$emit('update:visible', false)
             this.resetExchangeFormState()
             this.$emit('success', res.data)
           } else {
-            this.$message.error(res.msg || this.$t('profile.exchange.saveFailed'))
+            this.$message.error(String(res.msg || this.$t('profile.exchange.saveFailed')))
           }
         } catch (e) {
-          this.$message.error(e.message || this.$t('profile.exchange.saveFailed'))
+          this.$message.error(String(e.message || this.$t('profile.exchange.saveFailed')))
         } finally {
           this.savingExchange = false
         }
@@ -451,7 +452,8 @@ export default {
               message: this.$t('profile.exchange.testSuccess')
             }
           } else {
-            const hint = (res.data && res.data.hint_cn) ? ` ${res.data.hint_cn}` : ''
+            const data = /** @type {{ hint_cn?: string }} */ (res.data)
+            const hint = (data && data.hint_cn) ? ` ${data.hint_cn}` : ''
             this.exchangeTestResult = {
               success: false,
               message: `${this.$t('profile.exchange.testFailed')}: ${this.credentialTestMessage(res.msg)}${hint}`

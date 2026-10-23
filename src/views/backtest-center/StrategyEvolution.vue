@@ -322,13 +322,35 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import * as echarts from 'echarts'
 import moment from 'moment'
 import { mapState } from 'vuex'
 import { cancelStrategyEvolutionJob, compileScriptSource, estimateStrategyEvolution, getScriptSourceList, getScriptSourceDetail, getStrategyEvolutionJob, getStrategyEvolutionJobs, getStrategyEvolutionParameterSpace, runStrategyEvolution } from '@/api/strategy'
 import { strategyParameterLabel } from '@/utils/strategyParameterPresentation'
 
-export default {
+/**
+ * @typedef {Object} ScriptSource
+ * @property {number|string} [id]
+ * @property {string} [name]
+ */
+
+/**
+ * @typedef {Object} ParameterDefinition
+ * @property {string} [name]
+ * @property {boolean} [defaultSelected]
+ */
+
+/**
+ * @typedef {Object} EvolutionJob
+ * @property {string} [jobId]
+ * @property {string} [status]
+ * @property {Record<string, any>} [progress]
+ * @property {Record<string, any>} [result]
+ * @property {Record<string, any>} [request]
+ */
+
+export default Vue.extend({
   name: 'StrategyEvolution',
   data () {
     const end = moment().subtract(1, 'day').startOf('day')
@@ -569,7 +591,7 @@ export default {
     async loadSources () {
       this.loadingSources = true
       try {
-        const response = await getScriptSourceList()
+        const response = /** @type {{ data?: { items?: ScriptSource[] } }} */ (await getScriptSourceList())
         this.sources = (response.data && response.data.items) || []
         if (!this.form.sourceId && this.sources.length) this.form.sourceId = this.sources[0].id
         if (this.form.sourceId) await this.selectSource(this.form.sourceId)
@@ -596,9 +618,9 @@ export default {
       this.loadingSource = true
       try {
         const [response, compiled, parameterSpaceResponse] = await Promise.all([
-          getScriptSourceDetail(sourceId),
-          compileScriptSource({ sourceId }),
-          getStrategyEvolutionParameterSpace(sourceId)
+          /** @type {Promise<{ data?: Record<string, any> | null }>} */ (getScriptSourceDetail(sourceId)),
+          /** @type {Promise<{ data?: { manifest?: Record<string, any>, backtestRangePolicy?: Record<string, any> } }>} */ (compileScriptSource({ sourceId })),
+          /** @type {Promise<{ data?: { parameters?: ParameterDefinition[] } | null }>} */ (getStrategyEvolutionParameterSpace(sourceId))
         ])
         this.source = response.data || null
         this.manifest = compiled.data && compiled.data.manifest
@@ -713,12 +735,13 @@ export default {
       this.estimateLoading = Boolean(this.selectedParameterCount && this.parameterRangesValid)
       this.estimateTimer = window.setTimeout(() => this.refreshEstimate(requestId), 250)
     },
-    async refreshEstimate (requestId = this.estimateRequestId) {
+    async refreshEstimate (requestId) {
+      if (requestId === undefined) requestId = this.estimateRequestId
       this.estimateTimer = null
       if (requestId !== this.estimateRequestId) return
       if (!this.selectedParameterCount || !this.parameterRangesValid) { this.estimate = null; this.estimateLoading = false; return }
       try {
-        const response = await estimateStrategyEvolution(this.estimatePayload())
+        const response = /** @type {{ data?: Record<string, any> | null }} */ (await estimateStrategyEvolution(this.estimatePayload()))
         if (requestId === this.estimateRequestId) this.estimate = response.data || null
       } catch (error) {
         if (requestId === this.estimateRequestId) this.estimate = null
@@ -729,10 +752,11 @@ export default {
     async fetchHistory (sourceId) {
       const params = { limit: 20 }
       if (sourceId !== undefined && sourceId !== null && sourceId !== '') params.sourceId = sourceId
-      const response = await getStrategyEvolutionJobs(params)
+      const response = /** @type {{ data?: { items?: EvolutionJob[] } }} */ (await getStrategyEvolutionJobs(params))
       return (response.data && response.data.items) || []
     },
-    async loadHistory (sourceId = this.form.sourceId) {
+    async loadHistory (sourceId) {
+      if (sourceId === undefined) sourceId = this.form.sourceId
       const requestId = ++this.historyRequestId
       this.historyLoading = true
       try {
@@ -815,7 +839,7 @@ export default {
       }
       this.running = true; this.result = null; this.progress = {}; this.disposeCharts()
       try {
-        const response = await runStrategyEvolution({ sourceId: this.form.sourceId, startDate: this.form.startDate.format('YYYY-MM-DD'), endDate: this.form.endDate.format('YYYY-MM-DD'), initialCapital: 10000, commission: this.form.commission, slippage: this.form.slippage, parameterSpace: this.parameterPayload(), config: { method: this.form.method, trials: this.form.trials, folds: this.form.folds, trainRatio: this.form.trainRatio, blindRatio: this.form.blindRatio, autoPrune: this.form.autoPrune, monteCarloPaths: 1000 } })
+        const response = /** @type {{ data?: { jobId?: string|number } }} */ (await runStrategyEvolution({ sourceId: this.form.sourceId, startDate: this.form.startDate.format('YYYY-MM-DD'), endDate: this.form.endDate.format('YYYY-MM-DD'), initialCapital: 10000, commission: this.form.commission, slippage: this.form.slippage, parameterSpace: this.parameterPayload(), config: { method: this.form.method, trials: this.form.trials, folds: this.form.folds, trainRatio: this.form.trainRatio, blindRatio: this.form.blindRatio, autoPrune: this.form.autoPrune, monteCarloPaths: 1000 } }))
         this.jobId = String((response.data && response.data.jobId) || '')
         if (!this.jobId) throw new Error('strategyEvolution.jobNotCreated')
         await this.loadHistory()
@@ -829,7 +853,7 @@ export default {
       if (!this.running || !this.jobId) return
       try {
         const response = await getStrategyEvolutionJob(this.jobId)
-        const job = response.data || {}
+        const job = /** @type {EvolutionJob} */ (response.data || {})
         this.progress = job.progress || {}
         if (job.status === 'succeeded') {
           this.result = job.result
@@ -935,7 +959,7 @@ export default {
     emptyChartTitle (color) { return { text: this.$t('strategyEvolution.validationInsufficient'), left: 'center', top: 'middle', textStyle: { color, fontSize: 11, fontWeight: 'normal' } } },
     formatParams (params) { return Object.entries(params || {}).map(([key, value]) => `${key}=${value}`).join(' · ') }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

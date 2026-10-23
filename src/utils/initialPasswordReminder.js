@@ -16,7 +16,7 @@ export function promptChangeInitialPassword () {
   Modal.warning({
     title: i18nRender('user.initialPassword.title'),
     content: i18nRender('user.initialPassword.content'),
-    okText: i18nRender('user.initialPassword.goChange'),
+    okText: String(i18nRender('user.initialPassword.goChange')),
     centered: true,
     maskClosable: false,
     onOk: () => {

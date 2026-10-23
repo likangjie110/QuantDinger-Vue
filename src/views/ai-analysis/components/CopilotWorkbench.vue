@@ -665,6 +665,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import {
   chatMessage,
   getChatHistory,
@@ -721,7 +722,105 @@ import {
 
 let localId = 1
 
-export default {
+/**
+ * @typedef {Object} CopilotBilling
+ * @property {boolean} [billing_enabled]
+ * @property {Record<string, unknown>} [feature_costs]
+ * @property {number} [credits]
+ */
+
+/**
+ * @typedef {Object} BillingPayload
+ * @property {CopilotBilling} [billing]
+ * @property {CopilotBilling} [billing_config]
+ */
+
+/**
+ * @typedef {Object} SkillsPayload
+ * @property {unknown[]} [skills]
+ */
+
+/**
+ * @typedef {Object} CalendarPayload
+ * @property {unknown[]} [events]
+ * @property {unknown[]} [calendar]
+ */
+
+/**
+ * @typedef {Object} WatchlistPayload
+ * @property {unknown[]} [watchlist]
+ */
+
+/**
+ * @typedef {Object} SessionsPayload
+ * @property {unknown[]} [sessions]
+ */
+
+/**
+ * @typedef {Object} MessagesPayload
+ * @property {unknown[]} [messages]
+ */
+
+/**
+ * @typedef {Object} SymbolSearchPayload
+ * @property {Record<string, unknown>[]} [results]
+ * @property {Record<string, unknown>[]} [symbols]
+ * @property {Record<string, unknown>[]} [items]
+ */
+
+/**
+ * @typedef {Object} SavedMessagePayload
+ * @property {string} [session_id]
+ * @property {number|string} [message_id]
+ */
+
+/**
+ * @typedef {Object} EventSummaryPayload
+ * @property {Record<string, unknown>} [task_usage]
+ */
+
+/**
+ * @typedef {Object} SavedPromptPayload
+ * @property {number|string} [id]
+ */
+
+/**
+ * @typedef {Object} MemoryPayload
+ * @property {unknown[]} [items]
+ */
+
+/**
+ * @typedef {Object} SkillPromptPayload
+ * @property {string} [prompt]
+ */
+
+/**
+ * @typedef {Object} ProfessionalAnalysisPayload
+ * @property {Record<string, unknown>} [runtime]
+ * @property {number|string} [memory_id]
+ * @property {number} [analysis_time_ms]
+ * @property {number} [llm_time_ms]
+ * @property {number} [data_collection_time_ms]
+ */
+
+/**
+ * @typedef {Object} ChatMessagePayload
+ * @property {string} [session_id]
+ * @property {number|string} [message_id]
+ * @property {string} [reply]
+ * @property {unknown[]} [actions]
+ * @property {Record<string, unknown>} [context_usage]
+ * @property {string} [intent]
+ * @property {number} [confidence]
+ * @property {unknown[]} [memory_candidates]
+ */
+
+/**
+ * @typedef {Object} ChatReportSharePayload
+ * @property {string} [path]
+ */
+
+export default Vue.extend({
   name: 'CopilotWorkbench',
   components: {
     ProfessionalAnalysisReport
@@ -1319,7 +1418,7 @@ export default {
       ? null
       : new ResizeObserver(entries => {
         entries.forEach(entry => {
-          const chart = echarts.getInstanceByDom(entry.target)
+          const chart = echarts.getInstanceByDom(/** @type {HTMLElement} */ (entry.target))
           if (chart) chart.resize()
         })
       })
@@ -1557,7 +1656,7 @@ export default {
       this.loadingSkills = true
       try {
         const res = await getAiSkills({ language: (this.$i18n && this.$i18n.locale) || 'en-US' })
-        const data = res.data || {}
+        const data = /** @type {SkillsPayload} */ (res.data || {})
         this.skillRegistry = Array.isArray(data.skills) ? data.skills : []
       } catch (_) {
         this.skillRegistry = []
@@ -1568,7 +1667,7 @@ export default {
     async loadBilling () {
       try {
         const res = await getMembershipPlans()
-        const data = res.data || {}
+        const data = /** @type {BillingPayload} */ (res.data || {})
         this.billing = data.billing || data.billing_config || {}
         const credits = Number(this.billing.credits)
         if (Number.isFinite(credits)) this.$root.$emit('credits-updated', credits)
@@ -1579,7 +1678,7 @@ export default {
       this.calendarError = ''
       try {
         const res = await getEconomicCalendar({ force: force ? 1 : 0, days: 14, lang: (this.$i18n && this.$i18n.locale) || 'en-US' })
-        const data = res.data || {}
+        const data = /** @type {CalendarPayload} */ (res.data || {})
         this.calendarEvents = Array.isArray(data) ? data : (data.events || data.calendar || [])
       } catch (e) {
         this.calendarError = (e && e.response && e.response.data && e.response.data.msg) || (e && e.message) || this.text.calendarUnavailable
@@ -1590,7 +1689,8 @@ export default {
     async loadWatchlist () {
       try {
         const res = await getWatchlist()
-        const list = Array.isArray(res.data) ? res.data : ((res.data && res.data.watchlist) || [])
+        const data = /** @type {WatchlistPayload} */ (res.data || {})
+        const list = Array.isArray(data) ? data : (data.watchlist || [])
         this.watchlist = list.map(x => this.normalizeSymbolOption(x)).filter(Boolean)
         this.seedSymbolOptions()
         this.applyDefaultWatchSymbol()
@@ -1606,7 +1706,7 @@ export default {
       this.loadingMonitors = true
       try {
         const res = await getMonitors()
-        this.monitors = res && res.code === 1 ? (res.data || []) : []
+        this.monitors = res && res.code === 1 ? (/** @type {unknown[]} */ (res.data) || []) : []
       } catch (_) {
         this.monitors = []
       } finally {
@@ -1616,7 +1716,8 @@ export default {
     async loadSessions () {
       try {
         const res = await getChatSessions()
-        this.sessions = Array.isArray(res.data) ? res.data : ((res.data && res.data.sessions) || [])
+        const data = /** @type {SessionsPayload} */ (res.data || {})
+        this.sessions = Array.isArray(data) ? data : (data.sessions || [])
       } catch (_) {}
     },
     async loadHistory (sessionId) {
@@ -1625,7 +1726,8 @@ export default {
       this.mobileSessionsOpen = false
       try {
         const res = await getChatHistory({ session_id: sessionId })
-        const rawMessages = Array.isArray(res.data) ? res.data : ((res.data && res.data.messages) || [])
+        const data = /** @type {MessagesPayload} */ (res.data || {})
+        const rawMessages = Array.isArray(data) ? data : (data.messages || [])
         this.messages = this.normalizeMessages(rawMessages)
         await this.loadSessionMemory()
         this.scrollToBottom()
@@ -1667,7 +1769,7 @@ export default {
           intent: intent || message.meta || 'local_agent',
           context
         })
-        const data = res && res.data ? res.data : {}
+        const data = /** @type {SavedMessagePayload} */ (res && res.data ? res.data : {})
         if (data.session_id) this.sessionId = data.session_id
         if (data.message_id) this.$set ? this.$set(message, 'id', data.message_id) : (message.id = data.message_id)
         await this.loadSessions()
@@ -1740,7 +1842,7 @@ export default {
       try {
         const params = { keyword: kw, limit: 14 }
         const res = await searchSymbols(params)
-        const data = res.data || {}
+        const data = /** @type {SymbolSearchPayload} */ (res.data || {})
         const list = Array.isArray(data) ? data : (data.results || data.symbols || data.items || [])
         this.symbolOptions = list.map(x => this.normalizeSymbolOption(x)).filter(Boolean)
         if (!this.symbolOptions.length) {
@@ -1826,7 +1928,7 @@ export default {
       try {
         const res = await getHotSymbols({ market, limit: 10 })
         if (seq !== this.addWatchSearchSeq || market !== this.addWatchMarket) return
-        const data = res.data || {}
+        const data = /** @type {SymbolSearchPayload} */ (res.data || {})
         const list = Array.isArray(data) ? data : (data.results || data.symbols || data.items || [])
         const normalized = list.map(x => this.normalizeSymbolOption({ ...x, market: x.market || market })).filter(Boolean)
         this.addWatchResults = mergeWatchlistSuggestions(market, normalized)
@@ -1852,7 +1954,7 @@ export default {
       try {
         const res = await searchSymbols({ market, keyword: kw, limit: 16 })
         if (seq !== this.addWatchSearchSeq || market !== this.addWatchMarket || kw !== this.addWatchKeyword.trim()) return
-        const data = res.data || {}
+        const data = /** @type {SymbolSearchPayload} */ (res.data || {})
         const list = Array.isArray(data) ? data : (data.results || data.symbols || data.items || [])
         const normalized = list.map(x => this.normalizeSymbolOption({ ...x, market: x.market || market })).filter(Boolean)
         this.addWatchResults = normalized.length ? normalized : this.manualAddWatchFallback(market, kw)
@@ -2021,7 +2123,7 @@ export default {
     async loadPromptUsage () {
       try {
         const res = await getCopilotEventSummary()
-        const data = res && res.data !== undefined ? res.data : res
+        const data = /** @type {EventSummaryPayload} */ (res && res.data !== undefined ? res.data : res)
         this.promptUsage = data && data.task_usage && typeof data.task_usage === 'object' ? data.task_usage : {}
       } catch (_) {}
     },
@@ -2071,7 +2173,7 @@ export default {
           category: this.activeResearchMode,
           context: { market: target.market || '', symbol: target.symbol || '' }
         })
-        const item = res && res.data !== undefined ? res.data : res
+        const item = /** @type {SavedPromptPayload} */ (res && res.data !== undefined ? res.data : res)
         if (item && item.id) this.savedPrompts = [item, ...this.savedPrompts.filter(saved => saved.id !== item.id)]
         this.recordCopilotEvent('prompt_saved', `saved_${item && item.id ? item.id : 'new'}`, {
           source: 'message_action',
@@ -2139,7 +2241,7 @@ export default {
     async loadUserMemories () {
       try {
         const res = await getUserMemory()
-        const data = res.data || res
+        const data = /** @type {MemoryPayload} */ (res.data || res)
         this.userMemories = (data && data.items) || []
       } catch (_) {
         this.userMemories = []
@@ -2929,7 +3031,7 @@ export default {
       for (const keyword of candidates) {
         try {
           const res = await searchSymbols({ keyword, limit: 6 })
-          const data = res.data || {}
+          const data = /** @type {SymbolSearchPayload} */ (res.data || {})
           const list = Array.isArray(data) ? data : (data.results || data.symbols || data.items || [])
           const normalized = list.map(x => this.normalizeSymbolOption(x)).filter(Boolean)
           if (normalized.length) return normalized[0]
@@ -3088,7 +3190,7 @@ export default {
           language: (this.$i18n && this.$i18n.locale) || 'en-US',
           context: this.buildMessageContext()
         })
-        const data = res.data || {}
+        const data = /** @type {SkillPromptPayload} */ (res.data || {})
         return data.prompt || item.prompt || ''
       } catch (_) {
         return item.prompt || ''
@@ -3184,11 +3286,13 @@ export default {
         response_contract: 'professional_report_v1'
       })
       if (!res || res.code === 0) {
-        const err = new Error((res && res.msg) || this.i18nText('aiAssetAnalysis.copilot.analysisFailed', 'Analysis failed'))
+        const err = /** @type {Error & { response?: { data: unknown } }} */ (
+          new Error((res && res.msg) || this.i18nText('aiAssetAnalysis.copilot.analysisFailed', 'Analysis failed'))
+        )
         err.response = { data: res || {} }
         throw err
       }
-      const data = res.data || {}
+      const data = /** @type {ProfessionalAnalysisPayload} */ (res.data || {})
       const report = this.professionalArtifact(data)
       if (!report) {
         throw new Error(this.$t('fastAnalysis.professionalResponseInvalid'))
@@ -3380,7 +3484,7 @@ export default {
           message_id: msg.id,
           language: (this.$i18n && this.$i18n.locale) || 'en-US'
         })
-        const path = res && res.data && res.data.path
+        const path = /** @type {ChatReportSharePayload} */ (res && res.data ? res.data : {}).path
         if (!path) throw new Error((res && res.msg) || this.$t('aiAssetAnalysis.copilot.shareFailed'))
         const url = `${window.location.origin}${window.location.pathname}#${path}`
         await this.copyTextToClipboard(url)
@@ -4158,7 +4262,7 @@ export default {
           language: this.$i18n ? this.$i18n.locale : 'zh-CN'
         })
         if (res && res.code === 0) throw new Error(res.msg || this.text.chatUnavailable)
-        const data = res.data || {}
+        const data = /** @type {ChatMessagePayload} */ (res.data || {})
         this.sessionId = data.session_id || this.sessionId
         const fallbackAssistant = this.replacePendingAssistant(assistantMsg, {
           localId: `local-${localId++}`,
@@ -4963,7 +5067,7 @@ export default {
       return n.toFixed(2)
     }
   }
-}
+})
 </script>
 
 <style scoped lang="less">

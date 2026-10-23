@@ -135,6 +135,7 @@ export function formatBrowserLocalDateTime (input, opts = {}) {
   const d = input instanceof Date ? input : parseToDate(input)
   if (!d || isNaN(d.getTime())) return opts.fallback != null ? opts.fallback : '-'
   const locale = opts.locale || (typeof navigator !== 'undefined' && navigator.language) || 'zh-CN'
+  /** @type {Intl.DateTimeFormatOptions} */
   const intlOpts = {
     year: 'numeric',
     month: '2-digit',

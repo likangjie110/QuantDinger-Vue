@@ -63,13 +63,14 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { mapState } from 'vuex'
 import { deviceMixin } from '@/store/device-mixin'
 import SelectLang from '@/components/SelectLang'
-import BrandIdentity from '@/components/BrandIdentity'
+import BrandIdentity from '@/components/BrandIdentity/index.vue'
 import defaultSettings from '@/config/defaultSettings'
 
-export default {
+export default Vue.extend({
   name: 'UserLayout',
   components: {
     SelectLang,
@@ -97,7 +98,7 @@ export default {
   beforeDestroy () {
     document.body.classList.remove('userLayout')
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

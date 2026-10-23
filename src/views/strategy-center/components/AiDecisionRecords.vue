@@ -88,6 +88,8 @@ export default {
     compact: { type: Boolean, default: false },
     isDark: { type: Boolean, default: false }
   },
+  // Break TS circular data/methods inference so methods remain visible to the template checker.
+  /** @this {object} */
   data () {
     return { rows: [], loading: false, loadFailed: false, requestToken: 0 }
   },

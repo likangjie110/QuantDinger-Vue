@@ -32,7 +32,7 @@
       <div class="factor-library-filterbar">
         <div class="factor-library-filterbar__group">
           <span class="factor-library-filterbar__label">{{ $t('factorLibrary.family') }}</span>
-          <div class="factor-library-filterbar__options" role="group" :aria-label="$t('factorLibrary.family')">
+          <div class="factor-library-filterbar__options" role="group" :aria-label="String($t('factorLibrary.family'))">
             <button
               v-for="option in familyOptions"
               :key="option.value"
@@ -49,7 +49,7 @@
         </div>
         <div class="factor-library-filterbar__group">
           <span class="factor-library-filterbar__label">{{ $t('factorLibrary.scopeLabel') }}</span>
-          <div class="factor-library-filterbar__options" role="group" :aria-label="$t('factorLibrary.scopeLabel')">
+          <div class="factor-library-filterbar__options" role="group" :aria-label="String($t('factorLibrary.scopeLabel'))">
             <button
               v-for="option in scopeOptions"
               :key="option.value"
@@ -263,9 +263,10 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { getFactorCatalog } from '@/api/factor'
 
-export default {
+export default Vue.extend({
   name: 'FactorLibraryModal',
   props: {
     visible: {
@@ -432,7 +433,7 @@ export default {
       this.loading = true
       try {
         const res = await getFactorCatalog()
-        if (!(res && res.code === 1)) throw new Error((res && res.msg) || this.$t('factorLibrary.loadFailed'))
+        if (!(res && res.code === 1)) throw new Error((res && res.msg) || String(this.$t('factorLibrary.loadFailed')))
         this.rawFactors = Array.isArray(res.data) ? res.data : []
         this.factors = this.rawFactors.map(this.prepareFactor)
         this.loaded = true
@@ -473,7 +474,8 @@ export default {
     resetVirtualList () {
       this.listScrollTop = 0
       this.$nextTick(() => {
-        if (this.$refs.factorList) this.$refs.factorList.scrollTop = 0
+        const list = /** @type {HTMLElement | undefined} */ (this.$refs.factorList)
+        if (list) list.scrollTop = 0
       })
     },
     handleFactorFilterChange () {
@@ -733,13 +735,13 @@ export default {
           document.body.removeChild(textarea)
           if (!copied) throw new Error('copy_failed')
         }
-        this.$message.success(this.$t('factorLibrary.copySuccess'))
+        this.$message.success(String(this.$t('factorLibrary.copySuccess')))
       } catch (_) {
-        this.$message.error(this.$t('factorLibrary.copyFailed'))
+        this.$message.error(String(this.$t('factorLibrary.copyFailed')))
       }
     }
   }
-}
+})
 </script>
 
 <style lang="less">

@@ -141,6 +141,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { broker, BROKER_IDS, BROKER_META } from '@/api/broker'
 import { getDesktopBrokersPolicy, listExchangeCredentials } from '@/api/credentials'
 import BrokerPanel from './components/BrokerPanel.vue'
@@ -158,7 +159,12 @@ const CRYPTO_PROVIDERS = [
   { id: 'htx', name: 'HTX', color: '#2e64fe' }
 ]
 
-export default {
+/**
+ * @typedef {Object} AlpacaAccountSummary
+ * @property {number|string} id
+ */
+
+export default Vue.extend({
   name: 'BrokerAccounts',
   components: { BrokerPanel, CryptoExchangeAccountsCard, ExchangeSignupModal, ProviderLogo },
   mixins: [baseMixin],
@@ -232,13 +238,15 @@ export default {
       }
       this.selectProvider(key)
       this.$nextTick(() => {
-        if (this.$refs.brokerPanel) this.$refs.brokerPanel.openConnectForm()
+        const panel = /** @type {{ openConnectForm: () => void } | undefined} */ (this.$refs.brokerPanel)
+        if (panel) panel.openConnectForm()
       })
     },
     openCryptoAdd () {
       this.activeProvider = 'crypto:binance'
       this.$nextTick(() => {
-        if (this.$refs.cryptoCard) this.$refs.cryptoCard.openAddModal()
+        const card = /** @type {{ openAddModal: () => void } | undefined} */ (this.$refs.cryptoCard)
+        if (card) card.openAddModal()
       })
     },
     handleCryptoSummary (payload) {
@@ -247,8 +255,9 @@ export default {
     async loadCryptoSummary () {
       try {
         const res = await listExchangeCredentials()
-        this.cryptoCredentialItems = res && res.code === 1 && res.data && Array.isArray(res.data.items)
-          ? res.data.items
+        const data = /** @type {{ items?: unknown[] }} */ (res && res.data)
+        this.cryptoCredentialItems = res && res.code === 1 && data && Array.isArray(data.items)
+          ? data.items
           : []
       } catch (_) {
         this.cryptoCredentialItems = []
@@ -257,7 +266,7 @@ export default {
     async loadDesktopPolicy () {
       try {
         const res = await getDesktopBrokersPolicy()
-        const payload = (res && (res.data || res)) || {}
+        const payload = /** @type {{ allow_local_desktop_brokers?: boolean, allowed?: boolean, allow?: boolean, enabled?: boolean }} */ ((res && (res.data || res)) || {})
         const flag = payload.allow_local_desktop_brokers
         if (flag === undefined || flag === null) {
           this.desktopBrokersAllowed = !!(payload.allowed || payload.allow || payload.enabled)
@@ -308,7 +317,7 @@ export default {
         if (id === 'alpaca') {
           const response = await broker.alpaca.accounts()
           if (this.requestVersions[id] !== version) return
-          const payload = response && response.data
+          const payload = /** @type {{ data?: AlpacaAccountSummary[] } | AlpacaAccountSummary[] | null} */ (response && response.data)
           this.alpacaAccounts = Array.isArray(payload) ? payload : (payload && payload.data) || []
           if (!this.alpacaAccounts.some(item => Number(item.id) === this.alpacaCredentialId)) {
             this.alpacaCredentialId = this.alpacaAccounts.length ? Number(this.alpacaAccounts[0].id) : null
@@ -359,7 +368,7 @@ export default {
             const status = (res.data && res.data.data) || res.data || {}
             this.alpacaCredentialId = Number(status.credential_id) || null
           }
-          this.$message.success(this.$t('brokerAccounts.connectSuccess'))
+          this.$message.success(String(this.$t('brokerAccounts.connectSuccess')))
           await this.loadOne(id)
         } else {
           const msg = (res && (res.error || (res.data && res.data.error))) || this.$t('brokerAccounts.connectFailed')
@@ -375,7 +384,7 @@ export default {
       this.$set(this.loadingMap, id, true)
       try {
         await broker[id].disconnect(this.accountParams(id))
-        this.$message.success(this.$t('brokerAccounts.disconnectSuccess'))
+        this.$message.success(String(this.$t('brokerAccounts.disconnectSuccess')))
         this.$set(this.connectionMap, id, { connected: false })
       } catch (e) {
         this.$message.error((e && (e.error || e.message)) || this.$t('brokerAccounts.disconnectFailed'))
@@ -387,7 +396,7 @@ export default {
       try {
         const res = await broker[id].placeOrder({ ...payload, ...this.accountParams(id) })
         if (res && (res.success || (res.data && res.data.success))) {
-          this.$message.success(this.$t('brokerAccounts.orderPlaced'))
+          this.$message.success(String(this.$t('brokerAccounts.orderPlaced')))
           return true
         }
         const msg = (res && (res.error || (res.data && res.data.error))) || this.$t('brokerAccounts.orderFailed')
@@ -401,14 +410,14 @@ export default {
       try {
         const res = await broker[id].cancelOrder(orderId, this.accountParams(id))
         if (res && (res.success || (res.data && res.data.success))) {
-          this.$message.success(this.$t('brokerAccounts.orderCancelled'))
+          this.$message.success(String(this.$t('brokerAccounts.orderCancelled')))
         }
       } catch (e) {
         this.$message.error((e && (e.error || e.message)) || this.$t('brokerAccounts.cancelFailed'))
       }
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

@@ -9,10 +9,11 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { mapState } from 'vuex'
 import CopilotWorkbench from './components/CopilotWorkbench.vue'
 
-export default {
+export default Vue.extend({
   name: 'ProfessionalAnalysisPage',
   components: { CopilotWorkbench },
   props: {
@@ -27,7 +28,7 @@ export default {
       return this.navTheme === 'dark' || this.navTheme === 'realdark'
     }
   }
-}
+})
 </script>
 
 <style scoped>

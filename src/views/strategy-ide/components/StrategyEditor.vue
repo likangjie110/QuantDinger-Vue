@@ -469,6 +469,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { message } from 'ant-design-vue'
 import request from '@/utils/request'
 import CodeMirror from 'codemirror'
@@ -497,7 +498,7 @@ import {
 import { ratioPercentInputFormatter, ratioPercentInputParser } from '@/utils/numberFormat'
 import { applyCodeEditsToCodeMirror, setCodeMirrorValueWithHighlight } from '@/utils/codeEdits'
 
-export default {
+export default Vue.extend({
   name: 'StrategyEditor',
   props: {
     value: { type: String, default: '' },
@@ -739,7 +740,7 @@ export default {
       this.loadingTemplates = true
       try {
         const res = await getScriptTemplateList()
-        const data = res && res.data
+        const data = /** @type {{ items?: unknown[] } | unknown[] | null | undefined} */ (res && res.data)
         const items = Array.isArray(data)
           ? data
           : ((data && data.items) || [])
@@ -1178,18 +1179,18 @@ export default {
       this.verifying = true
       try {
         const code = this.getCode()
-        const res = await request({
+        const res = /** @type {{ code?: number, msg?: string, data?: { valid?: boolean, error?: string } }} */ (await request({
           url: '/api/strategies/verify',
           method: 'post',
           data: { code }
-        })
+        }))
         if (res && res.code === 1 && res.data && res.data.valid) {
           this.lastVerificationState = 'passed'
-          message.success(this.$t('trading-assistant.editor.verifySuccess'))
+          message.success(String(this.$t('trading-assistant.editor.verifySuccess')))
           this.$emit('verified', res.data)
         } else {
           this.lastVerificationState = 'failed'
-          message.error((res && res.data && res.data.error) || (res && res.msg) || this.$t('trading-assistant.editor.verifyFailed'))
+          message.error((res && res.data && res.data.error) || (res && res.msg) || String(this.$t('trading-assistant.editor.verifyFailed')))
         }
       } catch (e) {
         this.lastVerificationState = 'failed'
@@ -1199,7 +1200,7 @@ export default {
       }
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

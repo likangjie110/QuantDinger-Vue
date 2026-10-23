@@ -8,7 +8,9 @@ const compiler = require('vue/compiler-sfc')
 const source = fs.readFileSync(new URL('../../src/views/ai-analysis/components/CopilotWorkbench.vue', import.meta.url), 'utf8')
 const descriptor = compiler.parse({ source })
 const ast = compiler.compileScript(descriptor, { id: 'copilot-latency' }).scriptAst
-const declaration = ast.find(node => node.type === 'ExportDefaultDeclaration').declaration
+const exportDefault = ast.find(node => node.type === 'ExportDefaultDeclaration').declaration
+// Vue.extend(...) keeps the component options as the first call argument.
+const declaration = exportDefault.type === 'CallExpression' ? exportDefault.arguments[0] : exportDefault
 const methods = declaration.properties.find(node => node.key.name === 'methods').value.properties
 
 function loadMethods (names, dependencies = {}) {

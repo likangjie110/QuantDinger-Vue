@@ -47,14 +47,12 @@ export default {
       default: true
     }
   },
-  data () {
-    return {
-      credits: null,
-      creditsLoading: false,
-      creditsRefreshTimer: null,
-      lastCreditsLoadAt: 0
-    }
-  },
+  data: () => ({
+    credits: null,
+    creditsLoading: false,
+    creditsRefreshTimer: null,
+    lastCreditsLoadAt: 0
+  }),
   watch: {
     'currentUser.credits': {
       immediate: true,
@@ -114,8 +112,9 @@ export default {
       this.creditsLoading = true
       try {
         const res = await getMembershipPlans()
-        if (res && res.code === 1 && res.data && res.data.billing) {
-          this.applyCredits(res.data.billing.credits)
+        const data = /** @type {{ billing?: { credits?: number } }} */ (res && res.data)
+        if (res && res.code === 1 && data && data.billing) {
+          this.applyCredits(data.billing.credits)
         }
       } catch (_) {
       } finally {

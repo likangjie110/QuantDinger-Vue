@@ -195,9 +195,10 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import request from '@/utils/request'
 
-export default {
+export default Vue.extend({
   name: 'AuthorDashboard',
   props: {
     isDarkTheme: { type: Boolean, default: false }
@@ -283,7 +284,8 @@ export default {
       try {
         const res = await request({ url: '/api/community/author/summary', method: 'get' })
         if (res && res.code === 1 && res.data) {
-          this.summary = { ...this.summary, ...res.data }
+          const data = /** @type {Record<string, number>} */ (res.data)
+          this.summary = { ...this.summary, ...data }
         }
       } catch (e) {
         console.error('loadSummary failed', e)
@@ -393,7 +395,7 @@ export default {
       return this.$t('community.tabIndicators')
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

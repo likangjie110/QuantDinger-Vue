@@ -509,6 +509,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { mapState } from 'vuex'
 import IndicatorCard from './components/IndicatorCard.vue'
 import IndicatorDetail from './components/IndicatorDetail.vue'
@@ -516,7 +517,7 @@ import AuthorDashboard from './components/AuthorDashboard.vue'
 import request from '@/utils/request'
 import { loadEnabledMarketOptions } from '@/utils/marketModules'
 
-export default {
+export default Vue.extend({
   name: 'IndicatorCommunity',
   components: {
     IndicatorCard,
@@ -739,9 +740,10 @@ export default {
           }
         })
         if (res.code === 1) {
-          this.indicators = res.data.items || []
-          this.pagination.total = Number(res.data.total || 0)
-          const counts = res.data.asset_type_counts || {}
+          const data = /** @type {{ items?: Array<Record<string, unknown>>, total?: number, asset_type_counts?: Record<string, number> }} */ (res.data)
+          this.indicators = data.items || []
+          this.pagination.total = Number(data.total || 0)
+          const counts = data.asset_type_counts || {}
           const currentTypeCount = this.pagination.total
           this.marketAssetCounts = {
             indicator: counts.indicator === undefined
@@ -776,7 +778,8 @@ export default {
           params: { page: 1, page_size: 50 }
         })
         if (res.code === 1) {
-          this.myPurchases = res.data.items || []
+          const data = /** @type {{ items?: Array<Record<string, unknown>> }} */ (res.data)
+          this.myPurchases = data.items || []
         }
       } catch (e) {
         console.error('Load purchases failed:', e)
@@ -902,7 +905,7 @@ export default {
           method: 'post'
         })
         if (res && res.code === 1) {
-          const data = res.data || {}
+          const data = /** @type {{ script_source_id?: unknown, strategy_id?: unknown, local_copy_id?: unknown }} */ (res.data || {})
           if (res.msg === 'restored') {
             this.$message.success(this.$t('community.restoreCopySuccess'))
           } else if (res.msg === 'listing_unpublished_no_update' || res.msg === 'listing_deleted_no_update') {
@@ -1002,8 +1005,9 @@ export default {
           }
         })
         if (res.code === 1) {
-          this.pendingIndicators = res.data.items || []
-          this.reviewPagination.total = Number(res.data.total || 0)
+          const data = /** @type {{ items?: Array<Record<string, unknown>>, total?: number }} */ (res.data)
+          this.pendingIndicators = data.items || []
+          this.reviewPagination.total = Number(data.total || 0)
         }
       } catch (e) {
         console.error('Load pending indicators failed:', e)
@@ -1249,7 +1253,7 @@ export default {
       }
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

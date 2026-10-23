@@ -34,7 +34,9 @@
 </template>
 
 <script>
-export default {
+import Vue from 'vue'
+
+export default Vue.extend({
   name: 'AlpacaConnectForm',
   props: {
     broker: { type: Object, required: true },
@@ -67,7 +69,7 @@ export default {
       })
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

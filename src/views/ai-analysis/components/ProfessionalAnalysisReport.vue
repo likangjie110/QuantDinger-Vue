@@ -171,6 +171,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { mapState } from 'vuex'
 import {
   evidenceProviderTokens,
@@ -179,7 +180,7 @@ import {
   resolveTradeActionLabelKey
 } from '@/utils/fastAnalysisPresentation'
 
-export default {
+export default Vue.extend({
   name: 'ProfessionalAnalysisReport',
   props: {
     result: { type: Object, default: null },
@@ -188,7 +189,7 @@ export default {
     errorTone: {
       type: String,
       default: 'error',
-      validator: value => ['error', 'warning', 'info'].includes(value)
+      validator: value => ['error', 'warning', 'info'].includes(/** @type {string} */ (value))
     }
   },
   data () {
@@ -520,7 +521,7 @@ export default {
       }
     }
   }
-}
+})
 </script>
 
 <style scoped lang="less">

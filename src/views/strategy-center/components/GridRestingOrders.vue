@@ -37,22 +37,22 @@
       size="small"
       :scroll="{ x: 1050 }"
     >
-      <template slot="side" slot-scope="value, row">
-        <a-tag :color="String(row.side).toLowerCase() === 'buy' ? 'green' : 'red'">{{ row.side || '-' }}</a-tag>
+      <template v-slot:side="value">
+        <a-tag :color="String(value).toLowerCase() === 'buy' ? 'green' : 'red'">{{ value || '-' }}</a-tag>
       </template>
-      <template slot="status" slot-scope="value">
+      <template v-slot:status="value">
         <a-tag :color="statusColor(value)">{{ statusLabel(value) }}</a-tag>
       </template>
-      <template slot="price" slot-scope="value">
+      <template v-slot:price="value">
         <span class="number-with-unit"><span>{{ formatPrice(value) }}</span><small v-if="displayUnits.quote">{{ displayUnits.quote }}</small></span>
       </template>
-      <template slot="quantity" slot-scope="value">
+      <template v-slot:quantity="value">
         <span class="number-with-unit"><span>{{ formatQuantity(value) }}</span><small v-if="displayUnits.base">{{ displayUnits.base }}</small></span>
       </template>
-      <template slot="exchangeOrderId" slot-scope="value">
+      <template v-slot:exchangeOrderId="value">
         <code :class="{ missing: !value }">{{ value || $t(isVirtual ? 'strategyCenter.gridOrders.notAvailable' : 'strategyCenter.gridOrders.notVerified') }}</code>
       </template>
-      <template slot="updatedAt" slot-scope="value">{{ formatTime(value) }}</template>
+      <template v-slot:updatedAt="value">{{ formatTime(value) }}</template>
       <template slot="emptyText">
         <div class="grid-orders-empty">
           <a-icon type="warning" />
@@ -67,12 +67,27 @@
 <script>
 import { getGridRestingOrders } from '@/api/strategy'
 
+/**
+ * @typedef {Object} GridOrderSummary
+ * @property {boolean} [virtual_mode]
+ * @property {boolean} [sync_requested]
+ * @property {boolean} [sync_ok]
+ * @property {string} [sync_error]
+ * @property {number} [total]
+ * @property {number} [verified_exchange_orders]
+ * @property {number} [unverified_orders]
+ * @property {boolean} [exchange_audit_completed]
+ * @property {string} [last_reconciled_at]
+ */
+
 export default {
   name: 'GridRestingOrders',
   props: {
     strategyId: { type: Number, required: true },
     isDark: { type: Boolean, default: false }
   },
+  // Break TS circular data/methods inference so methods remain visible to the template checker.
+  /** @this {object} */
   data () {
     return {
       orders: [],
@@ -146,7 +161,7 @@ export default {
         const response = await getGridRestingOrders(strategyId, { status: '', limit: 500, sync })
         if (requestId !== this.requestId) return
         if (!response || response.code !== 1) throw new Error('grid_order_fetch_failed')
-        const data = response && response.data || {}
+        const data = /** @type {{ orders?: any[], items?: any[], summary?: GridOrderSummary }} */ (response.data || {})
         this.orders = data.orders || data.items || []
         this.summary = data.summary || {}
       } catch (error) {

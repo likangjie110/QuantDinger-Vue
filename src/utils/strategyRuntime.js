@@ -99,6 +99,9 @@ export const strategyQuoteCurrency = strategy => {
   return 'USDT'
 }
 
+/**
+ * @param {{ strategy?: Record<string, unknown>, curve?: Array<Record<string, unknown>>, trades?: Array<Record<string, unknown>> }} [params]
+ */
 export const summarizeStrategyPerformance = ({ strategy, curve = [], trades = [] } = {}) => {
   const capital = strategyCapital(strategy)
   const values = (Array.isArray(curve) ? curve : [])

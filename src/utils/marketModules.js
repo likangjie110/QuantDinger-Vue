@@ -6,6 +6,15 @@ export const FALLBACK_MARKET_MODULES = [
   { key: 'Forex', label: 'Forex', enabled: true, features: ['research', 'backtest', 'paper', 'live'] }
 ]
 
+/**
+ * @typedef {Object} MarketModule
+ * @property {string} [key]
+ * @property {string} [value]
+ * @property {string} [label]
+ * @property {boolean} [enabled]
+ * @property {string[]} [features]
+ */
+
 export function toMarketOption (module) {
   const key = module && (module.key || module.value)
   return {
@@ -21,8 +30,9 @@ export async function loadEnabledMarketOptions (opts = {}) {
   const fallback = Array.isArray(opts.fallback) ? opts.fallback : FALLBACK_MARKET_MODULES
   try {
     const res = await getMarketModules()
-    const markets = res && res.code === 1 && res.data && Array.isArray(res.data.markets)
-      ? res.data.markets
+    const data = /** @type {{ markets?: MarketModule[] }} */ (res && res.data)
+    const markets = res && res.code === 1 && data && Array.isArray(data.markets)
+      ? data.markets
       : fallback
     return markets
       .filter(market => market && market.enabled !== false)

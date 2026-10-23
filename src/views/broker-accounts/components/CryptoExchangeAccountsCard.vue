@@ -204,6 +204,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { listExchangeCredentials, deleteExchangeCredential } from '@/api/credentials'
 import { getAccountSnapshot } from '@/api/strategy'
 import ExchangeAccountModal from '@/components/ExchangeAccountModal/ExchangeAccountModal.vue'
@@ -234,7 +235,27 @@ const ICON_COLORS = {
   htx: '#1B2C3B'
 }
 
-export default {
+/**
+ * @typedef {Object} ExchangeCredential
+ * @property {number} id
+ * @property {string} exchange_id
+ * @property {string} [name]
+ * @property {string} [api_key_hint]
+ * @property {number|string} [created_at]
+ */
+
+/**
+ * @typedef {Object} AccountSnapshotPayload
+ * @property {unknown[]} [swap_positions]
+ * @property {unknown[]} [spot_positions]
+ * @property {unknown[]} [open_orders]
+ * @property {number|string} [fetched_at]
+ * @property {string[]} [warnings]
+ * @property {string} [error]
+ * @property {boolean} [partial]
+ */
+
+export default Vue.extend({
   name: 'CryptoExchangeAccountsCard',
   components: { ExchangeAccountModal, RenameCredentialModal },
   props: {
@@ -453,8 +474,9 @@ export default {
       this.loading = true
       try {
         const res = await listExchangeCredentials()
-        if (res && res.code === 1 && res.data && Array.isArray(res.data.items)) {
-          this.items = res.data.items
+        const data = /** @type {{ items?: ExchangeCredential[] }} */ (res && res.data)
+        if (res && res.code === 1 && data && Array.isArray(data.items)) {
+          this.items = data.items
         } else {
           this.items = []
         }
@@ -493,7 +515,7 @@ export default {
       this.snapshotPartial = false
       try {
         const res = await getAccountSnapshot({ credential_id: item.id })
-        const data = (res && res.data) ? res.data : {}
+        const data = /** @type {AccountSnapshotPayload} */ ((res && res.data) ? res.data : {})
         this.swapRows = this.mapPositionRows(data.swap_positions || [])
         this.spotRows = this.mapPositionRows(data.spot_positions || [])
         this.orderRows = this.mapOrderRows(data.open_orders || [])
@@ -521,7 +543,7 @@ export default {
       } catch (e) {
         this.snapshotWarningCodes = ['trading-assistant.positions.snapshotFailed']
         this.snapshotErrors = [this.$t('trading-assistant.positions.snapshotFailed')]
-        this.$message.error(this.$t('trading-assistant.positions.snapshotFailed'))
+        this.$message.error(String(this.$t('trading-assistant.positions.snapshotFailed')))
       } finally {
         this.snapshotLoading = false
       }
@@ -530,17 +552,17 @@ export default {
       try {
         const res = await deleteExchangeCredential(item.id)
         if (res && res.code === 1) {
-          this.$message.success(this.$t('brokerAccounts.cryptoSection.deleteSuccess'))
+          this.$message.success(String(this.$t('brokerAccounts.cryptoSection.deleteSuccess')))
           this.loadCredentials()
         } else {
-          this.$message.error((res && res.msg) || this.$t('brokerAccounts.cryptoSection.deleteFailed'))
+          this.$message.error(String((res && res.msg) || this.$t('brokerAccounts.cryptoSection.deleteFailed')))
         }
       } catch (e) {
         this.$message.error((e && e.message) || this.$t('brokerAccounts.cryptoSection.deleteFailed'))
       }
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

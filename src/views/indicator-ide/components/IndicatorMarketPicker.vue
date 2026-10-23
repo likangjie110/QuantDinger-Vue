@@ -134,6 +134,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import request from '@/utils/request'
 
 const COVER_GRADIENTS = [
@@ -143,7 +144,7 @@ const COVER_GRADIENTS = [
   'linear-gradient(135deg, #3b2a16 0%, #a66c24 100%)'
 ]
 
-export default {
+export default Vue.extend({
   name: 'IndicatorMarketPicker',
   props: {
     visible: {
@@ -216,7 +217,8 @@ export default {
           }
         })
         if (res && res.code === 1) {
-          const rows = (res.data && res.data.items) || []
+          const data = /** @type {{ items?: Array<{ asset_type?: string, strategy_type?: string }> }} */ (res.data || {})
+          const rows = data.items || []
           const expectedAssetType = this.isStrategyMode ? 'script_template' : 'indicator'
           this.items = rows.filter(item => {
             if (String(item.asset_type || 'indicator').toLowerCase() !== expectedAssetType) return false
@@ -243,7 +245,8 @@ export default {
             method: 'get'
           })
           if (detail && detail.code === 1) {
-            let result = detail.data || {}
+            /** @type {Record<string, unknown>} */
+            let result = /** @type {Record<string, unknown>} */ (detail.data || {})
             if (this.isStrategyMode && result.local_copy_missing && item.is_purchased) {
               const restored = await request({
                 url: `/api/community/indicators/${item.id}/sync`,
@@ -253,7 +256,7 @@ export default {
                 this.$message.error(this.purchaseError(restored))
                 return
               }
-              result = restored.data || result
+              result = /** @type {Record<string, unknown>} */ (restored.data || result)
             }
             this.$emit('acquired', { item, result })
           } else {
@@ -359,7 +362,7 @@ export default {
       return { background: COVER_GRADIENTS[Number(item.id || 0) % COVER_GRADIENTS.length] }
     }
   }
-}
+})
 </script>
 
 <style lang="less">

@@ -67,6 +67,7 @@ const percentProfile = value => {
 
 const compactEvidenceNumber = (value, locale) => {
   const absolute = Math.abs(value)
+  /** @type {Array<[number, string]>} */
   const scales = [[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']]
   const scale = scales.find(([threshold]) => absolute >= threshold)
   if (!scale) {
@@ -177,6 +178,9 @@ export function evidenceProviderTokens (value) {
   return unique
 }
 
+/**
+ * @param {{ decision?: unknown, bias?: unknown, score?: unknown }} [params]
+ */
 export function resolveDecisionLabelKey ({ decision, bias, score } = {}) {
   const action = normalizedDecision(decision)
   if (action === 'BUY') return 'fastAnalysis.outlookBull'
@@ -194,6 +198,9 @@ export function resolveDecisionLabelKey ({ decision, bias, score } = {}) {
   return 'fastAnalysis.outlookNeutral'
 }
 
+/**
+ * @param {{ marketBias?: unknown, biasScore?: unknown, technicalScore?: unknown }} [params]
+ */
 export function resolveMarketBiasLabelKey ({ marketBias, biasScore, technicalScore } = {}) {
   const bias = normalizedBias(marketBias)
   if (bias === 'BULLISH') return 'fastAnalysis.marketBiasBullish'

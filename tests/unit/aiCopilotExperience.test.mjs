@@ -41,7 +41,7 @@ test('switching conversations clears workflow and composer state', () => {
 
 test('language selector is click and keyboard accessible', () => {
   assert.match(selectLang, /trigger=\{\['click'\]\}/)
-  assert.match(selectLang, /role="button" tabIndex="0" onKeydown=\{handleKeydown\}/)
+  assert.match(selectLang, /role="button" tabindex=\{0\} onKeydown=\{handleKeydown\}/)
   assert.match(selectLang, /event\.key === 'Enter' \|\| event\.key === ' '/)
 })
 

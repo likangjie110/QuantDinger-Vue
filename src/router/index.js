@@ -21,7 +21,7 @@ const router = createRouter()
 
 export function resetRouter () {
   const newRouter = createRouter()
-  router.matcher = newRouter.matcher
+  Reflect.set(router, 'matcher', Reflect.get(newRouter, 'matcher'))
 }
 
 export default router

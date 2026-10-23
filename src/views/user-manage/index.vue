@@ -1429,6 +1429,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { getUserList, exportUsers, createUser, updateUser, deleteUser, resetUserPassword, getRoles, setUserCredits, setUserVip, getSystemStrategies, adminToggleStrategy, adminDeleteStrategy, getAdminOrders, manualConfirmOrder, getAdminAiStats, getUserAdminStats } from '@/api/user'
 import { getAdminReferralWithdrawals, reviewAdminReferralWithdrawal } from '@/api/billing'
 import { baseMixin } from '@/store/app-mixin'
@@ -1436,7 +1437,51 @@ import { mapGetters } from 'vuex'
 import * as echarts from 'echarts'
 import { getExchangeDisplayName } from '@/utils/exchangeCredential'
 
-export default {
+/**
+ * @typedef {Object} OrderPlanOption
+ * @property {string} [code]
+ */
+
+/**
+ * @typedef {Object} OrderFilterOptionsShape
+ * @property {string[]} payment_methods
+ * @property {OrderPlanOption[]} plans
+ */
+
+/**
+ * @typedef {Object} PagedItemsPayload
+ * @property {unknown[]} [items]
+ * @property {number} [total]
+ * @property {Record<string, unknown>} [summary]
+ * @property {OrderFilterOptionsShape} [filter_options]
+ */
+
+/**
+ * @typedef {Object} StrategiesPayload
+ * @property {unknown[]} [items]
+ * @property {number} [total]
+ * @property {Record<string, unknown>} [summary]
+ */
+
+/**
+ * @typedef {Object} StatusPayload
+ * @property {string} [status]
+ */
+
+/**
+ * @typedef {Object} RolesPayload
+ * @property {unknown[]} [roles]
+ */
+
+/**
+ * @typedef {Object} AiStatsPayload
+ * @property {unknown[]} [user_stats]
+ * @property {unknown[]} [recent]
+ * @property {number} [user_total]
+ * @property {Record<string, unknown>} [summary]
+ */
+
+export default Vue.extend({
   name: 'UserManage',
   mixins: [baseMixin],
   data () {
@@ -1515,10 +1560,10 @@ export default {
       orderStatusFilter: 'all',
       orderPaymentFilter: 'all',
       orderPlanFilter: 'all',
-      orderFilterOptions: {
+      orderFilterOptions: /** @type {OrderFilterOptionsShape} */ ({
         payment_methods: ['usdt', 'usdc', 'stripe'],
         plans: []
-      },
+      }),
       orderSearchKeyword: '',
       orderPagination: {
         current: 1,
@@ -2093,8 +2138,9 @@ export default {
     }
   },
   beforeCreate () {
-    this.form = this.$form.createForm(this)
-    this.resetPasswordForm = this.$form.createForm(this, { name: 'resetPassword' })
+    const vm = /** @type {Vue & { form: import('ant-design-vue/types/form/form').WrappedFormUtils, resetPasswordForm: import('ant-design-vue/types/form/form').WrappedFormUtils }} */ (this)
+    vm.form = this.$form.createForm(this)
+    vm.resetPasswordForm = this.$form.createForm(this, { name: 'resetPassword' })
   },
   mounted () {
     this.loadUsers()
@@ -2166,8 +2212,9 @@ export default {
       try {
         const res = await getSystemStrategies(this.buildStrategyQueryParams())
         if (res.code === 1) {
-          const items = res.data.items || []
-          const total = res.data.total || 0
+          const data = /** @type {StrategiesPayload} */ (res.data || {})
+          const items = data.items || []
+          const total = data.total || 0
           if (
             retryOnEmptyPage &&
             items.length === 0 &&
@@ -2180,7 +2227,7 @@ export default {
           }
           this.systemStrategies = items
           this.strategyPagination.total = total
-          this.strategySummary = res.data.summary || {}
+          this.strategySummary = data.summary || {}
           this.strategiesLoaded = true
         } else {
           this.$message.error(res.msg || 'Failed to load strategies')
@@ -2352,7 +2399,8 @@ export default {
         try {
           const res = await adminToggleStrategy(record.id, action)
           if (res && res.code === 1) {
-            const newStatus = (res.data && res.data.status) || (wantRun ? 'running' : 'stopped')
+            const data = /** @type {StatusPayload} */ (res.data || {})
+            const newStatus = data.status || (wantRun ? 'running' : 'stopped')
             record.status = newStatus
             this.$message.success(res.msg || 'OK')
             await this.loadSystemStrategies()
@@ -2738,8 +2786,9 @@ export default {
       try {
         const res = await getUserList(this.buildUserQueryParams())
         if (res.code === 1) {
-          const items = res.data.items || []
-          const total = res.data.total || 0
+          const data = /** @type {PagedItemsPayload} */ (res.data || {})
+          const items = data.items || []
+          const total = data.total || 0
           if (
             retryOnEmptyPage &&
             items.length === 0 &&
@@ -2794,7 +2843,8 @@ export default {
       try {
         const res = await getRoles()
         if (res.code === 1) {
-          this.roles = res.data.roles || []
+          const data = /** @type {RolesPayload} */ (res.data || {})
+          this.roles = data.roles || []
         }
       } catch (error) {
         console.error('Failed to load roles:', error)
@@ -2921,10 +2971,10 @@ export default {
 
         if (successCount && !failedCount) {
           const template = this.$t('userManage.batchBanSuccess') || 'Banned {count} users'
-          this.$message.success(String(template).replace('{count}', successCount))
+          this.$message.success(String(template).replace('{count}', String(successCount)))
         } else if (successCount) {
           const template = this.$t('userManage.batchBanPartial') || 'Banned {success} users, {failed} failed'
-          this.$message.warning(String(template).replace('{success}', successCount).replace('{failed}', failedCount))
+          this.$message.warning(String(template).replace('{success}', String(successCount)).replace('{failed}', String(failedCount)))
         } else {
           this.$message.error(this.$t('userManage.batchBanFailed') || 'Batch ban failed')
         }
@@ -3105,10 +3155,11 @@ export default {
           search: this.orderSearchKeyword || ''
         })
         if (res.code === 1) {
-          this.orders = res.data.items || []
-          this.orderPagination.total = res.data.total || 0
-          this.orderSummary = res.data.summary || {}
-          this.orderFilterOptions = res.data.filter_options || this.orderFilterOptions
+          const data = /** @type {PagedItemsPayload} */ (res.data || {})
+          this.orders = data.items || []
+          this.orderPagination.total = data.total || 0
+          this.orderSummary = data.summary || {}
+          this.orderFilterOptions = data.filter_options || this.orderFilterOptions
           this.ordersLoaded = true
         } else {
           this.$message.error(res.msg || this.$t('adminOrders.loadFailed'))
@@ -3163,9 +3214,10 @@ export default {
           status: this.rewardWithdrawalStatus === 'all' ? '' : this.rewardWithdrawalStatus
         })
         if (res && res.code === 1) {
-          this.rewardWithdrawals = (res.data && res.data.items) || []
-          this.rewardWithdrawalPagination.total = (res.data && res.data.total) || 0
-          this.rewardWithdrawalSummary = (res.data && res.data.summary) || {}
+          const data = /** @type {PagedItemsPayload} */ (res.data || {})
+          this.rewardWithdrawals = data.items || []
+          this.rewardWithdrawalPagination.total = data.total || 0
+          this.rewardWithdrawalSummary = data.summary || {}
           this.rewardWithdrawalsLoaded = true
         } else {
           this.$message.error((res && res.msg) || this.$t('adminReferralWithdrawals.loadFailed'))
@@ -3385,10 +3437,11 @@ export default {
           search: this.aiStatsSearchKeyword || ''
         })
         if (res.code === 1) {
-          this.aiUserStats = res.data.user_stats || []
-          this.aiRecentRecords = res.data.recent || []
-          this.aiStatsPagination.total = res.data.user_total || 0
-          this.aiStatsSummary = res.data.summary || {}
+          const data = /** @type {AiStatsPayload} */ (res.data || {})
+          this.aiUserStats = data.user_stats || []
+          this.aiRecentRecords = data.recent || []
+          this.aiStatsPagination.total = data.user_total || 0
+          this.aiStatsSummary = data.summary || {}
           this.aiStatsLoaded = true
         } else {
           this.$message.error(res.msg || 'Failed to load AI stats')
@@ -3412,7 +3465,7 @@ export default {
       this.loadAiStats()
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

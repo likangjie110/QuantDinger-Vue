@@ -205,6 +205,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import {
   getMyAgentTokenPolicy,
   issueMyAgentToken,
@@ -213,7 +214,26 @@ import {
   listMyAgentAudit
 } from '@/api/agent'
 
-export default {
+// Kept at module scope so data() can seed the form without relying on methods.
+function createIssueForm () {
+  return {
+    name: '',
+    scopes: ['R'],
+    markets: '*',
+    instruments: '*',
+    paper_only: true,
+    rate_limit_per_min: 60,
+    expires_in_days: 30,
+    ack_live_trading_risk: false
+  }
+}
+
+/**
+ * @typedef {Object} IssuedAgentToken
+ * @property {string} [token]
+ */
+
+export default Vue.extend({
   name: 'ProfileAgentTokens',
   props: {
     isDarkTheme: {
@@ -231,7 +251,7 @@ export default {
       loadingAudit: false,
       issueModalVisible: false,
       issuing: false,
-      issueForm: this.freshIssueForm(),
+      issueForm: createIssueForm(),
       revealed: null
     }
   },
@@ -313,18 +333,6 @@ export default {
     this.loadTokens()
   },
   methods: {
-    freshIssueForm () {
-      return {
-        name: '',
-        scopes: ['R'],
-        markets: '*',
-        instruments: '*',
-        paper_only: true,
-        rate_limit_per_min: 60,
-        expires_in_days: 30,
-        ack_live_trading_risk: false
-      }
-    },
     async loadPolicy () {
       try {
         const resp = await getMyAgentTokenPolicy()
@@ -397,7 +405,7 @@ export default {
       }
     },
     openIssueModal () {
-      this.issueForm = this.freshIssueForm()
+      this.issueForm = createIssueForm()
       this.issueModalVisible = true
     },
     closeIssueModal () {
@@ -425,7 +433,7 @@ export default {
             payload.ack_live_trading_risk = true
           }
           const resp = await issueMyAgentToken(payload)
-          const data = (resp && resp.data) || resp
+          const data = /** @type {IssuedAgentToken} */ ((resp && resp.data) || resp)
           if (!data || !data.token) throw new Error('Empty response')
           this.revealed = data
           this.issueModalVisible = false
@@ -472,7 +480,7 @@ export default {
       if (val === 'audit' && !this.audit.length) this.loadAudit()
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

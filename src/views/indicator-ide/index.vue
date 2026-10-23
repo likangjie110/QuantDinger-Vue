@@ -7,7 +7,7 @@
         :class="{ 'is-open': codeDrawerVisible }"
         role="button"
         tabindex="0"
-        :title="codeDrawerVisible ? $t('indicatorIde.hideCode') : $t('indicatorIde.showCode')"
+        :title="String(codeDrawerVisible ? $t('indicatorIde.hideCode') : $t('indicatorIde.showCode'))"
         @click="toggleCodeDrawer"
         @keyup.enter="toggleCodeDrawer"
       >
@@ -145,7 +145,7 @@
               aria-orientation="horizontal"
               tabindex="0"
               :aria-valuenow="Math.round(codeAiSplitRatio)"
-              :title="$t('indicatorIde.aiCollaborate')"
+              :title="String($t('indicatorIde.aiCollaborate'))"
               @mousedown="startCodeAiResize"
               @dblclick="resetCodeAiSplit"
               @keydown.up.prevent="adjustCodeAiSplit(-3)"
@@ -633,13 +633,13 @@
                           <span v-if="consoleState.connected && !quickTradeMinimized" class="ide-quick-float__connected"><a-badge status="success" />{{ $t('quickTrade.connected') }}</span>
                           <div class="ide-quick-float__actions" @mousedown.stop>
                             <a-tooltip :title="quickTradePinned ? $t('quickTrade.floating.unpin') : $t('quickTrade.floating.pin')">
-                              <button type="button" :class="{ active: quickTradePinned }" :aria-label="quickTradePinned ? $t('quickTrade.floating.unpin') : $t('quickTrade.floating.pin')" :aria-pressed="quickTradePinned ? 'true' : 'false'" @click="toggleQuickTradePin"><a-icon type="pushpin" theme="filled" /></button>
+                              <button type="button" :class="{ active: quickTradePinned }" :aria-label="String(quickTradePinned ? $t('quickTrade.floating.unpin') : $t('quickTrade.floating.pin'))" :aria-pressed="quickTradePinned ? 'true' : 'false'" @click="toggleQuickTradePin"><a-icon type="pushpin" theme="filled" /></button>
                             </a-tooltip>
                             <a-tooltip :title="quickTradeMinimized ? $t('quickTrade.floating.restore') : $t('quickTrade.floating.minimize')">
-                              <button type="button" :aria-label="quickTradeMinimized ? $t('quickTrade.floating.restore') : $t('quickTrade.floating.minimize')" @click="quickTradeMinimized = !quickTradeMinimized"><a-icon :type="quickTradeMinimized ? 'border' : 'minus'" /></button>
+                              <button type="button" :aria-label="String(quickTradeMinimized ? $t('quickTrade.floating.restore') : $t('quickTrade.floating.minimize'))" @click="quickTradeMinimized = !quickTradeMinimized"><a-icon :type="quickTradeMinimized ? 'border' : 'minus'" /></button>
                             </a-tooltip>
                             <a-tooltip :title="$t('indicatorIde.hideQuickTrade')">
-                              <button type="button" :aria-label="$t('indicatorIde.hideQuickTrade')" @click="closeQuickTradeFloat"><a-icon type="close" /></button>
+                              <button type="button" :aria-label="String($t('indicatorIde.hideQuickTrade'))" @click="closeQuickTradeFloat"><a-icon type="close" /></button>
                             </a-tooltip>
                           </div>
                         </header>
@@ -651,8 +651,8 @@
                   v-else
                   type="button"
                   class="ide-quick-float-launcher"
-                  :title="$t('indicatorIde.showQuickTrade')"
-                  :aria-label="$t('indicatorIde.showQuickTrade')"
+                  :title="String($t('indicatorIde.showQuickTrade'))"
+                  :aria-label="String($t('indicatorIde.showQuickTrade'))"
                   @click="toggleQuickTradeDrawer"
                 >
                   <a-icon type="thunderbolt" theme="filled" />
@@ -1233,7 +1233,7 @@ import { renderSafeMarkdown } from '@/utils/safeMarkdown'
 import { clampFloatingPanelPosition, snapFloatingPanelPosition } from '@/utils/floatingPanel.mjs'
 import { applyCodeEditsToCodeMirror, applyExactCodeEdits, candidateCodeEditOperations, setCodeMirrorValueWithHighlight } from '@/utils/codeEdits'
 import KlineChart from '@/views/indicator-analysis/components/KlineChart.vue'
-import QuickTradePanel from '@/components/QuickTradePanel/QuickTradePanel'
+import QuickTradePanel from '@/components/QuickTradePanel/QuickTradePanel.vue'
 import IndicatorMarketPicker from './components/IndicatorMarketPicker.vue'
 import { Modal } from 'ant-design-vue'
 import message from 'ant-design-vue/es/message'
@@ -1287,6 +1287,12 @@ const supportedChartTypes = new Set([
   'renko',
   'range'
 ])
+
+// Old WebKit builds only expose the vendor-prefixed fullscreen APIs.
+/** @typedef {Document & { webkitFullscreenElement?: Element | null, webkitExitFullscreen?: () => Promise<void> }} WebkitDocument */
+/** @typedef {HTMLElement & { webkitRequestFullscreen?: () => Promise<void> }} WebkitElement */
+/** @typedef {import('vue/types/vue').Vue & { chartRef?: { resize?: () => void } | null, initChart?: () => void, updateIndicators?: () => void, executePythonStrategy?: (...args: unknown[]) => unknown, indicatorButtons?: Array<{ id: string }>, handleIndicatorButtonClick?: (option: { id: string }) => void, captureMarketPreview?: (options: Record<string, unknown>) => Promise<string> }} KlineChartRef */
+/** @typedef {import('ant-design-vue/types/modal').ModalOptions & { getContainer?: () => Element }} IdeModalOptions */
 
 export default {
   name: 'IndicatorIDE',
@@ -1696,15 +1702,17 @@ export default {
     syncChartPresetIndicatorOptions () {
       this.$nextTick(() => {
         const chart = this.$refs.klineChart
-        const options = chart && chart.indicatorButtons
+        const typedChart = /** @type {KlineChartRef} */ (chart)
+        const options = typedChart && typedChart.indicatorButtons
         this.chartPresetIndicatorOptions = Array.isArray(options) ? options.slice() : []
       })
     },
     onChartPresetIndicatorClick ({ key }) {
       const option = this.chartPresetIndicatorOptions.find(item => item.id === key)
       const chart = this.$refs.klineChart
-      if (!option || !chart || typeof chart.handleIndicatorButtonClick !== 'function') return
-      chart.handleIndicatorButtonClick(option)
+      const typedChart = /** @type {KlineChartRef} */ (chart)
+      if (!option || !typedChart || typeof typedChart.handleIndicatorButtonClick !== 'function') return
+      typedChart.handleIndicatorButtonClick(option)
     },
     isChartPresetIndicatorActive (indicatorId) {
       if (indicatorId === 'vol') return true
@@ -1749,7 +1757,7 @@ export default {
     },
     startCodeAiResize (event) {
       if (event && event.button !== 0) return
-      const container = this.$refs.codePanelBody
+      const container = /** @type {HTMLElement} */ (this.$refs.codePanelBody)
       if (!container) return
       const rect = container.getBoundingClientRect()
       if (!rect.height) return
@@ -1836,7 +1844,8 @@ export default {
     async loadUserId () {
       try {
         const res = await getUserInfo()
-        if (res && res.data) this.userId = res.data.id || res.data.user_id || 1
+        const user = /** @type {{ id?: number, user_id?: number }} */ (res && res.data ? res.data : {})
+        if (res && res.data) this.userId = user.id || user.user_id || 1
       } catch (_) {
         this.userId = 1
       }
@@ -2061,7 +2070,7 @@ export default {
       this.loadingWatchlist = true
       try {
         const res = await getWatchlist({ userid: this.userId })
-        if (res && res.code === 1 && res.data) this.watchlist = res.data
+        if (res && res.code === 1 && Array.isArray(res.data)) this.watchlist = res.data
         this.reconcileIdeMarketFromWatchlist()
       } catch (_) { /* silent */ } finally {
         this.loadingWatchlist = false
@@ -2108,9 +2117,10 @@ export default {
       this.$nextTick(() => {
         setTimeout(() => {
           const chart = this.$refs.klineChart
-          if (!chart || !this.symbol) return
-          if (!chart.chartRef && typeof chart.initChart === 'function') {
-            chart.initChart()
+          const typedChart = /** @type {KlineChartRef} */ (chart)
+          if (!typedChart || !this.symbol) return
+          if (!typedChart.chartRef && typeof typedChart.initChart === 'function') {
+            typedChart.initChart()
           }
           if (this.selectedIndicatorId) {
             this.syncSelectedIndicatorToChart()
@@ -2121,7 +2131,7 @@ export default {
 
     // ===== CodeMirror =====
     initCodeMirror () {
-      const el = this.$refs.codeEditor
+      const el = /** @type {HTMLElement} */ (this.$refs.codeEditor)
       if (!el) return
       if (this.cmInstance) {
         this.cmInstance.toTextArea()
@@ -2235,9 +2245,10 @@ export default {
       }
       return params
     },
-    normalizeIndicatorParamMap (params, specs = this.currentIndicatorParamSpecs) {
+    normalizeIndicatorParamMap (params, specs) {
+      const specList = specs === undefined ? this.currentIndicatorParamSpecs : specs
       const out = {}
-      for (const spec of specs || []) {
+      for (const spec of specList || []) {
         const hasValue = params && Object.prototype.hasOwnProperty.call(params, spec.name)
         out[spec.name] = this.castIndicatorParamValue(hasValue ? params[spec.name] : spec.defaultValue, spec.type)
       }
@@ -2291,7 +2302,7 @@ export default {
       const next = this.normalizeIndicatorParamMap(this.indicatorParamDraft)
       this.$set(this.indicatorParamOverrides, id, next)
       this.syncSelectedIndicatorToChart()
-      this.$message.success(this.$t('indicatorIde.paramPanel.applySuccess'))
+      this.$message.success(String(this.$t('indicatorIde.paramPanel.applySuccess')))
     },
     saveIndicatorParamDefaults () {
       if (!this.selectedIndicatorObj || !this.currentIndicatorParamSpecs.length) return
@@ -2300,7 +2311,7 @@ export default {
       this.$set(this.indicatorParamOverrides, id, next)
       this.persistIndicatorParamDefaults()
       this.syncSelectedIndicatorToChart()
-      this.$message.success(this.$t('indicatorIde.paramPanel.saveSuccess'))
+      this.$message.success(String(this.$t('indicatorIde.paramPanel.saveSuccess')))
     },
     resetIndicatorParamsToDeclared () {
       if (!this.selectedIndicatorObj) return
@@ -2315,14 +2326,14 @@ export default {
       if (this.selectedIndicatorCodeHidden || !this.currentIndicatorParamSpecs.length) return
       const nextCode = this.applyIndicatorParamsToCode(this.currentCode || '', this.normalizeIndicatorParamMap(this.indicatorParamDraft))
       if (nextCode === this.currentCode) {
-        this.$message.info(this.$t('indicatorIde.applyCandidateNoChanges'))
+        this.$message.info(String(this.$t('indicatorIde.applyCandidateNoChanges')))
         return
       }
       this.currentCode = nextCode
       this.codeDirty = true
       if (this.cmInstance) this.cmInstance.setValue(nextCode)
       this.syncSelectedIndicatorToChart(nextCode)
-      this.$message.success(this.$t('indicatorIde.paramPanel.writeSuccess'))
+      this.$message.success(String(this.$t('indicatorIde.paramPanel.writeSuccess')))
     },
     formatIndicatorParamValue (value) {
       if (typeof value === 'boolean') return value ? 'true' : 'false'
@@ -2360,19 +2371,20 @@ export default {
       this._signalAlertDefaultsPromise = (async () => {
         try {
           const res = await getNotificationSettings()
+          const settings = /** @type {{ default_channels?: unknown, email?: string, telegram_chat_id?: string, telegram_bot_token?: string, webhook_url?: string, webhook_token?: string, webhook_signing_secret?: string }} */ (res && res.data ? res.data : {})
           if (res && res.code === 1 && res.data) {
             const supported = new Set(['browser', 'email', 'telegram', 'webhook'])
-            const configuredChannels = Array.isArray(res.data.default_channels)
-              ? res.data.default_channels.map(channel => String(channel || '').toLowerCase()).filter(channel => supported.has(channel))
+            const configuredChannels = Array.isArray(settings.default_channels)
+              ? settings.default_channels.map(channel => String(channel || '').toLowerCase()).filter(channel => supported.has(channel))
               : []
             this.signalAlertNotificationDefaults = {
               channels: configuredChannels.length ? Array.from(new Set(configuredChannels)) : ['browser'],
-              email: res.data.email || '',
-              telegramChatId: res.data.telegram_chat_id || '',
-              telegramBotToken: res.data.telegram_bot_token || '',
-              webhookUrl: res.data.webhook_url || '',
-              webhookToken: res.data.webhook_token || '',
-              webhookSigningSecret: res.data.webhook_signing_secret || ''
+              email: settings.email || '',
+              telegramChatId: settings.telegram_chat_id || '',
+              telegramBotToken: settings.telegram_bot_token || '',
+              webhookUrl: settings.webhook_url || '',
+              webhookToken: settings.webhook_token || '',
+              webhookSigningSecret: settings.webhook_signing_secret || ''
             }
           }
         } catch (error) {
@@ -2391,7 +2403,7 @@ export default {
     resetSignalAlertForm () {
       const ind = this.selectedIndicatorObj || {}
       const current = this.signalAlertWatchlistOptions.find(w => `${w.market}:${w.symbol}` === `${this.market}:${this.symbol}`) || {}
-      const defaults = this.signalAlertNotificationDefaults || {}
+      const defaults = this.signalAlertNotificationDefaults
       this.signalAlertEditingId = null
       this.signalAlertForm = {
         watchlistKey: `${this.market}:${this.symbol}`,
@@ -2416,7 +2428,7 @@ export default {
     },
     async openSignalAlertModal () {
       if (!this.selectedIndicatorId) {
-        this.$message.warning(this.$t('indicatorIde.signalAlert.selectIndicatorWarning'))
+        this.$message.warning(String(this.$t('indicatorIde.signalAlert.selectIndicatorWarning')))
         return
       }
       if (!this.signalAlertDefaultsLoaded) await this.loadSignalAlertNotificationDefaults()
@@ -2438,7 +2450,7 @@ export default {
       this.signalAlertForm.symbolName = item.name || ''
     },
     buildSignalAlertPayload () {
-      const form = this.signalAlertForm || {}
+      const form = this.signalAlertForm
       const params = this.currentIndicatorParamValues || {}
       return {
         indicator_id: this.selectedIndicatorId,
@@ -2470,7 +2482,7 @@ export default {
         if (res && res.code === 1) {
           this.signalAlertTasks = Array.isArray(res.data) ? res.data : []
         } else {
-          this.$message.error((res && res.msg) || this.$t('indicatorIde.signalAlert.loadFailed'))
+          this.$message.error(String((res && res.msg) || this.$t('indicatorIde.signalAlert.loadFailed')))
         }
       } catch (e) {
         this.$message.error((e && e.message) || this.$t('indicatorIde.signalAlert.loadFailed'))
@@ -2482,19 +2494,19 @@ export default {
       if (!this.selectedIndicatorId) return
       const payload = this.buildSignalAlertPayload()
       if (!payload.symbol) {
-        this.$message.warning(this.$t('indicatorIde.signalAlert.selectSymbolWarning'))
+        this.$message.warning(String(this.$t('indicatorIde.signalAlert.selectSymbolWarning')))
         return
       }
       if (payload.channels.includes('email') && !payload.targets.email) {
-        this.$message.warning(this.$t('indicatorIde.signalAlert.fillEmail'))
+        this.$message.warning(String(this.$t('indicatorIde.signalAlert.fillEmail')))
         return
       }
       if (payload.channels.includes('telegram') && !payload.targets.telegram_chat_id) {
-        this.$message.warning(this.$t('indicatorIde.signalAlert.fillTelegram'))
+        this.$message.warning(String(this.$t('indicatorIde.signalAlert.fillTelegram')))
         return
       }
       if (payload.channels.includes('webhook') && !payload.targets.webhook_url) {
-        this.$message.warning(this.$t('indicatorIde.signalAlert.fillWebhook'))
+        this.$message.warning(String(this.$t('indicatorIde.signalAlert.fillWebhook')))
         return
       }
       this.signalAlertSaving = true
@@ -2507,12 +2519,12 @@ export default {
           data: payload
         })
         if (res && res.code === 1) {
-          this.$message.success(this.signalAlertEditingId ? this.$t('indicatorIde.signalAlert.updated') : this.$t('indicatorIde.signalAlert.created'))
+          this.$message.success(String(this.signalAlertEditingId ? this.$t('indicatorIde.signalAlert.updated') : this.$t('indicatorIde.signalAlert.created')))
           this.signalAlertEditingId = null
           this.signalAlertActiveTab = 'tasks'
           await this.loadSignalAlertTasks()
         } else {
-          this.$message.error((res && res.msg) || this.$t('indicatorIde.signalAlert.saveFailed'))
+          this.$message.error(String((res && res.msg) || this.$t('indicatorIde.signalAlert.saveFailed')))
         }
       } catch (e) {
         this.$message.error((e && e.message) || this.$t('indicatorIde.signalAlert.saveFailed'))
@@ -2524,7 +2536,7 @@ export default {
       if (!task) return
       this.signalAlertEditingId = task.id
       const key = `${task.market}:${task.symbol}`
-      const defaults = this.signalAlertNotificationDefaults || {}
+      const defaults = this.signalAlertNotificationDefaults
       const targets = task.targets || {}
       this.signalAlertForm = {
         watchlistKey: key,
@@ -2552,10 +2564,10 @@ export default {
           method: 'post'
         })
         if (res && res.code === 1) {
-          this.$message.success(action === 'pause' ? this.$t('indicatorIde.signalAlert.pausedMessage') : this.$t('indicatorIde.signalAlert.resumedMessage'))
+          this.$message.success(String(action === 'pause' ? this.$t('indicatorIde.signalAlert.pausedMessage') : this.$t('indicatorIde.signalAlert.resumedMessage')))
           await this.loadSignalAlertTasks()
         } else {
-          this.$message.error((res && res.msg) || this.$t('indicatorIde.signalAlert.actionFailed'))
+          this.$message.error(String((res && res.msg) || this.$t('indicatorIde.signalAlert.actionFailed')))
         }
       } catch (e) {
         this.$message.error((e && e.message) || this.$t('indicatorIde.signalAlert.actionFailed'))
@@ -2569,11 +2581,11 @@ export default {
           method: 'post'
         })
         if (res && res.code === 1) {
-          const triggered = res.data && res.data.triggered
-          this.$message.info(triggered ? this.$t('indicatorIde.signalAlert.testTriggered') : this.$t('indicatorIde.signalAlert.testNoSignal'))
+          const triggered = !!(res.data && /** @type {{ triggered?: boolean }} */ (res.data).triggered)
+          this.$message.info(String(triggered ? this.$t('indicatorIde.signalAlert.testTriggered') : this.$t('indicatorIde.signalAlert.testNoSignal')))
           await this.loadSignalAlertTasks()
         } else {
-          this.$message.error((res && res.msg) || this.$t('indicatorIde.signalAlert.testFailed'))
+          this.$message.error(String((res && res.msg) || this.$t('indicatorIde.signalAlert.testFailed')))
         }
       } catch (e) {
         this.$message.error((e && e.message) || this.$t('indicatorIde.signalAlert.testFailed'))
@@ -2581,11 +2593,11 @@ export default {
     },
     deleteSignalAlertTask (task) {
       if (!task || !task.id) return
-      Modal.confirm({
+      Modal.confirm(/** @type {IdeModalOptions} */ ({
         title: this.$t('indicatorIde.signalAlert.deleteConfirmTitle'),
-        content: this.$t('indicatorIde.signalAlert.deleteConfirmContent', { symbol: task.symbol || '', timeframe: task.timeframe || '' }),
-        okText: this.$t('indicatorIde.signalAlert.delete'),
-        cancelText: this.$t('dashboard.indicator.editor.cancel'),
+        content: String(this.$t('indicatorIde.signalAlert.deleteConfirmContent', { symbol: task.symbol || '', timeframe: task.timeframe || '' })),
+        okText: String(this.$t('indicatorIde.signalAlert.delete')),
+        cancelText: String(this.$t('dashboard.indicator.editor.cancel')),
         okType: 'danger',
         getContainer: () => this.resolveIdeFullscreenMountNode() || document.body,
         onOk: async () => {
@@ -2594,13 +2606,13 @@ export default {
             method: 'delete'
           })
           if (res && res.code === 1) {
-            this.$message.success(this.$t('indicatorIde.signalAlert.deleted'))
+            this.$message.success(String(this.$t('indicatorIde.signalAlert.deleted')))
             await this.loadSignalAlertTasks()
           } else {
-            this.$message.error((res && res.msg) || this.$t('indicatorIde.signalAlert.deleteFailed'))
+            this.$message.error(String((res && res.msg) || this.$t('indicatorIde.signalAlert.deleteFailed')))
           }
         }
-      })
+      }))
     },
     onIndicatorChange (id) {
       const ind = this.indicators.find(i => Number(i.id) === Number(id))
@@ -2676,8 +2688,9 @@ export default {
     buildIdePythonIndicatorForChart (ind, codeForChart) {
       if (!ind) return null
       const chart = this.$refs.klineChart
+      const typedChart = /** @type {KlineChartRef} */ (chart)
       const code = codeForChart != null ? codeForChart : (ind.code || '')
-      if (!code || !String(code).trim() || !chart || typeof chart.executePythonStrategy !== 'function') return null
+      if (!code || !String(code).trim() || !typedChart || typeof typedChart.executePythonStrategy !== 'function') return null
       const chartId = `ide-py-${ind.id}`
       const runtimeParams = this.resolveIndicatorRuntimeParams(ind, code)
       return {
@@ -2689,7 +2702,7 @@ export default {
         code,
         params: runtimeParams,
         calculate: async (klineData, params = {}) => {
-          return chart.executePythonStrategy(code, klineData, { ...runtimeParams, ...(params || {}) }, {
+          return typedChart.executePythonStrategy(code, klineData, { ...runtimeParams, ...(params || {}) }, {
             ...ind,
             originalId: ind.id,
             id: ind.id,
@@ -2717,8 +2730,9 @@ export default {
       this.activeIndicators = [...nonPython, ...pythonBlocks]
       this.$nextTick(() => {
         const chart = this.$refs.klineChart
-        if (chart && typeof chart.updateIndicators === 'function') {
-          chart.updateIndicators()
+        const typedChart = /** @type {KlineChartRef} */ (chart)
+        if (typedChart && typeof typedChart.updateIndicators === 'function') {
+          typedChart.updateIndicators()
         }
       })
     },
@@ -2784,9 +2798,9 @@ export default {
       this.persistIdeSelectionPreference()
     },
     resolveIdeFullscreenMountNode () {
-      const fs = document.fullscreenElement || document.webkitFullscreenElement
-      const ch = this.$refs.chartFullscreenEl
-      const ed = this.$refs.editorFullscreenEl
+      const fs = document.fullscreenElement || /** @type {WebkitDocument} */ (document).webkitFullscreenElement
+      const ch = /** @type {WebkitElement} */ (this.$refs.chartFullscreenEl)
+      const ed = /** @type {WebkitElement} */ (this.$refs.editorFullscreenEl)
       if (ch && fs === ch) return ch
       if (ed && fs === ed) return ed
       return null
@@ -2803,20 +2817,21 @@ export default {
       } catch (_) {}
     },
     chartToolbarGetPopupContainer () {
-      const fs = document.fullscreenElement || document.webkitFullscreenElement
-      const ch = this.$refs.chartFullscreenEl
+      const fs = document.fullscreenElement || /** @type {WebkitDocument} */ (document).webkitFullscreenElement
+      const ch = /** @type {WebkitElement} */ (this.$refs.chartFullscreenEl)
       if (ch && fs === ch) return ch
       if (this.chartFullscreen && ch) return ch
       return document.body
     },
     async toggleEditorFullscreen () {
-      const el = this.$refs.editorFullscreenEl
+      const el = /** @type {WebkitElement} */ (this.$refs.editorFullscreenEl)
       if (!el) return
       try {
-        const fsEl = document.fullscreenElement || document.webkitFullscreenElement
+        const doc = /** @type {WebkitDocument} */ (document)
+        const fsEl = doc.fullscreenElement || doc.webkitFullscreenElement
         if (fsEl === el) {
-          if (document.exitFullscreen) await document.exitFullscreen()
-          else if (document.webkitExitFullscreen) await document.webkitExitFullscreen()
+          if (doc.exitFullscreen) await doc.exitFullscreen()
+          else if (doc.webkitExitFullscreen) await doc.webkitExitFullscreen()
         } else if (el.requestFullscreen) await el.requestFullscreen()
         else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen()
       } catch (e) {
@@ -2825,13 +2840,14 @@ export default {
       this.$nextTick(() => this.onGlobalFullscreenChange())
     },
     async toggleChartFullscreen () {
-      const el = this.$refs.chartFullscreenEl
+      const el = /** @type {WebkitElement} */ (this.$refs.chartFullscreenEl)
       if (!el) return
       try {
-        const fsEl = document.fullscreenElement || document.webkitFullscreenElement
+        const doc = /** @type {WebkitDocument} */ (document)
+        const fsEl = doc.fullscreenElement || doc.webkitFullscreenElement
         if (fsEl === el) {
-          if (document.exitFullscreen) await document.exitFullscreen()
-          else if (document.webkitExitFullscreen) await document.webkitExitFullscreen()
+          if (doc.exitFullscreen) await doc.exitFullscreen()
+          else if (doc.webkitExitFullscreen) await doc.webkitExitFullscreen()
         } else if (el.requestFullscreen) await el.requestFullscreen()
         else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen()
       } catch (e) {
@@ -2840,16 +2856,17 @@ export default {
       this.$nextTick(() => this.onGlobalFullscreenChange())
     },
     onGlobalFullscreenChange () {
-      const fs = document.fullscreenElement || document.webkitFullscreenElement
-      const ed = this.$refs.editorFullscreenEl
-      const ch = this.$refs.chartFullscreenEl
+      const fs = document.fullscreenElement || /** @type {WebkitDocument} */ (document).webkitFullscreenElement
+      const ed = /** @type {WebkitElement} */ (this.$refs.editorFullscreenEl)
+      const ch = /** @type {WebkitElement} */ (this.$refs.chartFullscreenEl)
       this.editorFullscreen = !!(ed && fs === ed)
       this.chartFullscreen = !!(ch && fs === ch)
       this.applyIdeOverlayContainers()
       this.$nextTick(() => {
         if (this.cmInstance) this.cmInstance.refresh()
         const chart = this.$refs.klineChart
-        const inst = chart && chart.chartRef
+        const typedChart = /** @type {KlineChartRef} */ (chart)
+        const inst = typedChart && typedChart.chartRef
         if (inst && typeof inst.resize === 'function') {
           try { inst.resize() } catch (_) {}
         }
@@ -2906,12 +2923,12 @@ export default {
       if (!this.userId) return
       const name = (this.saveAsName || '').trim()
       if (!name) {
-        this.$message.warning(this.$t('indicatorIde.saveAsNameRequired'))
+        this.$message.warning(String(this.$t('indicatorIde.saveAsNameRequired')))
         return
       }
       const code = this.cmInstance ? this.cmInstance.getValue() : this.currentCode
       if (!code || !String(code).trim()) {
-        this.$message.warning(this.$t('indicatorIde.saveAsNeedCode'))
+        this.$message.warning(String(this.$t('indicatorIde.saveAsNeedCode')))
         return
       }
       this.savingAs = true
@@ -2923,7 +2940,7 @@ export default {
         })
         if (res && res.code === 1) {
           await this.loadIndicators()
-          const newId = (res.data && res.data.id) || null
+          const newId = /** @type {{ id?: number }} */ (res.data || {}).id || null
           let targetId = newId
           if (!targetId && this.indicators.length) {
             targetId = this.indicators.reduce((maxId, item) => Math.max(maxId, Number(item.id) || 0), 0)
@@ -2937,12 +2954,12 @@ export default {
             this.onIndicatorChange(targetId)
             this.codeDirty = false
             this.showSaveAsModal = false
-            this.$message.success(this.$t('indicatorIde.saveAsSuccess'))
+            this.$message.success(String(this.$t('indicatorIde.saveAsSuccess')))
           } else {
-            this.$message.error(this.$t('indicatorIde.saveAsFailed'))
+            this.$message.error(String(this.$t('indicatorIde.saveAsFailed')))
           }
         } else {
-          this.$message.error((res && res.msg) || this.$t('indicatorIde.saveAsFailed'))
+          this.$message.error(String((res && res.msg) || this.$t('indicatorIde.saveAsFailed')))
         }
       } catch (e) {
         this.$message.error(this.$t('indicatorIde.saveAsFailed') + ': ' + (e.message || ''))
@@ -2959,11 +2976,11 @@ export default {
     saveIndicatorFromShortcut () {
       if (!this.selectedIndicatorId || !this.userId) return
       if (this.selectedIndicatorCodeHidden) {
-        this.$message.warning(this.$t('indicatorIde.saveBlockedHiddenCode'))
+        this.$message.warning(String(this.$t('indicatorIde.saveBlockedHiddenCode')))
         return
       }
       if (!this.codeDirty) {
-        this.$message.info(this.$t('indicatorIde.noChangesToSave'))
+        this.$message.info(String(this.$t('indicatorIde.noChangesToSave')))
         return
       }
       this.saveIndicator()
@@ -2973,7 +2990,7 @@ export default {
       if (!this.selectedIndicatorId || !this.userId) return
       if (this.savingIndicator) return
       if (this.selectedIndicatorCodeHidden) {
-        this.$message.warning(this.$t('indicatorIde.saveBlockedHiddenCode'))
+        this.$message.warning(String(this.$t('indicatorIde.saveBlockedHiddenCode')))
         return
       }
       const indicator = this.selectedIndicatorObj || {}
@@ -2996,7 +3013,7 @@ export default {
         if (res && res.code === 1) {
           this.currentCode = code
           this.codeDirty = false
-          this.$message.success(this.$t('indicatorIde.saved'))
+          this.$message.success(String(this.$t('indicatorIde.saved')))
           const ind = this.indicators.find(i => i.id === this.selectedIndicatorId)
           if (ind) {
             ind.code = code
@@ -3007,16 +3024,16 @@ export default {
         } else {
           const m = (res && res.msg) || ''
           if (m === 'purchased_asset_cannot_publish') {
-            this.$message.warning(this.$t('indicatorIde.publishBlockedPurchased'))
+            this.$message.warning(String(this.$t('indicatorIde.publishBlockedPurchased')))
           } else {
-            this.$message.error(m || this.$t('indicatorIde.saveFailed'))
+            this.$message.error(String(m || this.$t('indicatorIde.saveFailed')))
           }
         }
       } catch (e) {
         const data = e && e.response && e.response.data
         const m = (data && data.msg) || ''
         if (m === 'purchased_asset_cannot_publish') {
-          this.$message.warning(this.$t('indicatorIde.publishBlockedPurchased'))
+          this.$message.warning(String(this.$t('indicatorIde.publishBlockedPurchased')))
         } else {
           this.$message.error((e && e.message) || this.$t('indicatorIde.saveFailed'))
         }
@@ -3042,7 +3059,7 @@ export default {
         if (res && res.code === 1) {
           this.codeVersions = Array.isArray(res.data) ? res.data : []
         } else {
-          this.$message.error((res && res.msg) || this.$t('indicatorIde.codeVersionLoadFailed'))
+          this.$message.error(String((res && res.msg) || this.$t('indicatorIde.codeVersionLoadFailed')))
         }
       } catch (e) {
         this.$message.error((e && e.message) || this.$t('indicatorIde.codeVersionLoadFailed'))
@@ -3062,7 +3079,7 @@ export default {
         if (res && res.code === 1) {
           this.codeVersionPreview = res.data || null
         } else {
-          this.$message.error((res && res.msg) || this.$t('indicatorIde.codeVersionLoadFailed'))
+          this.$message.error(String((res && res.msg) || this.$t('indicatorIde.codeVersionLoadFailed')))
         }
       } catch (e) {
         if (this.previewingCodeVersionId !== item.id) return
@@ -3081,14 +3098,14 @@ export default {
     },
     confirmRestoreCodeVersion (item) {
       if (!item || !item.id) return
-      Modal.confirm({
+      Modal.confirm(/** @type {IdeModalOptions} */ ({
         title: this.$t('indicatorIde.codeVersionRestoreTitle'),
-        content: this.$t('indicatorIde.codeVersionRestoreContent', { version: item.version_no }),
-        okText: this.$t('indicatorIde.codeVersionRestore'),
-        cancelText: this.$t('dashboard.indicator.editor.cancel'),
+        content: String(this.$t('indicatorIde.codeVersionRestoreContent', { version: item.version_no })),
+        okText: String(this.$t('indicatorIde.codeVersionRestore')),
+        cancelText: String(this.$t('dashboard.indicator.editor.cancel')),
         getContainer: () => this.resolveIdeFullscreenMountNode() || document.body,
         onOk: () => this.restoreCodeVersion(item)
-      })
+      }))
     },
     async restoreCodeVersion (item) {
       if (!item || !item.id) return
@@ -3100,7 +3117,8 @@ export default {
           data: { versionId: item.id }
         })
         if (res && res.code === 1 && res.data) {
-          const nextCode = res.data.code || ''
+          const data = /** @type {{ code?: string, name?: string, description?: string }} */ (res.data)
+          const nextCode = data.code || ''
           this.currentCode = nextCode
           this.codeDirty = false
           if (this.cmInstance) {
@@ -3110,15 +3128,15 @@ export default {
           const ind = this.indicators.find(i => Number(i.id) === Number(this.selectedIndicatorId))
           if (ind) {
             ind.code = nextCode
-            ind.name = res.data.name || ind.name
-            ind.description = res.data.description || ind.description
+            ind.name = data.name || ind.name
+            ind.description = data.description || ind.description
           }
           this.syncSelectedIndicatorToChart(nextCode)
-          this.$message.success(this.$t('indicatorIde.codeVersionRestored'))
+          this.$message.success(String(this.$t('indicatorIde.codeVersionRestored')))
           this.closeCodeVersionPreview()
           await this.loadCodeVersions()
         } else {
-          this.$message.error((res && res.msg) || this.$t('indicatorIde.codeVersionRestoreFailed'))
+          this.$message.error(String((res && res.msg) || this.$t('indicatorIde.codeVersionRestoreFailed')))
         }
       } catch (e) {
         this.$message.error((e && e.message) || this.$t('indicatorIde.codeVersionRestoreFailed'))
@@ -3139,25 +3157,25 @@ export default {
       const h = this.$createElement
       const children = [
         h('p', { style: { margin: '0 0 8px' } }, [
-          this.$t('dashboard.indicator.delete.confirmContent', { name })
+          String(this.$t('dashboard.indicator.delete.confirmContent', { name }))
         ])
       ]
       if (this.codeDirty) {
         children.push(
           h('p', { style: { margin: 0, color: '#fa8c16', fontSize: '13px' } }, [
-            this.$t('indicatorIde.deleteUnsavedHint')
+            String(this.$t('indicatorIde.deleteUnsavedHint'))
           ])
         )
       }
-      Modal.confirm({
+      Modal.confirm(/** @type {IdeModalOptions} */ ({
         title: this.$t('dashboard.indicator.delete.confirmTitle'),
         content: h('div', children),
-        okText: this.$t('dashboard.indicator.delete.confirmOk'),
-        cancelText: this.$t('dashboard.indicator.delete.confirmCancel'),
+        okText: String(this.$t('dashboard.indicator.delete.confirmOk')),
+        cancelText: String(this.$t('dashboard.indicator.delete.confirmCancel')),
         okType: 'danger',
         getContainer: () => this.resolveIdeFullscreenMountNode() || document.body,
         onOk: () => this.confirmDeleteIndicator()
-      })
+      }))
     },
 
     async confirmDeleteIndicator () {
@@ -3171,7 +3189,7 @@ export default {
           data: { id }
         })
         if (res && res.code === 1) {
-          this.$message.success(this.$t('dashboard.indicator.delete.success'))
+          this.$message.success(String(this.$t('dashboard.indicator.delete.success')))
           this.chartVisibleIndicatorIds = this.chartVisibleIndicatorIds.filter(x => Number(x) !== Number(id))
           await this.loadIndicators()
           if (this.indicators.length > 0) {
@@ -3187,7 +3205,7 @@ export default {
             this.onIndicatorChange(undefined)
           }
         } else {
-          this.$message.error((res && res.msg) || this.$t('dashboard.indicator.delete.failed'))
+          this.$message.error(String((res && res.msg) || this.$t('dashboard.indicator.delete.failed')))
         }
       } catch (e) {
         const data = e && e.response && e.response.data
@@ -3244,9 +3262,10 @@ export default {
         const res = await request({ url: `/api/indicator/aiWorkspace/${id}`, method: 'get' })
         if (token !== this.aiWorkspaceLoadToken || Number(this.selectedIndicatorId) !== id) return
         if (res && res.code === 1 && res.data) {
-          this.aiThread = res.data.thread || null
-          this.aiMessages = Array.isArray(res.data.messages) ? res.data.messages : []
-          const candidate = res.data.candidate
+          const data = /** @type {{ thread?: Record<string, unknown> | null, messages?: unknown[], candidate?: { id?: unknown, candidate_code?: string, base_code_hash?: string, base_code_matches_current?: boolean, validation?: Record<string, unknown>, summary?: Record<string, unknown> } }} */ (res.data)
+          this.aiThread = data.thread || null
+          this.aiMessages = Array.isArray(data.messages) ? data.messages : []
+          const candidate = data.candidate
           if (candidate && candidate.candidate_code) {
             this.aiCandidate = {
               id: candidate.id,
@@ -3268,7 +3287,7 @@ export default {
       }
     },
     scrollAiConversationToBottom () {
-      const el = this.$refs.aiConversation
+      const el = /** @type {HTMLElement} */ (this.$refs.aiConversation)
       if (el) el.scrollTop = el.scrollHeight
     },
     isActiveAiCandidateMessage (messageItem) {
@@ -3285,17 +3304,17 @@ export default {
       this.aiPrompt = String(prompt || '')
       this.aiInteractionMode = (item && item.mode) || 'auto'
       this.$nextTick(() => {
-        const input = this.$el && this.$el.querySelector('.ai-prompt-input textarea')
+        const input = /** @type {HTMLElement | null} */ (this.$el && this.$el.querySelector('.ai-prompt-input textarea'))
         if (input) input.focus()
       })
     },
     clearAiWorkspace () {
       if (!this.selectedIndicatorId) return
-      Modal.confirm({
+      Modal.confirm(/** @type {IdeModalOptions} */ ({
         title: this.$t('indicatorIde.aiClearConversation'),
-        content: this.$t('indicatorIde.aiClearConversationConfirm'),
-        okText: this.$t('indicatorIde.aiClearConversation'),
-        cancelText: this.$t('dashboard.indicator.editor.cancel'),
+        content: String(this.$t('indicatorIde.aiClearConversationConfirm')),
+        okText: String(this.$t('indicatorIde.aiClearConversation')),
+        cancelText: String(this.$t('dashboard.indicator.editor.cancel')),
         getContainer: () => this.resolveIdeFullscreenMountNode() || document.body,
         onOk: async () => {
           const res = await request({ url: `/api/indicator/aiWorkspace/${this.selectedIndicatorId}`, method: 'delete' })
@@ -3306,34 +3325,35 @@ export default {
             this.aiDebugSummary = null
           }
         }
-      })
+      }))
     },
     previewAiCandidate () {
       if (!this.aiCandidate || !this.aiCandidate.code) return
       this.aiPreviewVisible = true
       this.syncSelectedIndicatorToChart(this.aiCandidate.code)
-      this.$message.info(this.$t('indicatorIde.aiPreviewing'))
+      this.$message.info(String(this.$t('indicatorIde.aiPreviewing')))
     },
     applyAiCandidate () {
       if (!this.aiCandidate || !this.aiCandidate.code || !this.aiCandidateValidationPassed) return
       if (this.aiCandidateHasSourceConflict()) {
-        Modal.confirm({
+        Modal.confirm(/** @type {IdeModalOptions} */ ({
           title: this.$t('indicatorIde.aiEditorChangedTitle'),
-          content: this.$t('indicatorIde.aiEditorChangedDesc'),
-          okText: this.$t('indicatorIde.aiApply'),
-          cancelText: this.$t('dashboard.indicator.editor.cancel'),
+          content: String(this.$t('indicatorIde.aiEditorChangedDesc')),
+          okText: String(this.$t('indicatorIde.aiApply')),
+          cancelText: String(this.$t('dashboard.indicator.editor.cancel')),
           getContainer: () => this.resolveIdeFullscreenMountNode() || document.body,
           onOk: () => this.applyAiCandidateCode(true)
-        })
+        }))
         return
       }
       this.applyAiCandidateCode()
     },
-    aiCandidateHasSourceConflict (candidate = this.aiCandidate) {
-      if (!candidate) return false
+    aiCandidateHasSourceConflict (candidate) {
+      const activeCandidate = candidate === undefined ? this.aiCandidate : candidate
+      if (!activeCandidate) return false
       const currentEditorCode = this.cmInstance ? this.cmInstance.getValue() : this.currentCode
-      return candidate.baseCodeMatchesCurrent === false ||
-        (!!this.codeDirty && (!candidate.baseCode || currentEditorCode !== candidate.baseCode))
+      return activeCandidate.baseCodeMatchesCurrent === false ||
+        (!!this.codeDirty && (!activeCandidate.baseCode || currentEditorCode !== activeCandidate.baseCode))
     },
     async autoApplyAiCandidate () {
       if (!this.aiCandidate || !this.aiCandidate.code || !this.aiCandidateValidationPassed) return false
@@ -3383,7 +3403,7 @@ export default {
       }
       this.markLatestAiCandidateApplied()
       this.aiCandidate = null
-      this.$message.success(this.$t('indicatorIde.aiApplied'))
+      this.$message.success(String(this.$t('indicatorIde.aiApplied')))
     },
     async discardAiCandidate () {
       const candidate = this.aiCandidate
@@ -3403,15 +3423,15 @@ export default {
     },
     async handleAIGenerate () {
       if (this.selectedIndicatorCodeHidden) {
-        this.$message.warning(this.$t('indicatorIde.saveBlockedHiddenCode'))
+        this.$message.warning(String(this.$t('indicatorIde.saveBlockedHiddenCode')))
         return
       }
       if (!this.selectedIndicatorId) {
-        this.$message.warning(this.$t('indicatorIde.aiNoSavedIndicator'))
+        this.$message.warning(String(this.$t('indicatorIde.aiNoSavedIndicator')))
         return
       }
       if (!this.aiPrompt || !this.aiPrompt.trim()) {
-        this.$message.warning(this.$t('indicatorIde.aiPromptRequired'))
+        this.$message.warning(String(this.$t('indicatorIde.aiPromptRequired')))
         return
       }
       const userPrompt = this.aiPrompt.trim()
@@ -3515,14 +3535,14 @@ export default {
             this.aiPanelExpanded = true
             this.$nextTick(this.scrollAiConversationToBottom)
           } else {
-            this.$message.warning(this.$t('indicatorIde.aiNoAnswer'))
+            this.$message.warning(String(this.$t('indicatorIde.aiNoAnswer')))
           }
         } else if (generatedCode) {
           const cleanedCode = this.cleanMarkdownCodeBlocks(generatedCode)
           const assistantMessage = workspaceMeta && workspaceMeta.assistant_message
           this.aiMessages.push(assistantMessage || {
             role: 'assistant',
-            content: this.$t('indicatorIde.aiCandidateAssistantText'),
+            content: String(this.$t('indicatorIde.aiCandidateAssistantText')),
             message_type: 'candidate',
             localId: `assistant-${Date.now()}`
           })
@@ -3536,10 +3556,10 @@ export default {
           }
           this.aiPanelExpanded = true
           const autoApplied = await this.autoApplyAiCandidate()
-          if (!autoApplied) this.$message.success(this.$t('indicatorIde.aiCandidateReady'))
+          if (!autoApplied) this.$message.success(String(this.$t('indicatorIde.aiCandidateReady')))
           this.$nextTick(this.scrollAiConversationToBottom)
         } else if (!generatedCode) {
-          this.$message.warning(this.$t('indicatorIde.aiNoCode'))
+          this.$message.warning(String(this.$t('indicatorIde.aiNoCode')))
         }
       } catch (error) {
         const errMsg = (error && error.message) || this.$t('indicatorIde.aiGenerateFailed')
@@ -3578,29 +3598,30 @@ export default {
       }
       return normalized
     },
-    aiDebugAlertType (summary = this.aiDebugSummary) {
-      if (!summary) return 'info'
-      if ((summary.remaining_messages || []).length) return 'warning'
-      if ((summary.fixed_messages || []).length) return 'success'
+    aiDebugAlertType (summary) {
+      const activeSummary = summary === undefined ? this.aiDebugSummary : summary
+      if (!activeSummary) return 'info'
+      if ((activeSummary.remaining_messages || []).length) return 'warning'
+      if ((activeSummary.fixed_messages || []).length) return 'success'
       return 'info'
     },
-    aiDebugState (summary = this.aiDebugSummary) {
-      return this.aiDebugAlertType(summary)
+    aiDebugState (summary) {
+      return this.aiDebugAlertType(summary === undefined ? this.aiDebugSummary : summary)
     },
-    aiDebugStateIcon (summary = this.aiDebugSummary) {
-      const state = this.aiDebugState(summary)
+    aiDebugStateIcon (summary) {
+      const state = this.aiDebugState(summary === undefined ? this.aiDebugSummary : summary)
       if (state === 'warning') return 'exclamation-circle'
       if (state === 'success') return 'check-circle'
       return 'info-circle'
     },
-    aiDebugStateLabel (summary = this.aiDebugSummary) {
-      const state = this.aiDebugState(summary)
+    aiDebugStateLabel (summary) {
+      const state = this.aiDebugState(summary === undefined ? this.aiDebugSummary : summary)
       if (state === 'warning') return this.$t('indicatorIde.aiQaStateWarning') || 'Needs review'
       if (state === 'success') return this.$t('indicatorIde.aiQaStateSuccess') || 'Auto fixed'
       return this.$t('indicatorIde.aiQaStatePassed') || 'QA passed'
     },
-    aiDebugStateTagColor (summary = this.aiDebugSummary) {
-      const state = this.aiDebugState(summary)
+    aiDebugStateTagColor (summary) {
+      const state = this.aiDebugState(summary === undefined ? this.aiDebugSummary : summary)
       if (state === 'warning') return 'orange'
       if (state === 'success') return 'green'
       return 'blue'
@@ -3646,8 +3667,9 @@ export default {
           runtimeCheck: options.runtimeCheck !== false
         }
       })
-      if (res && res.code === 1 && res.data && Array.isArray(res.data.hints)) {
-        return res.data.hints
+      const data = /** @type {{ hints?: unknown[] }} */ (res && res.data ? res.data : {})
+      if (res && res.code === 1 && Array.isArray(data.hints)) {
+        return data.hints
       }
       throw new Error((res && res.msg) || 'Code quality check failed')
     },
@@ -3676,7 +3698,7 @@ export default {
         this.codeQualityChecked = true
         this.codeDrawerVisible = true
         this.codePanelExpanded = true
-        this.$message.error(this.$t('indicatorIde.publishQualityBlockedWithReason', { reason: this.formatQualityHint(this.codeQualityHints[0]) }))
+        this.$message.error(String(this.$t('indicatorIde.publishQualityBlockedWithReason', { reason: this.formatQualityHint(this.codeQualityHints[0]) })))
         return false
       }
       this.codeQualityLoading = true
@@ -3698,13 +3720,13 @@ export default {
         this.codeDrawerVisible = true
         this.codePanelExpanded = true
         const reason = this.formatQualityHint(blockers[0])
-        this.$message.error(reason
+        this.$message.error(String(reason
           ? this.$t('indicatorIde.publishQualityBlockedWithReason', { reason })
-          : this.$t('indicatorIde.publishQualityBlocked'))
+          : this.$t('indicatorIde.publishQualityBlocked')))
         return false
       }
       if (!options.silentSuccess) {
-        this.$message.success(this.$t('indicatorIde.publishQualityPassed'))
+        this.$message.success(String(this.$t('indicatorIde.publishQualityPassed')))
       }
       return true
     },
@@ -3712,7 +3734,7 @@ export default {
       const code = this.cmInstance ? (this.cmInstance.getValue() || '') : (this.currentCode || '')
       await this.fetchCodeQualityHints(code)
       if (!this.codeQualityHints.length) {
-        this.$message.success(this.$t('indicatorIde.codeQualityAllGood'))
+        this.$message.success(String(this.$t('indicatorIde.codeQualityAllGood')))
       }
     },
     cleanMarkdownCodeBlocks (code) {
@@ -3734,7 +3756,7 @@ export default {
     },
     toggleQuickTradeDrawer () {
       if (!this.quickTradeDrawerVisible && !this.isQuickTradeMarketSupported()) {
-        this.$message.warning(this.$t('quickTrade.unsupportedMarket'))
+        this.$message.warning(String(this.$t('quickTrade.unsupportedMarket')))
         return
       }
       if (!this.quickTradeDrawerVisible) {
@@ -3760,8 +3782,8 @@ export default {
     },
     startQuickTradeDrag (event) {
       if (this.quickTradePinned || !event || event.button !== 0) return
-      const panel = this.$refs.quickTradeFloat
-      const container = this.$refs.chartPanel
+      const panel = /** @type {HTMLElement} */ (this.$refs.quickTradeFloat)
+      const container = /** @type {HTMLElement} */ (this.$refs.chartPanel)
       if (!panel || !container) return
       const panelRect = panel.getBoundingClientRect()
       const containerRect = container.getBoundingClientRect()
@@ -3778,7 +3800,7 @@ export default {
       window.addEventListener('mouseup', this._quickTradeDragEnd, { once: true })
     },
     moveQuickTradeFloat (event) {
-      const panel = this.$refs.quickTradeFloat
+      const panel = /** @type {HTMLElement} */ (this.$refs.quickTradeFloat)
       const bounds = this._quickTradeDragBounds
       const offset = this._quickTradeDragOffset
       if (!panel || !bounds || !offset) return
@@ -3805,8 +3827,8 @@ export default {
       }
     },
     snapQuickTradeFloat () {
-      const panel = this.$refs.quickTradeFloat
-      const container = this.$refs.chartPanel
+      const panel = /** @type {HTMLElement} */ (this.$refs.quickTradeFloat)
+      const container = /** @type {HTMLElement} */ (this.$refs.chartPanel)
       if (!panel || !container || !this.quickTradePosition) return
       this.quickTradePosition = snapFloatingPanelPosition(this.quickTradePosition, {
         containerWidth: container.clientWidth,
@@ -3819,8 +3841,8 @@ export default {
     clampQuickTradeFloat () {
       if (!this.quickTradeDrawerVisible || !this.quickTradePosition) return
       this.$nextTick(() => {
-        const panel = this.$refs.quickTradeFloat
-        const container = this.$refs.chartPanel
+        const panel = /** @type {HTMLElement} */ (this.$refs.quickTradeFloat)
+        const container = /** @type {HTMLElement} */ (this.$refs.chartPanel)
         if (!panel || !container) return
         this.quickTradePosition = clampFloatingPanelPosition({
           ...this.quickTradePosition,
@@ -3833,15 +3855,15 @@ export default {
       })
     },
     onQuickTradeSuccess (result = {}) {
-      this.$message.success(this.$t('quickTrade.orderSuccess'))
+      this.$message.success(String(this.$t('quickTrade.orderSuccess')))
       const protectionStatus = String(result.protection_status || '')
       if (protectionStatus === 'failed') {
         this.$notification.warning({
-          message: this.$t('quickTrade.protectionFailedTitle'),
+          message: String(this.$t('quickTrade.protectionFailedTitle')),
           description: result.protection_error || this.$t('quickTrade.protectionFailedHint')
         })
       } else if (protectionStatus === 'pending_fill') {
-        this.$message.info(this.$t('quickTrade.protectionPendingFill'))
+        this.$message.info(String(this.$t('quickTrade.protectionPendingFill')))
       }
     },
     handleQuickTradePositionOverlayChange (payload = {}) {
@@ -3861,19 +3883,19 @@ export default {
     },
     async handleCreateIndicator () {
       if (!this.userId) {
-        this.$message.error(this.$t('dashboard.indicator.error.pleaseLogin'))
+        this.$message.error(String(this.$t('dashboard.indicator.error.pleaseLogin')))
         return
       }
       const proceed = () => this._createIndicatorInIde()
       if (this.codeDirty) {
-        Modal.confirm({
+        Modal.confirm(/** @type {IdeModalOptions} */ ({
           title: this.$t('indicatorIde.newIndicatorUnsavedTitle'),
-          content: this.$t('indicatorIde.newIndicatorUnsavedContent'),
-          okText: this.$t('indicatorIde.newIndicatorConfirmOk'),
-          cancelText: this.$t('indicatorIde.newIndicatorConfirmCancel'),
+          content: String(this.$t('indicatorIde.newIndicatorUnsavedContent')),
+          okText: String(this.$t('indicatorIde.newIndicatorConfirmOk')),
+          cancelText: String(this.$t('indicatorIde.newIndicatorConfirmCancel')),
           getContainer: () => this.resolveIdeFullscreenMountNode() || document.body,
           onOk: proceed
-        })
+        }))
       } else {
         await proceed()
       }
@@ -3894,7 +3916,7 @@ export default {
         })
         if (res && res.code === 1) {
           await this.loadIndicators()
-          const newId = (res.data && res.data.id) || null
+          const newId = /** @type {{ id?: number }} */ (res.data || {}).id || null
           let targetId = newId
           if (!targetId && this.indicators.length) {
             targetId = this.indicators.reduce((maxId, item) => Math.max(maxId, Number(item.id) || 0), 0)
@@ -3912,12 +3934,12 @@ export default {
             // never remain visible until a manual save/reselect cycle.
             this.onIndicatorChange(targetId)
             this.aiPanelExpanded = true
-            this.$message.success(this.$t('indicatorIde.newIndicatorCreated'))
+            this.$message.success(String(this.$t('indicatorIde.newIndicatorCreated')))
           } else {
-            this.$message.error(this.$t('indicatorIde.newIndicatorFailed'))
+            this.$message.error(String(this.$t('indicatorIde.newIndicatorFailed')))
           }
         } else {
-          this.$message.error((res && res.msg) || this.$t('indicatorIde.newIndicatorFailed'))
+          this.$message.error(String((res && res.msg) || this.$t('indicatorIde.newIndicatorFailed')))
         }
       } catch (e) {
         this.$message.error(this.$t('indicatorIde.newIndicatorFailed') + ': ' + (e.message || ''))
@@ -3928,11 +3950,11 @@ export default {
     async handlePublishIndicator () {
       if (!this.selectedIndicatorObj) return
       if (this.selectedIndicatorIsPurchased) {
-        this.$message.warning(this.$t('indicatorIde.publishBlockedPurchased'))
+        this.$message.warning(String(this.$t('indicatorIde.publishBlockedPurchased')))
         return
       }
       if (this.selectedIndicatorCodeHidden) {
-        this.$message.warning(this.$t('indicatorIde.saveBlockedHiddenCode'))
+        this.$message.warning(String(this.$t('indicatorIde.saveBlockedHiddenCode')))
         return
       }
       const indicator = this.selectedIndicatorObj || {}
@@ -3975,16 +3997,16 @@ export default {
     handleCreateStrategyFromIndicator () {
       const indicator = this.selectedIndicatorObj
       if (!indicator) {
-        this.$message.warning(this.$t('indicatorIde.selectIndicatorFirst') || 'Please select an indicator first.')
+        this.$message.warning(String(this.$t('indicatorIde.selectIndicatorFirst') || 'Please select an indicator first.'))
         return
       }
       if (this.selectedIndicatorCodeHidden) {
-        this.$message.warning(this.$t('indicatorIde.aiConvertHiddenBlocked'))
+        this.$message.warning(String(this.$t('indicatorIde.aiConvertHiddenBlocked')))
         return
       }
       const context = this.buildIndicatorToStrategyContext()
       if (!context.code) {
-        this.$message.warning(this.$t('indicatorIde.codeRequired') || 'Please write indicator code first.')
+        this.$message.warning(String(this.$t('indicatorIde.codeRequired') || 'Please write indicator code first.'))
         return
       }
       const storageKey = `qd_indicator_to_strategy_${Date.now()}`
@@ -4009,9 +4031,10 @@ export default {
     },
     async captureIndicatorMarketplacePreview (name) {
       const chart = this.$refs.klineChart
-      if (!chart || typeof chart.captureMarketPreview !== 'function') return ''
+      const typedChart = /** @type {KlineChartRef} */ (chart)
+      if (!typedChart || typeof typedChart.captureMarketPreview !== 'function') return ''
       try {
-        return await chart.captureMarketPreview({
+        return await typedChart.captureMarketPreview({
           title: name,
           context: '',
           waitForRender: false
@@ -4066,15 +4089,16 @@ export default {
                   imageData: previewImageData
                 }
               })
+              const previewData = /** @type {{ preview_image?: string }} */ (previewRes && previewRes.data ? previewRes.data : {})
               generatedPreviewImage = previewRes && previewRes.code === 1
-                ? String((previewRes.data && previewRes.data.preview_image) || '')
+                ? String(previewData.preview_image || '')
                 : ''
             } catch (error) {
               console.warn('Indicator marketplace preview upload failed:', error)
             }
           }
           publishTimings.upload = Date.now() - publishStartedAt - publishTimings.quality - publishTimings.preview - publishTimings.save
-          this.$message.success(this.$t('dashboard.indicator.publish.success'))
+          this.$message.success(String(this.$t('dashboard.indicator.publish.success')))
           const ind = this.indicators.find(i => Number(i.id) === Number(this.publishIndicator.id))
           if (ind) {
             ind.name = name
@@ -4092,7 +4116,7 @@ export default {
           publishTimings.refresh = Date.now() - publishStartedAt - publishTimings.quality - publishTimings.preview - publishTimings.save - publishTimings.upload
           console.info('[Indicator publish timing]', JSON.stringify(publishTimings))
         } else {
-          this.$message.error((res && res.msg) || this.$t('dashboard.indicator.publish.failed'))
+          this.$message.error(String((res && res.msg) || this.$t('dashboard.indicator.publish.failed')))
         }
       } catch (error) {
         this.$message.error(this.$t('dashboard.indicator.publish.failed') + ': ' + (error.message || ''))
@@ -4120,15 +4144,15 @@ export default {
           }
         })
         if (res && res.code === 1) {
-          this.$message.success(this.$t('dashboard.indicator.publish.unpublishSuccess'))
+          this.$message.success(String(this.$t('dashboard.indicator.publish.unpublishSuccess')))
           this.showPublishModal = false
           this.publishIndicator = null
           await this.loadIndicators()
         } else {
-          this.$message.error((res && res.msg) || this.$t('dashboard.indicator.publish.unpublishFailed'))
+          this.$message.error(String((res && res.msg) || this.$t('dashboard.indicator.publish.unpublishFailed')))
         }
       } catch (error) {
-        this.$message.error(this.$t('dashboard.indicator.publish.unpublishFailed'))
+        this.$message.error(String(this.$t('dashboard.indicator.publish.unpublishFailed')))
       } finally {
         this.unpublishing = false
       }
@@ -4247,7 +4271,8 @@ export default {
       let defaultExchange = 'binance'
       try {
         const res = await getPublicSettingsConfig()
-        const value = res && res.code === 1 && res.data && res.data.crypto_public_default_exchange
+        const publicConfig = /** @type {{ crypto_public_default_exchange?: string }} */ (res && res.data ? res.data : {})
+        const value = res && res.code === 1 && publicConfig.crypto_public_default_exchange
         defaultExchange = this.normalizeCryptoExchange(value)
       } catch (_) { /* keep fallback */ }
       this.cryptoExchangeId = defaultExchange
@@ -4315,7 +4340,7 @@ export default {
     async handleAddStock () {
       const item = this.addSelectedItem
       if (!item || !item.symbol) {
-        this.$message.warning(this.$t('backtest-center.config.symbolRequired'))
+        this.$message.warning(String(this.$t('backtest-center.config.symbolRequired')))
         return
       }
       this.addingStock = true
@@ -4331,7 +4356,7 @@ export default {
           instrument_id: item.instrument_id || '',
           settle_currency: item.settle_currency || ''
         })
-        this.$message.success(this.$t('backtest-center.config.addSuccess'))
+        this.$message.success(String(this.$t('backtest-center.config.addSuccess')))
         await this.loadWatchlist()
         this.selectedWatchlistKey = marketContextKey({
           market: mkt,

@@ -52,7 +52,7 @@ router.beforeEach((to, from, next) => {
               store.getters.addRouters.forEach(r => {
                 router.addRoute(r)
               })
-              const redirect = decodeURIComponent(from.query.redirect || to.path)
+              const redirect = decodeURIComponent(String(from.query.redirect || to.path))
               if (to.path === redirect) {
                 next({ ...to, replace: true })
               } else {

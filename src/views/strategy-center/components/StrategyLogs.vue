@@ -97,6 +97,8 @@ export default {
     strategyId: { type: [Number, String], default: null },
     isDark: { type: Boolean, default: false }
   },
+  // Break TS circular data/methods inference so methods remain visible to the template checker.
+  /** @this {object} */
   data () {
     return {
       logs: [],
@@ -153,7 +155,7 @@ export default {
           params: { id: this.strategyId, limit: 200 }
         })
         if (res && res.data) {
-          this.logs = res.data
+          this.logs = /** @type {any[]} */ (res.data)
           this.$nextTick(() => this.scrollToTop())
         }
       } catch (e) {
@@ -181,7 +183,7 @@ export default {
 
     scrollToTop () {
       const el = this.$refs.logsContainer
-      if (el) el.scrollTop = 0
+      if (el instanceof HTMLElement) el.scrollTop = 0
     },
 
     countByLevel (level) {

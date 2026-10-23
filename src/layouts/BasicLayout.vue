@@ -228,6 +228,7 @@
 
 <script>
 /* global APP_VERSION */
+import Vue from 'vue'
 import { updateTheme } from '@/components/SettingDrawer/settingConfig'
 import { i18nRender } from '@/locales'
 import { mapState } from 'vuex'
@@ -247,14 +248,14 @@ import {
 } from '@/store/mutation-types'
 
 import defaultSettings from '@/config/defaultSettings'
-import RightContent from '@/components/GlobalHeader/RightContent'
-import SettingDrawer from '@/components/SettingDrawer/SettingDrawer'
+import RightContent from '@/components/GlobalHeader/RightContent.vue'
+import SettingDrawer from '@/components/SettingDrawer/SettingDrawer.vue'
 import MultiTab from '@/components/MultiTab'
-import BrandIdentity from '@/components/BrandIdentity'
-import RouteView from './RouteView'
+import BrandIdentity from '@/components/BrandIdentity/index.vue'
+import RouteView from './RouteView.vue'
 import { Icon } from '@iconify/vue2'
 
-export default {
+export default Vue.extend({
   name: 'BasicLayout',
   components: {
     SettingDrawer,
@@ -274,7 +275,7 @@ export default {
       isDev: process.env.NODE_ENV === 'development' || process.env.VUE_APP_PREVIEW === 'true',
 
       // base - menus moved to computed property
-      collapsed: this.$store.state.app.sideCollapsed,
+      collapsed: /** @type {Vue & { $store: { state: { app: { sideCollapsed: boolean } } } }} */ (this).$store.state.app.sideCollapsed,
       title: defaultSettings.title,
       settings: {
         layout: defaultSettings.layout, // 'sidemenu', 'topmenu'
@@ -784,7 +785,7 @@ export default {
           if (!menuFooter) return
 
           if (this.isMobile) {
-            const drawer = document.querySelector('.ant-drawer.ant-drawer-open')
+            const drawer = /** @type {HTMLElement | null} */ (document.querySelector('.ant-drawer.ant-drawer-open'))
             this.isDrawerOpen = !!drawer
 
             if (drawer && !this.isDrawerAnimating) {
@@ -797,13 +798,13 @@ export default {
               menuFooter.style.opacity = '1'
 
               const footerHeight = menuFooter.offsetHeight || 280
-              const drawerBody = drawer.querySelector('.ant-drawer-body')
+              const drawerBody = /** @type {HTMLElement | null} */ (drawer.querySelector('.ant-drawer-body'))
               if (drawerBody) {
                 drawer.style.setProperty('--footer-height', `${footerHeight}px`)
                 drawerBody.style.paddingBottom = `${footerHeight + 10}px`
                 drawerBody.style.overflowY = 'auto'
                 drawerBody.style.overflowX = 'hidden'
-                drawerBody.style.webkitOverflowScrolling = 'touch'
+                drawerBody.style.setProperty('-webkit-overflow-scrolling', 'touch')
               }
 
               return
@@ -814,9 +815,9 @@ export default {
             } else {
               menuFooter.style.display = 'none'
               menuFooter.style.opacity = '0'
-              const drawer = document.querySelector('.ant-drawer')
+              const drawer = /** @type {HTMLElement | null} */ (document.querySelector('.ant-drawer'))
               if (drawer) {
-                const drawerBody = drawer.querySelector('.ant-drawer-body')
+                const drawerBody = /** @type {HTMLElement | null} */ (drawer.querySelector('.ant-drawer-body'))
                 if (drawerBody) {
                   drawerBody.style.paddingBottom = ''
                   drawerBody.style.overflowY = ''
@@ -943,7 +944,7 @@ export default {
       }
     }
   }
-}
+})
 </script>
 
 <style lang="less">

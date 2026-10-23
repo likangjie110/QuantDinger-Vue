@@ -277,7 +277,7 @@ import moment from 'moment'
 const ACTIVE = ['queued', 'running']
 const POLL_MS = 5000
 
-export default {
+const options = {
   name: 'JobList',
   data () {
     return {
@@ -368,7 +368,7 @@ export default {
       return Boolean(config && config.searchMode === 'ai')
     },
     modelText () {
-      const ai = this.aiSummary || {}
+      const ai = /** @type {{ provider?: string, model?: string }} */ (this.aiSummary || {})
       return [ai.provider, ai.model].filter(Boolean).join(' / ') || '-'
     },
     proposalColumns () {
@@ -499,7 +499,8 @@ export default {
           this.$message.error(this.message(res.msg))
           return
         }
-        this.jobs = res.data.items || []
+        const data = /** @type {{ items?: Array<Record<string, unknown>> }} */ (res.data)
+        this.jobs = data.items || []
       } catch (error) {
         this.$message.error(this.$t('factorMining.jobs.loadFailed'))
       } finally {
@@ -552,7 +553,8 @@ export default {
           this.proposalsError = this.message(res.msg)
           return
         }
-        this.proposals = (res.data && res.data.items) || []
+        const data = /** @type {{ items?: Array<Record<string, unknown>> }} */ (res.data)
+        this.proposals = (data && data.items) || []
       } catch (error) {
         this.proposalsError = this.$t('factorMining.proposals.failed')
       } finally {
@@ -574,6 +576,8 @@ export default {
     }
   }
 }
+
+export default options
 </script>
 
 <style lang="less" scoped>

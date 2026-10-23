@@ -19,6 +19,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { broker } from '@/api/broker'
 
 function num (v) {
@@ -34,7 +35,7 @@ function money (v, ccy = 'USD') {
   return `${sign}${ccy === 'USD' ? '$' : ''}${abs}${ccy && ccy !== 'USD' ? ' ' + ccy : ''}`
 }
 
-export default {
+export default Vue.extend({
   name: 'BrokerAccountCard',
   props: {
     brokerId: { type: String, required: true },
@@ -96,13 +97,13 @@ export default {
         this.info = inner && Object.keys(inner).length ? inner : null
       } catch (_) {
         this.info = null
-        this.$message.error(this.$t('brokerAccounts.accountLoadFailed'))
+        this.$message.error(String(this.$t('brokerAccounts.accountLoadFailed')))
       } finally {
         this.loading = false
       }
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

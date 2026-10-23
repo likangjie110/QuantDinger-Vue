@@ -96,7 +96,7 @@ const SelectLang = {
     const title = `${i18nRender('navBar.lang')} · ${languageLabels[this.currentLang] || currentLabel}`
     return (
       <Dropdown overlay={langMenu} placement="bottomRight" trigger={['click']}>
-        <span class={[prefixCls, 'language-action']} title={title} aria-label={title} role="button" tabIndex="0" onKeydown={handleKeydown}>
+        <span class={[prefixCls, 'language-action']} title={title} aria-label={title} role="button" tabindex={0} onKeydown={handleKeydown}>
           <Icon type="global" class="language-action-icon" />
           <span class="language-action-label">{currentLabel}</span>
         </span>

@@ -20,12 +20,21 @@ export function strategyParameterDescription (param = {}, translate, locale = ''
   return String(locale || '').toLowerCase().startsWith('en') ? (param.description || '') : ''
 }
 
+/**
+ * @typedef {Object} StrategyParameterOption
+ * @property {string|number} [value]
+ * @property {string} [labelKey]
+ * @property {string} [label_key]
+ * @property {string} [label]
+ */
+
 export function strategyParameterOptionLabel (param = {}, option = {}, translate) {
-  const value = option && typeof option === 'object' ? option.value : option
-  const labelKey = option && typeof option === 'object' ? (option.labelKey || option.label_key) : ''
+  const optionObject = option && typeof option === 'object' ? /** @type {StrategyParameterOption} */ (option) : null
+  const value = optionObject ? optionObject.value : option
+  const labelKey = optionObject ? (optionObject.labelKey || optionObject.label_key) : ''
   return translatedValue(translate, labelKey) ||
     translatedValue(translate, `strategyBuilder.params.${param.name}.options.${value}`) ||
-    (option && typeof option === 'object' ? (option.label || value) : value)
+    (optionObject ? (optionObject.label || value) : value)
 }
 
 export function strategyParameterOptions (param = {}) {

@@ -19,7 +19,7 @@ test('professional analysis has one canonical page and no hidden legacy renderer
   assert.doesNotMatch(page, /v-if="false"/)
   assert.doesNotMatch(page, /getEconomicCalendar|fastAnalyze|FastAnalysisReport/)
   assert.match(page, /<CopilotWorkbench/)
-  assert.match(routes, /path: '\/ai-asset-analysis'[\s\S]*?import\('@\/views\/ai-analysis'\)/)
+  assert.match(routes, /path: '\/ai-asset-analysis'[\s\S]*?import\('@\/views\/ai-analysis(?:\/index\.vue)?'\)/)
   assert.doesNotMatch(routes, /import\('@\/views\/ai-asset-analysis'\)/)
   assert.match(workbench, /<ProfessionalAnalysisReport/)
   assert.match(workbench, /ProfessionalAnalysisReport from '\.\/ProfessionalAnalysisReport\.vue'/)

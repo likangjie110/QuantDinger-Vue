@@ -27,7 +27,7 @@ function _setState (patch) {
 }
 
 function _readEnv () {
-  const env = (typeof import.meta !== 'undefined' && import.meta.env) || {}
+  const env = (typeof import.meta !== 'undefined' && import.meta.env) || /** @type {Record<string, string | undefined>} */ ({})
   const preferCdnRaw = env.VITE_PYODIDE_PREFER_CDN
   const preferCdn = preferCdnRaw === undefined || preferCdnRaw === ''
     ? import.meta.env.PROD

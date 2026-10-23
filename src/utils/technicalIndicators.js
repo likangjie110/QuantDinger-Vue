@@ -161,7 +161,8 @@ export function calculateMACD (data, fast, slow, signal) {
       signalLine.push(signalEma)
       histogram.push(macdLine[i] - signalEma)
     } else {
-      signalEma = (macdLine[i] - signalEma) * k + signalEma
+      const previousSignal = /** @type {number} */ (signalEma)
+      signalEma = (macdLine[i] - previousSignal) * k + previousSignal
       signalLine.push(signalEma)
       histogram.push(macdLine[i] - signalEma)
     }
@@ -350,7 +351,8 @@ export function calculateADX (data, length) {
           (plusDI[i - 1] + minusDI[i - 1]) * 100
         adx.push((prevDX + dx) / 2)
       } else {
-        adx.push((adx[i - 1] * (length - 1) + dx) / length)
+        const previousAdx = /** @type {number} */ (adx[i - 1])
+        adx.push((previousAdx * (length - 1) + dx) / length)
       }
     }
   }

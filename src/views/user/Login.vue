@@ -726,15 +726,32 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import { mapActions, mapState } from 'vuex'
 import { timeFix } from '@/utils/util'
 import { getSecurityConfig, issueTurnstileClearance, sendVerificationCode, register, resetPassword, loginWithCode, getGoogleOAuthUrl, getGitHubOAuthUrl, verifyLoginMfa } from '@/api/auth'
 import Turnstile from '@/components/Turnstile/index.vue'
+
+/**
+ * @typedef {Object} LoginPayload
+ * @property {string} [token]
+ * @property {Record<string, unknown>} [userinfo]
+ * @property {boolean} [is_new_user]
+ */
+
+/**
+ * @typedef {Object} SecurityConfigPayload
+ * @property {boolean} [turnstile_enabled]
+ * @property {string} [turnstile_site_key]
+ * @property {boolean} [registration_enabled]
+ * @property {boolean} [oauth_google_enabled]
+ * @property {boolean} [oauth_github_enabled]
+ */
 import storage from 'store'
 import { ACCESS_TOKEN, USER_INFO, USER_ROLES } from '@/store/mutation-types'
 import { promptChangeInitialPassword } from '@/utils/initialPasswordReminder'
 
-export default {
+export default Vue.extend({
   name: 'Login',
   components: {
     Turnstile
@@ -949,7 +966,8 @@ export default {
       try {
         const res = await getSecurityConfig()
         if (res.code === 1 && res.data) {
-          this.securityConfig = { ...this.securityConfig, ...res.data }
+          const data = /** @type {SecurityConfigPayload} */ (res.data)
+          this.securityConfig = { ...this.securityConfig, ...data }
         }
       } catch (e) {
         console.error('Failed to load security config:', e)
@@ -1079,8 +1097,9 @@ export default {
           challenge_id: this.mfaChallengeId,
           code
         })
-        if (res.code === 1 && res.data && res.data.token) {
-          this.applyLoginResult(res.data)
+        const data = /** @type {LoginPayload} */ (res.data || {})
+        if (res.code === 1 && data.token) {
+          this.applyLoginResult(data)
           this.resetMfaLogin()
           this.afterLoginSuccess()
         } else {
@@ -1210,13 +1229,14 @@ export default {
             referral_code: this.referralCode
           })
 
-          if (res.code === 1 && res.data?.token) {
+          const data = /** @type {LoginPayload} */ (res.data || {})
+          if (res.code === 1 && data.token) {
             const expiresAt = new Date().getTime() + 7 * 24 * 60 * 60 * 1000
-            storage.set(ACCESS_TOKEN, res.data.token, expiresAt)
-            this.$store.commit('SET_TOKEN', res.data.token)
+            storage.set(ACCESS_TOKEN, data.token, expiresAt)
+            this.$store.commit('SET_TOKEN', data.token)
 
-            if (res.data.userinfo) {
-              const userInfoData = { ...res.data.userinfo }
+            if (data.userinfo) {
+              const userInfoData = { ...data.userinfo }
               if (typeof userInfoData.is_demo === 'undefined') {
                 userInfoData.is_demo = false
               }
@@ -1267,7 +1287,7 @@ export default {
 
             this.$store.dispatch('ResetRoutes')
 
-            const isNew = res.data.is_new_user
+            const isNew = data.is_new_user
             this.$router.push({ path: '/' }).then(() => {
               this.$notification.success({
                 message: isNew ? (this.$t('user.login.welcomeNew') || 'Welcome!') : 'Welcome',
@@ -1394,13 +1414,14 @@ export default {
           if (res.code === 1) {
             this.$message.success(this.$t('user.register.success') || 'Registration successful')
 
-            if (res.data?.token) {
+            const data = /** @type {LoginPayload} */ (res.data || {})
+            if (data.token) {
               const expiresAt = new Date().getTime() + 7 * 24 * 60 * 60 * 1000
-              storage.set(ACCESS_TOKEN, res.data.token, expiresAt)
-              this.$store.commit('SET_TOKEN', res.data.token)
+              storage.set(ACCESS_TOKEN, data.token, expiresAt)
+              this.$store.commit('SET_TOKEN', data.token)
 
-              if (res.data.userinfo) {
-                const userInfoData = { ...res.data.userinfo }
+              if (data.userinfo) {
+                const userInfoData = { ...data.userinfo }
                 if (typeof userInfoData.is_demo === 'undefined') {
                   userInfoData.is_demo = false
                 }
@@ -1617,7 +1638,7 @@ export default {
       window.location.href = getGitHubOAuthUrl()
     }
   }
-}
+})
 </script>
 
 <style lang="less" scoped>

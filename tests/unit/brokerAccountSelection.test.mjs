@@ -5,7 +5,7 @@ import vm from 'node:vm'
 
 function options (file, mocks = {}) {
   let script = fs.readFileSync(new URL('../../src/' + file, import.meta.url), 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1]
-  const scope = { ...mocks, console, setTimeout, clearTimeout }
+  const scope = { ...mocks, console, setTimeout, clearTimeout, Vue: { extend: options => options } }
   script = script.replace(/^import\s+([\s\S]*?)\s+from\s+['"][^'"]+['"]\s*$/gm, (_, names) => {
     for (const item of names.replace(/[{}]/g, '').split(',')) {
       const name = item.trim().split(/\s+as\s+/).pop()

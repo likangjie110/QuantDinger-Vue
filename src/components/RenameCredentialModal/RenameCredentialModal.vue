@@ -37,12 +37,10 @@ export default {
     visible: { type: Boolean, default: false },
     credential: { type: Object, default: null }
   },
-  data () {
-    return {
-      nameInput: '',
-      saving: false
-    }
-  },
+  data: () => ({
+    nameInput: '',
+    saving: false
+  }),
   computed: {
     exchangeLabel () {
       if (!this.credential) return ''
@@ -81,14 +79,14 @@ export default {
           name: (this.nameInput || '').trim()
         })
         if (res && res.code === 1) {
-          this.$message.success(this.$t('profile.exchange.renameSuccess'))
+          this.$message.success(String(this.$t('profile.exchange.renameSuccess')))
           this.$emit('update:visible', false)
           this.$emit('success', res.data)
         } else {
-          this.$message.error((res && res.msg) || this.$t('profile.exchange.renameFailed'))
+          this.$message.error(String((res && res.msg) || this.$t('profile.exchange.renameFailed')))
         }
       } catch (e) {
-        this.$message.error((e && e.message) || this.$t('profile.exchange.renameFailed'))
+        this.$message.error(String((e && e.message) || this.$t('profile.exchange.renameFailed')))
       } finally {
         this.saving = false
       }

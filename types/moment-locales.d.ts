@@ -8,6 +8,10 @@ declare module 'moment/locale/de' {
   const locale: import('moment').Locale
   export default locale
 }
+declare module 'moment/locale/eu' {
+  const locale: import('moment').Locale
+  export default locale
+}
 declare module 'moment/locale/fr' {
   const locale: import('moment').Locale
   export default locale

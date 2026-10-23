@@ -18,46 +18,46 @@ export const asyncRouterMap = [
       {
         path: '/ai-asset-analysis',
         name: 'AIAssetAnalysis',
-        component: () => import('@/views/ai-analysis'),
+        component: () => import('@/views/ai-analysis/index.vue'),
         meta: { title: 'menu.dashboard.aiAssetAnalysis', keepAlive: true, icon: 'appstore', permission: ['dashboard'] }
       },
       // Unified strategy workspace entry.
       {
         path: '/strategy-center',
         name: 'StrategyCenter',
-        component: () => import('@/views/strategy-center'),
+        component: () => import('@/views/strategy-center/index.vue'),
         meta: { title: 'menu.dashboard.strategyCenter', keepAlive: true, icon: 'cluster', permission: ['dashboard'] }
       },
       // Indicator marketplace.
       {
         path: '/indicator-community',
         name: 'IndicatorCommunity',
-        component: () => import('@/views/indicator-community'),
+        component: () => import('@/views/indicator-community/index.vue'),
         meta: { title: 'menu.dashboard.community', keepAlive: false, icon: 'shop', permission: ['dashboard'], capability: 'marketplace_enabled' }
       },
       // Strategy IDE.
       {
         path: '/strategy-ide',
         name: 'StrategyIDE',
-        component: () => import('@/views/strategy-ide'),
+        component: () => import('@/views/strategy-ide/index.vue'),
         meta: { title: 'menu.dashboard.strategyIde', keepAlive: true, icon: 'code', permission: ['dashboard'] }
       },
       {
         path: '/backtest-center',
         name: 'BacktestCenter',
-        component: () => import('@/views/backtest-center'),
+        component: () => import('@/views/backtest-center/index.vue'),
         meta: { title: 'menu.dashboard.backtestCenter', keepAlive: true, icon: 'bar-chart', permission: ['dashboard'] }
       },
       {
         path: '/indicator-ide',
         name: 'IndicatorIDE',
-        component: () => import('@/views/indicator-ide'),
+        component: () => import('@/views/indicator-ide/index.vue'),
         meta: { title: 'menu.dashboard.indicatorIde', keepAlive: true, icon: 'line-chart', permission: ['dashboard'] }
       },
       {
         path: '/universe-manager',
         name: 'UniverseManager',
-        component: () => import('@/views/universe-manager'),
+        component: () => import('@/views/universe-manager/index.vue'),
         hidden: true,
         meta: { title: 'menu.dashboard.universeManager', keepAlive: true, icon: 'database', permission: ['dashboard'] }
       },
@@ -65,14 +65,14 @@ export const asyncRouterMap = [
       {
         path: '/broker-accounts',
         name: 'BrokerAccounts',
-        component: () => import('@/views/broker-accounts'),
+        component: () => import('@/views/broker-accounts/index.vue'),
         meta: { title: 'menu.dashboard.brokerAccounts', keepAlive: true, icon: 'bank', permission: ['dashboard'] }
       },
       // Factor mining.
       {
         path: '/factor-mining',
         name: 'FactorMining',
-        component: () => import('@/views/factor-mining'),
+        component: () => import('@/views/factor-mining/index.vue'),
         meta: { title: 'menu.dashboard.factorMining', keepAlive: false, icon: 'experiment', permission: ['dashboard'] }
       },
       // Legacy chart route.
@@ -111,41 +111,41 @@ export const asyncRouterMap = [
       {
         path: '/billing',
         name: 'Billing',
-        component: () => import('@/views/billing'),
+        component: () => import('@/views/billing/index.vue'),
         meta: { title: 'menu.billing', keepAlive: false, icon: 'wallet', permission: ['dashboard'], capability: 'billing_enabled' }
       },
       // User profile. Admin-only items follow the menu divider.
       {
         path: '/profile',
         name: 'Profile',
-        component: () => import('@/views/profile'),
+        component: () => import('@/views/profile/index.vue'),
         meta: { title: 'menu.myProfile', keepAlive: false, icon: 'user', permission: ['dashboard'], menuDividerAfter: true }
       },
       // User management.
       {
         path: '/user-manage',
         name: 'UserManage',
-        component: () => import('@/views/user-manage'),
+        component: () => import('@/views/user-manage/index.vue'),
         meta: { title: 'menu.userManage', keepAlive: false, icon: 'team', permission: ['admin'] }
       },
       // Agent token management.
       {
         path: '/agent-tokens',
         name: 'AgentTokens',
-        component: () => import('@/views/agent-tokens'),
+        component: () => import('@/views/agent-tokens/index.vue'),
         meta: { title: 'menu.agentTokens', keepAlive: false, icon: 'api', permission: ['admin'] }
       },
       {
         path: '/ai-skills',
         name: 'AiSkills',
-        component: () => import('@/views/ai-skills'),
+        component: () => import('@/views/ai-skills/index.vue'),
         meta: { title: 'menu.aiSkills', keepAlive: false, icon: 'experiment', permission: ['admin'] }
       },
       // System settings. Keep it last in the admin menu.
       {
         path: '/settings',
         name: 'Settings',
-        component: () => import('@/views/settings'),
+        component: () => import('@/views/settings/index.vue'),
         meta: { title: 'menu.settings', keepAlive: false, icon: 'setting', permission: ['admin'] }
       }
     ]
@@ -167,7 +167,7 @@ export const constantRouterMap = [
     name: 'PublicProfessionalReport',
     hidden: true,
     meta: { title: 'fastAnalysis.sharedReportPageTitle', public: true },
-    component: () => import('@/views/public-report')
+    component: () => import('@/views/public-report/index.vue')
   },
   {
     path: '/strategy-runtime',
@@ -187,7 +187,7 @@ export const constantRouterMap = [
         path: 'login',
         name: 'login',
         meta: { title: 'user.login.tab' },
-        component: () => import(/* webpackChunkName: "user" */ '@/views/user/Login')
+        component: () => import(/* webpackChunkName: "user" */ '@/views/user/Login.vue')
       }
     ]
   },
@@ -195,6 +195,6 @@ export const constantRouterMap = [
   {
     path: '/404',
     meta: { title: 'menu.exception.not-find' },
-    component: () => import(/* webpackChunkName: "fail" */ '@/views/exception/404')
+    component: () => import(/* webpackChunkName: "fail" */ '@/views/exception/404.vue')
   }
 ]

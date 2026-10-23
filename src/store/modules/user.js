@@ -8,6 +8,16 @@ storage.addPlugin(expirePlugin)
 
 const DEFAULT_ROLE = { id: 'default', permissionList: [] }
 
+/**
+ * Subset of /api/auth/info used by this module.
+ * @typedef {Object} UserInfoPayload
+ * @property {string} [nickname]
+ * @property {string} [username]
+ * @property {string} [avatar]
+ * @property {unknown} [role]
+ * @property {unknown} [roles]
+ */
+
 function normalizeRoles (roles) {
   if (!roles) return []
   if (Array.isArray(roles)) return roles
@@ -159,7 +169,7 @@ const user = {
       return new Promise((resolve, reject) => {
         getUserInfo().then(res => {
           if (res && res.code === 1 && res.data) {
-            const info = res.data
+            const info = /** @type {UserInfoPayload} */ (res.data)
             commit('SET_INFO', info)
             const expiresAt = new Date().getTime() + 7 * 24 * 60 * 60 * 1000
             storage.set(USER_INFO, info, expiresAt)
@@ -204,7 +214,7 @@ const user = {
         } else {
           getUserInfo().then(res => {
             if (res && res.code === 1 && res.data) {
-              const info = res.data
+              const info = /** @type {UserInfoPayload} */ (res.data)
               commit('SET_INFO', info)
               storage.set(USER_INFO, info, new Date().getTime() + 7 * 24 * 60 * 60 * 1000)
               if (info.nickname) {

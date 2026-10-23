@@ -7,7 +7,7 @@ import moment from 'moment'
 function harness (fetch, sync = async () => ({ code: 1 })) {
   const source = fs.readFileSync(new URL('../../src/views/settings/FundamentalSyncPanel.vue', import.meta.url), 'utf8')
   const script = source.match(/<script>([\s\S]*?)<\/script>/)[1].replace(/^import .*$/gm, '').replace('export default', 'component =')
-  const context = { moment, getUniverseFundamentals: fetch, syncUniverseFundamentals: sync, clearTimeout, setTimeout }
+  const context = { Vue: { extend: options => options }, moment, getUniverseFundamentals: fetch, syncUniverseFundamentals: sync, clearTimeout, setTimeout }
   vm.runInNewContext(script, context)
   const options = context.component
   const state = { ...options.data(), $t: key => key, supportedUniverses: [], running: false }

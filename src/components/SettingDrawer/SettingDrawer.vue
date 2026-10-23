@@ -163,10 +163,21 @@
 </template>
 
 <script>
-import SettingItem from './SettingItem'
+import SettingItem from './SettingItem.vue'
 import config from '@/config/defaultSettings'
 import { updateColorWeak, getColorList } from './settingConfig'
 import { baseMixin } from '@/store/app-mixin'
+
+/**
+ * The shared mixin's mapState spread erases computed inference; declare the
+ * members this drawer reads so the Options API instance stays typed.
+ * @typedef {Object} AppSettingMixin
+ * @property {{ layout: () => string, navTheme: () => string, primaryColor: () => string, colorWeak: () => boolean, fixedHeader: () => boolean, fixedSidebar: () => boolean, contentWidth: () => string, autoHideHeader: () => boolean, isMobile: () => boolean, sideCollapsed: () => boolean, multiTab: () => boolean, isTopMenu: () => boolean }} computed
+ * @property {{ isSideMenu: () => boolean }} methods
+ */
+
+/** @type {AppSettingMixin} */
+const appMixin = baseMixin
 
 export default {
   components: {
@@ -178,12 +189,10 @@ export default {
       default: () => ({})
     }
   },
-  mixins: [baseMixin],
-  data () {
-    return {
-      visible: false
-    }
-  },
+  mixins: [appMixin],
+  data: () => ({
+    visible: false
+  }),
   computed: {
     colorList () {
       return getColorList()
@@ -266,8 +275,8 @@ export default {
 }`
       // Native clipboard with execCommand fallback (vue-clipboard2 was
       // removed from the bundle — see package.json change history).
-      const okMsg = this.$t('app.setting.copy.success')
-      const failMsg = this.$t('app.setting.copy.fail')
+      const okMsg = String(this.$t('app.setting.copy.success'))
+      const failMsg = String(this.$t('app.setting.copy.fail'))
       const fallback = () => {
         try {
           const ta = document.createElement('textarea')

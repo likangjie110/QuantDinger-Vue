@@ -1,5 +1,19 @@
 import Modal from 'ant-design-vue/es/modal'
+
+/**
+ * @typedef {Object} DialogProps
+ * @property {Record<string, unknown>} [model]
+ * @property {Record<string, unknown>} [attrs]
+ * @property {Record<string, unknown>} [on]
+ */
+
 export default (Vue) => {
+  /**
+   * @this {import('vue').ComponentPublicInstance & { _isVue?: boolean }}
+   * @param {import('vue').Component} component
+   * @param {DialogProps} [componentProps]
+   * @param {DialogProps} [modalProps]
+   */
   function dialog (component, componentProps, modalProps) {
     const _vm = this
     modalProps = modalProps || {}
@@ -105,9 +119,11 @@ export default (Vue) => {
 
   Object.defineProperty(Vue.prototype, '$dialog', {
     get: () => {
-      return function () {
+      /** @type {(this: import('vue').ComponentPublicInstance) => void} */
+      const handler = function () {
         dialog.apply(this, arguments)
       }
+      return handler
     }
   })
 }

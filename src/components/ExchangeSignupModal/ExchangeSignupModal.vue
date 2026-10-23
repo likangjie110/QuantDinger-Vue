@@ -64,11 +64,9 @@ export default {
     visible: { type: Boolean, default: false },
     isDarkTheme: { type: Boolean, default: false }
   },
-  data () {
-    return {
-      cryptoCards: CRYPTO_SIGNUP_CARDS
-    }
-  },
+  data: () => ({
+    cryptoCards: CRYPTO_SIGNUP_CARDS
+  }),
   computed: {
     modalWrapClass () {
       const base = 'profile-exchange-modal'

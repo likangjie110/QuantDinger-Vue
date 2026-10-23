@@ -1,6 +1,7 @@
+import Vue from 'vue'
 import { Spin } from 'ant-design-vue'
 
-export const PageLoading = {
+export const PageLoading = Vue.extend({
   name: 'PageLoading',
   props: {
     tip: {
@@ -13,6 +14,7 @@ export const PageLoading = {
     }
   },
   render () {
+    /** @type {import('vue').CSSProperties} */
     const style = {
       textAlign: 'center',
       background: 'rgba(0,0,0,0.6)',
@@ -33,7 +35,7 @@ export const PageLoading = {
       <Spin size={this.size} style={spinStyle} tip={this.tip} />
     </div>)
   }
-}
+})
 
 const version = '0.0.1'
 const loading = {}
